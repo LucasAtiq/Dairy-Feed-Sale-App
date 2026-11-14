@@ -31,7 +31,7 @@ import java.util.Locale
         AuditLogEntity::class,
         BusinessConfigEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class DairyDatabase : RoomDatabase() {
@@ -91,14 +91,13 @@ object SampleDataSeeder {
         val config = dao.getBusinessConfigOnce()
         if (config != null) return
 
-        // 1. Save default Business Config
-        dao.saveBusinessConfig(BusinessConfigEntity(id = 1, isSampleDataLoaded = true))
+        // 1. Save default Business Config (clean state, no sample data)
+        dao.saveBusinessConfig(BusinessConfigEntity(id = 1, isSampleDataLoaded = false))
 
         // 2. Seed core configurable settings (Products, Bag Sizes, Lookups, Custom Fields)
         seedCoreConfigurableDefaults(dao)
 
-        // 3. Seed realistic sample transactions & partners
-        seedSampleRecords(dao)
+        // 3. Sample records seeding disabled - app starts completely fresh & clean
     }
 
     suspend fun seedCoreConfigurableDefaults(dao: DairyDao) {
@@ -160,8 +159,8 @@ object SampleDataSeeder {
                         salePrice = 3500.0,
                         retailPrice = 3680.0,
                         specialPrice = 3440.0,
-                        minStockBags = 120,
-                        openingStockBags = 300
+                        minStockBags = 0,
+                        openingStockBags = 0
                     ),
                     ProductEntity(
                         id = 2,
@@ -175,8 +174,8 @@ object SampleDataSeeder {
                         salePrice = 3800.0,
                         retailPrice = 3980.0,
                         specialPrice = 3740.0,
-                        minStockBags = 100,
-                        openingStockBags = 240
+                        minStockBags = 0,
+                        openingStockBags = 0
                     ),
                     ProductEntity(
                         id = 3,
@@ -190,8 +189,8 @@ object SampleDataSeeder {
                         salePrice = 3420.0,
                         retailPrice = 3580.0,
                         specialPrice = 3360.0,
-                        minStockBags = 100,
-                        openingStockBags = 200
+                        minStockBags = 0,
+                        openingStockBags = 0
                     ),
                     ProductEntity(
                         id = 4,
@@ -205,8 +204,8 @@ object SampleDataSeeder {
                         salePrice = 3950.0,
                         retailPrice = 4150.0,
                         specialPrice = 3890.0,
-                        minStockBags = 90,
-                        openingStockBags = 180
+                        minStockBags = 0,
+                        openingStockBags = 0
                     ),
                     ProductEntity(
                         id = 5,
@@ -220,8 +219,8 @@ object SampleDataSeeder {
                         salePrice = 2100.0,
                         retailPrice = 2250.0,
                         specialPrice = 2050.0,
-                        minStockBags = 80,
-                        openingStockBags = 65 // Intentionally below 80 after sales to showcase low-stock alert!
+                        minStockBags = 0,
+                        openingStockBags = 0
                     )
                 )
             )
