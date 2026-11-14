@@ -27,10 +27,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
@@ -90,7 +93,7 @@ fun DashboardScreen(
         contentPadding = PaddingValues(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 1 & 2. WELCOME SECTION + DYNAMIC DATE BANNER
+        // 1 & 2. UNIFIED BRAND HEADER + USER PROFILE + DATE BANNER (Matching ChatGPT Screen 1)
         item {
             Box(
                 modifier = Modifier
@@ -100,80 +103,145 @@ fun DashboardScreen(
                             colors = listOf(DashDarkGreen, DashPrimaryGreen)
                         )
                     )
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // Row 1: App Title + Subtitle + Notification Bell
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(46.dp)
-                                .clip(CircleShape)
-                                .background(Color.White),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = "User Profile",
-                                tint = DashDarkGreen,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
                         Column {
                             Text(
-                                text = "Welcome, Attique ur Rehman",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                color = Color.White,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                text = buildAnnotatedString {
+                                    withStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.Black)) {
+                                        append("WandaBook ")
+                                    }
+                                    withStyle(SpanStyle(color = DashGoldHighlight, fontWeight = FontWeight.Black)) {
+                                        append("Pro")
+                                    }
+                                },
+                                style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp),
+                                maxLines = 1
                             )
                             Text(
-                                text = "Region Sale Manager",
-                                style = MaterialTheme.typography.bodySmall,
+                                text = "Dairy Feed Sales & Management",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
                                 color = Color(0xFFD2EFE0),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                maxLines = 1
                             )
+                        }
+
+                        // Notification Icon with Reminder Badge
+                        BadgedBox(
+                            badge = {
+                                if (uiState.smartReminders.isNotEmpty()) {
+                                    Badge(
+                                        containerColor = Color(0xFFE53935),
+                                        contentColor = Color.White
+                                    ) {
+                                        Text("${uiState.smartReminders.size}")
+                                    }
+                                }
+                            }
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.12f))
+                                    .clickable { viewModel.navigateToSubModule(SubModule.REMINDERS) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Notifications,
+                                    contentDescription = "Notifications",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Surface(
-                        color = Color.White.copy(alpha = 0.12f),
-                        shape = RoundedCornerShape(50),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            Color.White.copy(alpha = 0.35f)
-                        )
+                    // Row 2: User Profile Info + Dynamic Date Chip
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.weight(1f, fill = false)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.CalendarToday,
-                                contentDescription = "Current Date",
-                                tint = Color.White,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Text(
-                                text = currentDeviceDateLabel,
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontWeight = FontWeight.SemiBold
-                                ),
-                                color = Color.White
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = "User Profile",
+                                    tint = DashDarkGreen,
+                                    modifier = Modifier.size(26.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = "Welcome, Attique ur Rehman",
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.5.sp
+                                    ),
+                                    color = Color.White,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "Region Sale Manager",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                    color = Color(0xFFD2EFE0),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        Surface(
+                            color = Color.White.copy(alpha = 0.14f),
+                            shape = RoundedCornerShape(50),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CalendarToday,
+                                    contentDescription = "Current Date",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Text(
+                                    text = currentDeviceDateLabel,
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 11.5.sp
+                                    ),
+                                    color = Color.White,
+                                    maxLines = 1
+                                )
+                            }
                         }
                     }
                 }
@@ -185,8 +253,8 @@ fun DashboardScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    .padding(horizontal = 14.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 DashboardMainKpiCard(
                     title = "This Month Sales",
@@ -224,9 +292,10 @@ fun DashboardScreen(
             val progressPct = dash.achievementPercentBags.coerceIn(0.0, 100.0)
             val progressFraction = (progressPct / 100.0).toFloat().coerceIn(0f, 1f)
 
-            ElevatedCard(
+            Card(
                 shape = RoundedCornerShape(18.dp),
-                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                colors = CardDefaults.cardColors(containerColor = DashDeepGreen),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 14.dp)
@@ -254,7 +323,7 @@ fun DashboardScreen(
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
                             .width(130.dp)
-                            .height(128.dp)
+                            .height(115.dp)
                             .alpha(0.28f)
                     )
                     // Smooth gradient overlay to guarantee 100% crisp text contrast
@@ -275,112 +344,112 @@ fun DashboardScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        // Row 1: Target Icon + "Monthly Target" & "50 / 1,000 Bags"
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                modifier = Modifier.weight(1f)
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.14f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.3f), CircleShape),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(44.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.White.copy(alpha = 0.14f))
-                                        .border(1.dp, Color.White.copy(alpha = 0.3f), CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.TrackChanges,
-                                        contentDescription = "Monthly Target",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(26.dp)
-                                    )
-                                }
-
-                                Column {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Text(
-                                            text = "Monthly Target",
-                                            style = MaterialTheme.typography.titleMedium.copy(
-                                                fontWeight = FontWeight.SemiBold
-                                            ),
-                                            color = Color(0xFFE2F5EA)
-                                        )
-                                        Icon(
-                                            imageVector = Icons.Default.Edit,
-                                            contentDescription = "Edit Monthly Target",
-                                            tint = Color.White.copy(alpha = 0.75f),
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    }
-                                    Text(
-                                        text = "${numberFormatter.format(dash.monthlyBags)} / ${numberFormatter.format(dash.monthlyTargetBags)} Bags",
-                                        style = MaterialTheme.typography.headlineSmall.copy(
-                                            fontWeight = FontWeight.ExtraBold
-                                        ),
-                                        color = Color.White
-                                    )
-                                }
+                                Icon(
+                                    imageVector = Icons.Default.TrackChanges,
+                                    contentDescription = "Monthly Target",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
                             }
 
-                            Column(horizontalAlignment = Alignment.End) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "Monthly Target",
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 12.sp
+                                        ),
+                                        color = Color(0xFFE2F5EA)
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Edit Monthly Target",
+                                        tint = Color.White.copy(alpha = 0.75f),
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                }
                                 Text(
-                                    text = "Remaining: ${numberFormatter.format(dash.remainingTargetBags)} Bags",
-                                    style = MaterialTheme.typography.labelLarge.copy(
-                                        fontWeight = FontWeight.Bold
+                                    text = "${numberFormatter.format(dash.monthlyBags)} / ${numberFormatter.format(dash.monthlyTargetBags)} Bags",
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 18.sp
                                     ),
-                                    color = Color.White
-                                )
-                                Text(
-                                    text = "${BusinessCalculations.formatDecimal(dash.monthlyMt)} MT Sold",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFFD2EFE0)
+                                    color = Color.White,
+                                    maxLines = 1
                                 )
                             }
                         }
 
-                        // Gold Progress Bar with Percentage Badge
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(22.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(Color.White.copy(alpha = 0.22f))
-                                .border(1.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(50))
+                        // Row 2: Progress Bar + Remaining Bags
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .fillMaxHeight()
-                                    .fillMaxWidth(progressFraction.coerceAtLeast(0.14f))
+                                    .weight(1f)
+                                    .height(20.dp)
                                     .clip(RoundedCornerShape(50))
-                                    .background(
-                                        Brush.horizontalGradient(
-                                            colors = listOf(
-                                                Color(0xFFF59E0B),
-                                                DashGoldHighlight
-                                            )
-                                        )
-                                    ),
-                                contentAlignment = Alignment.Center
+                                    .background(Color.White.copy(alpha = 0.22f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(50))
                             ) {
-                                Text(
-                                    text = "${progressPct.roundToInt()}%",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.ExtraBold
-                                    ),
-                                    color = Color(0xFF1B241E)
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .fillMaxWidth(progressFraction.coerceAtLeast(0.12f))
+                                        .clip(RoundedCornerShape(50))
+                                        .background(
+                                            Brush.horizontalGradient(
+                                                colors = listOf(
+                                                    Color(0xFFF59E0B),
+                                                    DashGoldHighlight
+                                                )
+                                            )
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "${progressPct.roundToInt()}%",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 10.sp
+                                        ),
+                                        color = Color(0xFF78350F)
+                                    )
+                                }
                             }
+
+                            Text(
+                                text = "Remaining: ${numberFormatter.format(dash.remainingTargetBags)} Bags",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.5.sp
+                                ),
+                                color = Color.White,
+                                maxLines = 1
+                            )
                         }
                     }
                 }
@@ -413,10 +482,10 @@ fun DashboardScreen(
                             Card(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(88.dp)
+                                    .height(74.dp)
                                     .clickable { onQuickAction(actionKey) }
                                     .testTag("quick_action_${actionKey.lowercase()}"),
-                                shape = RoundedCornerShape(16.dp),
+                                shape = RoundedCornerShape(14.dp),
                                 colors = CardDefaults.cardColors(
                                     containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White
                                 ),
@@ -429,7 +498,7 @@ fun DashboardScreen(
                                 Column(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .padding(horizontal = 4.dp, vertical = 8.dp),
+                                        .padding(horizontal = 4.dp, vertical = 6.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center
                                 ) {
@@ -437,14 +506,14 @@ fun DashboardScreen(
                                         imageVector = icon,
                                         contentDescription = label,
                                         tint = if (isDark) Color(0xFF4ADE80) else DashPrimaryGreen,
-                                        modifier = Modifier.size(26.dp)
+                                        modifier = Modifier.size(24.dp)
                                     )
-                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = label,
-                                        style = MaterialTheme.typography.labelSmall.copy(
+                                        style = MaterialTheme.typography.bodySmall.copy(
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 11.5.sp
+                                            fontSize = 11.sp
                                         ),
                                         color = if (isDark) Color(0xFFE2E8F0) else Color(0xFF1E293B),
                                         textAlign = TextAlign.Center,
@@ -722,17 +791,19 @@ private fun DashboardMainKpiCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+                .padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 11.sp
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    lineHeight = 13.sp
                 ),
                 color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
-                maxLines = 1,
+                maxLines = 2,
+                minLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
 
@@ -740,7 +811,7 @@ private fun DashboardMainKpiCard(
                 text = primaryValue,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.ExtraBold,
-                    fontSize = 14.5.sp
+                    fontSize = 13.5.sp
                 ),
                 color = if (isDark) Color.White else Color(0xFF0F172A),
                 maxLines = 1,
@@ -749,8 +820,8 @@ private fun DashboardMainKpiCard(
 
             Text(
                 text = secondaryValue,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 10.5.sp
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontSize = 10.sp
                 ),
                 color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF64748B),
                 maxLines = 1,

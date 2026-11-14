@@ -108,7 +108,7 @@ val Typography = Typography(
         lineHeight = 16.sp
     ),
     labelSmall = TextStyle(
-        fontFamily = JetBrainsMonoFamily,
+        fontFamily = PlusJakartaFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 11.sp,
         lineHeight = 15.sp

@@ -113,7 +113,8 @@ fun DairyFeedAppRoot(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
+            if (uiState.activeTab != PrimaryTab.DASHBOARD) {
+                TopAppBar(
                 title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -228,7 +229,8 @@ fun DairyFeedAppRoot(
                     actionIconContentColor = Color.White
                 )
             )
-        },
+        }
+    },
         bottomBar = {
             WandaBookBottomNavigationBar(
                 uiState = uiState,
