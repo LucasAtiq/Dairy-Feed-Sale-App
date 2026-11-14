@@ -24,7 +24,6 @@ import java.util.Locale
         FeedTrialEntity::class,
         MilkRecordEntity::class,
         ComplaintEntity::class,
-        VisitEntity::class,
         SalesTargetEntity::class,
         ExpenseEntity::class,
         TravelLogEntity::class,
@@ -32,7 +31,7 @@ import java.util.Locale
         AuditLogEntity::class,
         BusinessConfigEntity::class
     ],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 abstract class DairyDatabase : RoomDatabase() {
@@ -42,6 +41,19 @@ abstract class DairyDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: DairyDatabase? = null
 
+        val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE business_config ADD COLUMN autoBackupFrequency TEXT NOT NULL DEFAULT 'Daily'")
+                db.execSQL("ALTER TABLE business_config ADD COLUMN lastBackupStatus TEXT NOT NULL DEFAULT 'Ready'")
+                db.execSQL("ALTER TABLE business_config ADD COLUMN nextBackupAt TEXT NOT NULL DEFAULT 'Daily at 07:30 PM'")
+                db.execSQL("ALTER TABLE business_config ADD COLUMN emailBackupEnabled INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE business_config ADD COLUMN backupEmailAddress TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE business_config ADD COLUMN emailBackupFrequency TEXT NOT NULL DEFAULT 'Daily'")
+                db.execSQL("ALTER TABLE business_config ADD COLUMN emailBackupTime TEXT NOT NULL DEFAULT '07:30 PM'")
+                db.execSQL("ALTER TABLE business_config ADD COLUMN emailWebhookUrl TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         fun getInstance(context: Context): DairyDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -49,6 +61,7 @@ abstract class DairyDatabase : RoomDatabase() {
                     DairyDatabase::class.java,
                     "dairy_feed_business.db"
                 )
+                    .addMigrations(MIGRATION_2_3)
                     .fallbackToDestructiveMigration(true)
                     .build()
                 INSTANCE = instance
@@ -108,17 +121,6 @@ object SampleDataSeeder {
 
             listOf("Cash", "Bank Transfer", "Online", "Cheque")
                 .forEachIndexed { i, name -> lookups.add(LookupItemEntity(categoryType = "PAYMENT_METHOD", name = name, sortOrder = i)) }
-
-            listOf(
-                "Dealer Visit",
-                "Farmer Visit",
-                "Farm Visit",
-                "Veterinary Hospital",
-                "University",
-                "Market Visit",
-                "New Customer",
-                "Follow-up"
-            ).forEachIndexed { i, name -> lookups.add(LookupItemEntity(categoryType = "VISIT_TYPE", name = name, sortOrder = i)) }
 
             listOf(
                 "Milk Yield Variation",
@@ -884,60 +886,6 @@ object SampleDataSeeder {
             )
         )
 
-        // Seed Visits
-        dao.insertVisits(
-            listOf(
-                VisitEntity(
-                    visitCode = "VST-2026-001",
-                    date = today,
-                    partnerType = "Dealer",
-                    partnerId = 1,
-                    partnerName = "Al-Madina Dairy Feeds & Grains",
-                    location = "Sahiwal Grain Market",
-                    personMet = "Chaudhry Tariq Mehmood",
-                    visitType = "Dealer Visit",
-                    purpose = "Order booking & ledger reconciliation",
-                    discussion = "Booked 100 bags (60x 26P, 40x 55M) and collected Rs. 220,000 bank transfer.",
-                    potentialOrderBags = 120,
-                    orderReceivedBags = 100,
-                    followUpDate = twoDaysAhead,
-                    remarks = "Schedule farmer day meeting next week."
-                ),
-                VisitEntity(
-                    visitCode = "VST-2026-002",
-                    date = today,
-                    partnerType = "Farmer",
-                    partnerId = 1,
-                    partnerName = "Mian Kashif Nadeem",
-                    location = "Green Acres Holstein Dairy, Sahiwal",
-                    personMet = "Mian Kashif & Farm Manager",
-                    visitType = "Farm Visit",
-                    purpose = "Feed Trial TRL-2026-001 milk weighing",
-                    discussion = "Verified +3.27L average milk increase per cow on 28P ration.",
-                    potentialOrderBags = 150,
-                    orderReceivedBags = 60,
-                    followUpDate = tomorrow,
-                    remarks = "Farm owner ready to convert entire herd next week."
-                ),
-                VisitEntity(
-                    visitCode = "VST-2026-003",
-                    date = yesterday,
-                    partnerType = "Dealer",
-                    partnerId = 4,
-                    partnerName = "Sutlej Dairy Traders",
-                    location = "Arifwala Road, Pakpattan",
-                    personMet = "Malik Asif Nawaz",
-                    visitType = "New Customer",
-                    purpose = "New dealership onboarding",
-                    discussion = "Shared dealer margin structure and credit terms for Pakpattan South.",
-                    potentialOrderBags = 200,
-                    orderReceivedBags = 0,
-                    followUpDate = today,
-                    remarks = "Follow up due today for opening order of 26P and CP Mamni."
-                )
-            )
-        )
-
         // Seed Complaints
         dao.insertComplaints(
             listOf(
@@ -1048,7 +996,6 @@ object SampleDataSeeder {
         dao.clearAllMilkRecords()
         dao.clearAllTrials()
         dao.clearAllComplaints()
-        dao.clearAllVisits()
         dao.clearAllExpenses()
         dao.clearAllTravelLogs()
         dao.clearAllDealers()

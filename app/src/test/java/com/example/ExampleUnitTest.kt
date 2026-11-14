@@ -16,6 +16,17 @@ class ExampleUnitTest {
     }
 
     @Test
+    fun orderAndDealerPaymentStatuses_areCalculatedCorrectly() {
+        assertEquals("Paid", BusinessCalculations.getOrderPaymentStatus(paidAmount = 50000.0, netAmount = 50000.0, outstandingAmount = 0.0))
+        assertEquals("Partial", BusinessCalculations.getOrderPaymentStatus(paidAmount = 20000.0, netAmount = 50000.0, outstandingAmount = 30000.0))
+        assertEquals("Unpaid", BusinessCalculations.getOrderPaymentStatus(paidAmount = 0.0, netAmount = 50000.0, outstandingAmount = 50000.0))
+
+        assertEquals("Paid", BusinessCalculations.getDealerPaymentStatus(totalSales = 100000.0, totalPayments = 100000.0, outstandingBalance = 0.0))
+        assertEquals("Partial", BusinessCalculations.getDealerPaymentStatus(totalSales = 100000.0, totalPayments = 40000.0, outstandingBalance = 60000.0))
+        assertEquals("Unpaid", BusinessCalculations.getDealerPaymentStatus(totalSales = 100000.0, totalPayments = 0.0, outstandingBalance = 100000.0))
+    }
+
+    @Test
     fun stockFormula_openingPlusInMinusOut_isCorrect() {
         val prod = ProductEntity(
             id = 1,
@@ -111,7 +122,7 @@ class ExampleUnitTest {
                     totalKg = 400.0,
                     totalMt = 0.4,
                     purchasePriceSnapshot = 3150.0,
-                    pricePerBag = 3500.0, // Sold at Rs. 3,500
+                    pricePerBag = 3500.0,
                     grossAmount = 35000.0,
                     discountTotal = 0.0,
                     netAmount = 35000.0

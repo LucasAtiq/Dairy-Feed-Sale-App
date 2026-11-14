@@ -200,23 +200,35 @@ private fun OrdersListSection(
     onNewOrder: () -> Unit,
     onEditOrder: (OrderWithItems) -> Unit
 ) {
+    val context = LocalContext.current
     val cur = uiState.config.currencySymbol
     var searchQuery by remember { mutableStateOf("") }
     var statusFilter by remember { mutableStateOf("All") }
+    var paymentFilter by remember { mutableStateOf("All") }
+    var sortBy by remember { mutableStateOf("Newest") }
     var cancellingOrder by remember { mutableStateOf<SaleOrderEntity?>(null) }
 
-    val filteredOrders = remember(uiState.ordersWithItems, searchQuery, statusFilter) {
-        uiState.ordersWithItems.filter { owi ->
+    val filteredOrders = remember(uiState.ordersWithItems, searchQuery, statusFilter, paymentFilter, sortBy) {
+        val base = uiState.ordersWithItems.filter { owi ->
             val o = owi.order
+            val pStatus = BusinessCalculations.getOrderPaymentStatus(o.paidAmount, o.netAmount, o.outstandingAmount)
             val matchStatus = statusFilter == "All" || o.status.equals(statusFilter, true)
+            val matchPayment = paymentFilter == "All" || pStatus.equals(paymentFilter, true)
             val q = searchQuery.trim().lowercase()
             val matchQuery = q.isEmpty() ||
                 o.orderNumber.lowercase().contains(q) ||
                 o.invoiceNumber.lowercase().contains(q) ||
                 o.dealerName.lowercase().contains(q) ||
+                o.date.lowercase().contains(q) ||
                 o.location.lowercase().contains(q) ||
                 owi.items.any { it.productCode.lowercase().contains(q) || it.productName.lowercase().contains(q) }
-            matchStatus && matchQuery
+            matchStatus && matchPayment && matchQuery
+        }
+        when (sortBy) {
+            "Oldest" -> base.sortedBy { it.order.date }
+            "Highest Amount" -> base.sortedByDescending { it.order.netAmount }
+            "Highest Bags" -> base.sortedByDescending { it.order.totalBags }
+            else -> base.sortedByDescending { it.order.date }
         }
     }
 
@@ -224,8 +236,8 @@ private fun OrdersListSection(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = onNewOrder,
-                icon = { Icon(Icons.Default.AddShoppingCart, contentDescription = "New Sale Order") },
-                text = { Text("New Sale Order") },
+                icon = { Icon(Icons.Default.AddShoppingCart, contentDescription = "New Order") },
+                text = { Text("+ New Order") },
                 modifier = Modifier.testTag("new_sale_order_fab")
             )
         }
@@ -241,11 +253,40 @@ private fun OrdersListSection(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search order #, invoice #, dealer, product (26P, 55M)...") },
+                    placeholder = { Text("Search order #, date (YYYY-MM-DD), dealer, product (26P, 55M)...") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    trailingIcon = if (searchQuery.isNotEmpty()) {
+                        {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Clear search")
+                            }
+                        }
+                    } else null,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    DropdownSelectorField(
+                        label = "Payment Status",
+                        options = listOf("All", "Paid", "Partial", "Unpaid"),
+                        selectedOption = paymentFilter,
+                        onOptionSelected = { paymentFilter = it },
+                        modifier = Modifier.weight(1f)
+                    )
+                    DropdownSelectorField(
+                        label = "Sort Orders",
+                        options = listOf("Newest", "Oldest", "Highest Amount", "Highest Bags"),
+                        selectedOption = sortBy,
+                        onOptionSelected = { sortBy = it },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
 
             item {
@@ -265,8 +306,30 @@ private fun OrdersListSection(
                 }
             }
 
+            if (filteredOrders.isEmpty()) {
+                item {
+                    ElevatedCard(
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.ReceiptLong, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Text("No orders match your search or filter", style = MaterialTheme.typography.titleSmall)
+                            Text("Tap '+ New Order' to create a new dairy feed sale order.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+
             items(filteredOrders, key = { it.order.id }) { owi ->
                 val o = owi.order
+                val payStatus = BusinessCalculations.getOrderPaymentStatus(o.paidAmount, o.netAmount, o.outstandingAmount)
                 ElevatedCard(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -284,17 +347,23 @@ private fun OrdersListSection(
                             verticalAlignment = Alignment.Top
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("${o.orderNumber} • ${o.dealerName}", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "${o.orderNumber} • ${o.dealerName}",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                )
                                 Text(
                                     "Date: ${o.date} • ${o.location} (${o.area}) • Inv: ${o.invoiceNumber}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            StatusBadge(o.status)
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                StatusBadge(payStatus)
+                                StatusBadge(o.status)
+                            }
                         }
 
-                        // Multi-product line breakdown
+                        // Multi-product line breakdown showing Product, Quantity, Bag size, Weight, Price, Discount & Amount
                         Surface(
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                             shape = RoundedCornerShape(10.dp),
@@ -311,7 +380,7 @@ private fun OrdersListSection(
                                             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold)
                                         )
                                         Text(
-                                            "@ ${item.pricePerBag.roundToInt()} = ${BusinessCalculations.formatCurrency(item.netAmount, cur)}",
+                                            "@ ${item.pricePerBag.roundToInt()}${if (item.discountTotal > 0) " (-${item.discountTotal.roundToInt()})" else ""} = ${BusinessCalculations.formatCurrency(item.netAmount, cur)}",
                                             style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily)
                                         )
                                     }
@@ -324,18 +393,30 @@ private fun OrdersListSection(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column {
-                                Text("Volume", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Total Bags & Weight", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(
                                     "${o.totalBags} Bags (${o.totalKg.roundToInt()} KG = ${BusinessCalculations.formatDecimal(o.totalMt)} MT)",
                                     style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold)
                                 )
+                                if (o.discountAmount > 0) {
+                                    Text(
+                                        "Discount: ${BusinessCalculations.formatCurrency(o.discountAmount, cur)}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = StatusWarning
+                                    )
+                                }
                             }
                             Column(horizontalAlignment = Alignment.End) {
-                                Text("Net / Balance", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Total Amount / Due", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(
                                     "${BusinessCalculations.formatCurrency(o.netAmount, cur)} (Due: ${BusinessCalculations.formatCurrency(o.outstandingAmount, cur)})",
                                     style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
                                     color = if (o.outstandingAmount > 0) StatusDanger else StatusSuccess
+                                )
+                                Text(
+                                    "Paid: ${BusinessCalculations.formatCurrency(o.paidAmount, cur)}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = StatusSuccess
                                 )
                             }
                         }
@@ -350,19 +431,27 @@ private fun OrdersListSection(
                                     onClick = { cancellingOrder = o },
                                     colors = ButtonDefaults.textButtonColors(contentColor = StatusDanger)
                                 ) {
-                                    Text("Cancel")
+                                    Text("Delete / Cancel")
                                 }
+                            }
+                            IconButton(
+                                onClick = {
+                                    val pdf = DocumentAndExportManager.generateInvoicePdfFile(context, uiState.config, owi)
+                                    DocumentAndExportManager.shareFile(context, pdf, "application/pdf", "Share Order ${o.orderNumber}")
+                                }
+                            ) {
+                                Icon(Icons.Default.Share, contentDescription = "Share Order PDF", tint = MaterialTheme.colorScheme.primary)
                             }
                             OutlinedButton(
                                 onClick = { onEditOrder(owi) },
-                                modifier = Modifier.padding(horizontal = 6.dp)
+                                modifier = Modifier.padding(horizontal = 4.dp)
                             ) {
-                                Text("Edit / Status")
+                                Text("Edit")
                             }
                             Button(onClick = { viewModel.openInvoicePreview(o.id) }) {
                                 Icon(Icons.Default.Receipt, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Invoice")
+                                Text("Details")
                             }
                         }
                     }
@@ -373,9 +462,9 @@ private fun OrdersListSection(
 
     if (cancellingOrder != null) {
         ConfirmDestructiveDialog(
-            title = "Cancel Order ${cancellingOrder!!.orderNumber}?",
-            message = "Cancelling this order will reverse any automatic stock-out deduction and remove its debit from the dealer's active balance.",
-            confirmText = "Cancel Order",
+            title = "Delete / Cancel Order ${cancellingOrder!!.orderNumber}?",
+            message = "This will cancel the order, reverse any automatic stock-out deduction, and remove its debit from the dealer's active balance.",
+            confirmText = "Confirm Cancel",
             onConfirm = { viewModel.cancelOrder(cancellingOrder!!) },
             onDismiss = { cancellingOrder = null }
         )
@@ -734,12 +823,19 @@ private fun PaymentsAndLedgerSection(
     val cur = uiState.config.currencySymbol
     var deletingPayment by remember { mutableStateOf<PaymentEntity?>(null) }
 
+    val activeDealerSummaries = remember(uiState.dealerSummaries) {
+        uiState.dealerSummaries.filter { !it.dealer.isArchived }
+    }
+    val totalSalesAll = remember(activeDealerSummaries) { activeDealerSummaries.sumOf { it.totalSales } }
+    val totalPaidAll = remember(activeDealerSummaries) { activeDealerSummaries.sumOf { it.totalPayments } }
+    val totalOutstandingAll = remember(activeDealerSummaries) { activeDealerSummaries.sumOf { it.outstandingBalance.coerceAtLeast(0.0) } }
+
     Scaffold(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = onOpenNewPayment,
                 icon = { Icon(Icons.Default.Payments, contentDescription = "Add Payment") },
-                text = { Text("Record Payment") },
+                text = { Text("+ Add Payment") },
                 modifier = Modifier.testTag("record_payment_fab")
             )
         }
@@ -752,9 +848,58 @@ private fun PaymentsAndLedgerSection(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
+                ElevatedCard(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            "Overall Dealer Ledger Summary",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("Total Sales", style = MaterialTheme.typography.labelSmall)
+                                Text(
+                                    BusinessCalculations.formatCurrency(totalSalesAll, cur),
+                                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold)
+                                )
+                            }
+                            Column {
+                                Text("Total Paid", style = MaterialTheme.typography.labelSmall)
+                                Text(
+                                    BusinessCalculations.formatCurrency(totalPaidAll, cur),
+                                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
+                                    color = StatusSuccess
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("Outstanding Balance", style = MaterialTheme.typography.labelSmall)
+                                Text(
+                                    BusinessCalculations.formatCurrency(totalOutstandingAll, cur),
+                                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
+                                    color = if (totalOutstandingAll > 0) StatusDanger else StatusSuccess
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
                 Text("Dealer Ledger Balances (Tap any dealer for complete ledger)", style = MaterialTheme.typography.titleMedium)
             }
-            items(uiState.dealerSummaries.filter { !it.dealer.isArchived }, key = { "dlr-bal-${it.dealer.id}" }) { ds ->
+            items(activeDealerSummaries, key = { "dlr-bal-${it.dealer.id}" }) { ds ->
+                val dealerPaymentStatus = BusinessCalculations.getDealerPaymentStatus(
+                    totalSales = ds.totalSales,
+                    totalPayments = ds.totalPayments,
+                    outstandingBalance = ds.outstandingBalance
+                )
                 ElevatedCard(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -764,28 +909,45 @@ private fun PaymentsAndLedgerSection(
                         },
                     shape = RoundedCornerShape(14.dp)
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(ds.dealer.businessName, style = MaterialTheme.typography.titleSmall)
-                            Text(
-                                "Opening: ${BusinessCalculations.formatCurrency(ds.dealer.openingBalance, cur)} • Sales: ${BusinessCalculations.formatCurrency(ds.totalSales, cur)} • Paid: ${BusinessCalculations.formatCurrency(ds.totalPayments, cur)}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(ds.dealer.businessName, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
+                            StatusBadge(dealerPaymentStatus)
                         }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                BusinessCalculations.formatCurrency(ds.outstandingBalance, cur),
-                                style = MaterialTheme.typography.titleMedium.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
-                                color = if (ds.outstandingBalance > 0) StatusDanger else StatusSuccess
-                            )
-                            Text("View Ledger ->", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Total Sales: ${BusinessCalculations.formatCurrency(ds.totalSales, cur)} • Total Paid: ${BusinessCalculations.formatCurrency(ds.totalPayments, cur)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    "Opening Balance: ${BusinessCalculations.formatCurrency(ds.dealer.openingBalance, cur)}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    BusinessCalculations.formatCurrency(ds.outstandingBalance, cur),
+                                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
+                                    color = if (ds.outstandingBalance > 0) StatusDanger else StatusSuccess
+                                )
+                                Text("View Ledger ->", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                            }
                         }
                     }
                 }
@@ -959,7 +1121,7 @@ private fun InvoicePreviewDetailScreen(
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(config.companyName, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
-                            Text("Dairy Feed Business • ${config.businessTitle}", style = MaterialTheme.typography.bodySmall)
+                            Text("WandaBook Pro • Dairy Feed Sales & Management", style = MaterialTheme.typography.bodySmall)
                             Text(config.companyAddress, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Column(horizontalAlignment = Alignment.End) {

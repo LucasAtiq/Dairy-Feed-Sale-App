@@ -109,13 +109,13 @@ fun MetricStatCard(
 @Composable
 fun StatusBadge(status: String) {
     val (bg, fg) = when (status.lowercase()) {
-        "active", "delivered", "completed", "successful", "resolved", "closed" ->
-            StatusSuccess.copy(alpha = 0.14f) to StatusSuccess
-        "pending", "in transit", "partially delivered", "transition", "under observation", "started", "follow-up" ->
-            StatusWarning.copy(alpha = 0.16f) to StatusWarning
-        "blocked", "cancelled", "unsuccessful", "overdue", "low stock", "open", "under investigation" ->
-            StatusDanger.copy(alpha = 0.15f) to StatusDanger
-        else -> StatusInfo.copy(alpha = 0.14f) to StatusInfo
+        "active", "delivered", "completed", "successful", "resolved", "closed", "paid" ->
+            StatusSuccess.copy(alpha = 0.15f) to StatusSuccess
+        "pending", "in transit", "partially delivered", "transition", "under observation", "started", "follow-up", "partial" ->
+            StatusWarning.copy(alpha = 0.18f) to StatusWarning
+        "blocked", "cancelled", "unsuccessful", "overdue", "low stock", "open", "under investigation", "unpaid" ->
+            StatusDanger.copy(alpha = 0.16f) to StatusDanger
+        else -> StatusInfo.copy(alpha = 0.15f) to StatusInfo
     }
 
     Surface(
@@ -379,7 +379,7 @@ fun PinLockScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "DairyFeed Pro Security Lock",
+                text = "WandaBook Pro Security Lock",
                 style = MaterialTheme.typography.headlineSmall
             )
             Text(

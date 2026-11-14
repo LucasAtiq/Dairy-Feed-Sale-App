@@ -8,7 +8,7 @@ import androidx.room.Relation
 
 /**
  * Dynamic Lookup / Admin Configurable Options:
- * Types: AREA, DEALER_TYPE, PAYMENT_METHOD, VISIT_TYPE, COMPLAINT_TYPE, EXPENSE_CATEGORY, CATEGORY
+ * Types: AREA, DEALER_TYPE, PAYMENT_METHOD, COMPLAINT_TYPE, EXPENSE_CATEGORY, CATEGORY
  */
 @Entity(
     tableName = "lookup_items",
@@ -369,32 +369,6 @@ data class ComplaintEntity(
 )
 
 /**
- * Field Visit Management
- */
-@Entity(
-    tableName = "visits",
-    indices = [Index(value = ["visitCode"]), Index(value = ["date"])]
-)
-data class VisitEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val visitCode: String, // VST-2026-001
-    val date: String,
-    val partnerType: String, // Dealer, Farmer, Other
-    val partnerId: Long? = null,
-    val partnerName: String,
-    val location: String,
-    val personMet: String,
-    val visitType: String, // Dealer Visit, Farmer Visit, Farm Visit, Veterinary Hospital, University, Market Visit, New Customer, Follow-up
-    val purpose: String,
-    val discussion: String,
-    val potentialOrderBags: Int = 0,
-    val orderReceivedBags: Int = 0,
-    val followUpDate: String = "",
-    val remarks: String = "",
-    val createdAt: Long = System.currentTimeMillis()
-)
-
-/**
  * Sales Targets (Monthly / Weekly)
  */
 @Entity(tableName = "sales_targets")
@@ -510,5 +484,13 @@ data class BusinessConfigEntity(
     val notifyTargetProgress: Boolean = true,
     val themeMode: String = "SYSTEM", // SYSTEM, LIGHT, DARK
     val isSampleDataLoaded: Boolean = true,
-    val lastBackupAt: String = "Never"
+    val lastBackupAt: String = "Never",
+    val autoBackupFrequency: String = "Daily", // OFF, Daily, Weekly
+    val lastBackupStatus: String = "Ready",
+    val nextBackupAt: String = "Daily at 07:30 PM",
+    val emailBackupEnabled: Boolean = false,
+    val backupEmailAddress: String = "",
+    val emailBackupFrequency: String = "Daily", // Daily, Weekly
+    val emailBackupTime: String = "07:30 PM",
+    val emailWebhookUrl: String = ""
 )

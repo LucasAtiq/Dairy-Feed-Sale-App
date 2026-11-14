@@ -270,6 +270,11 @@ private fun DealersListSection(
 
             items(filteredDealers, key = { it.dealer.id }) { summary ->
                 val d = summary.dealer
+                val dealerPaymentStatus = BusinessCalculations.getDealerPaymentStatus(
+                    totalSales = summary.totalSales,
+                    totalPayments = summary.totalPayments,
+                    outstandingBalance = summary.outstandingBalance
+                )
                 ElevatedCard(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -289,15 +294,23 @@ private fun DealersListSection(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "${d.businessName} (${d.code})",
-                                    style = MaterialTheme.typography.titleMedium
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                                 )
                                 Text(
-                                    text = "${d.name} • ${d.area} (${d.city})",
+                                    text = "${d.name} • Phone: ${d.mobile} • ${d.address}, ${d.city} (${d.area})",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                                Text(
+                                    text = "Orders: ${summary.totalOrders} • Last Order: ${summary.lastOrderDate}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                             }
-                            StatusBadge(status = if (d.isArchived) "Archived" else d.status)
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                StatusBadge(status = dealerPaymentStatus)
+                                StatusBadge(status = if (d.isArchived) "Archived" else d.status)
+                            }
                         }
 
                         Row(
@@ -305,17 +318,17 @@ private fun DealersListSection(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column {
-                                Text("Bags / MT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Total Bags / MT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(
                                     "${summary.totalBags} bags (${BusinessCalculations.formatDecimal(summary.totalMt)} MT)",
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.SemiBold)
+                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.SemiBold)
                                 )
                             }
                             Column {
-                                Text("Total Sales", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Sales / Paid", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(
-                                    BusinessCalculations.formatCurrency(summary.totalSales, cur),
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMonoFamily),
+                                    "${BusinessCalculations.formatCurrency(summary.totalSales, cur)} / ${BusinessCalculations.formatCurrency(summary.totalPayments, cur)}",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily),
                                     color = StatusSuccess
                                 )
                             }
@@ -402,8 +415,8 @@ private fun DealerProfileDetailView(
     val dealerOrders = remember(uiState.ordersWithItems, d.id) {
         uiState.ordersWithItems.filter { it.order.dealerId == d.id }
     }
-    val dealerVisits = remember(uiState.visits, d.id) {
-        uiState.visits.filter { it.partnerType == "Dealer" && it.partnerId == d.id }
+    val dealerPayments = remember(uiState.payments, d.id) {
+        uiState.payments.filter { it.dealerId == d.id }
     }
     val dealerTrials = remember(uiState.trialsWithMilk, d.id) {
         uiState.trialsWithMilk.filter { it.trial.dealerId == d.id }
@@ -465,6 +478,7 @@ private fun DealerProfileDetailView(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(d.businessName, style = MaterialTheme.typography.headlineSmall)
                             Text("${d.name} • ${d.code} • ${d.dealerType}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Phone: ${d.mobile} • WhatsApp: ${d.whatsapp.ifBlank { d.mobile }}", style = MaterialTheme.typography.bodySmall)
                         }
                         StatusBadge(status = if (d.isArchived) "Archived" else d.status)
                     }
@@ -566,13 +580,16 @@ private fun DealerProfileDetailView(
         // Section Tabs
         item {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf(
                     "LEDGER" to "Complete Ledger (${summary.ledgerEntries.size})",
-                    "ORDERS" to "Orders (${dealerOrders.size})",
-                    "FIELD" to "Visits/Trials/Complaints"
+                    "ORDERS" to "Order History (${dealerOrders.size})",
+                    "PAYMENTS" to "Payment History (${dealerPayments.size})",
+                    "FIELD" to "Trials & Complaints"
                 ).forEach { (key, title) ->
                     FilterChip(
                         selected = activeSection == key,
@@ -684,17 +701,41 @@ private fun DealerProfileDetailView(
                     }
                 }
             }
-        } else {
-            item {
-                Text("Visits (${dealerVisits.size}) • Feed Trials (${dealerTrials.size}) • Complaints (${dealerComplaints.size})", style = MaterialTheme.typography.titleSmall)
-            }
-            items(dealerVisits, key = { "vst-${it.id}" }) { v ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("${v.date} • ${v.visitType} (${v.purpose})", style = MaterialTheme.typography.titleSmall)
-                        Text(v.discussion, style = MaterialTheme.typography.bodySmall)
+        } else if (activeSection == "PAYMENTS") {
+            items(dealerPayments, key = { "dpay-${it.id}" }) { pay ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("${pay.paymentNumber} (${pay.date})", style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                "${pay.paymentMethod} ${if (pay.referenceNumber.isNotBlank()) "• Ref: ${pay.referenceNumber}" else ""}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (pay.remarks.isNotBlank()) {
+                                Text(pay.remarks, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        Text(
+                            BusinessCalculations.formatCurrency(pay.amount, cur),
+                            style = MaterialTheme.typography.titleSmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
+                            color = StatusSuccess
+                        )
                     }
                 }
+            }
+        } else {
+            item {
+                Text("Feed Trials (${dealerTrials.size}) • Complaints (${dealerComplaints.size})", style = MaterialTheme.typography.titleSmall)
             }
             items(dealerTrials, key = { "trl-${it.trial.id}" }) { t ->
                 Card(modifier = Modifier.fillMaxWidth()) {
@@ -927,9 +968,6 @@ private fun FarmerProfileDetailView(
     val farmerTrials = remember(uiState.trialsWithMilk, farmer.id) {
         uiState.trialsWithMilk.filter { it.trial.farmerId == farmer.id }
     }
-    val farmerVisits = remember(uiState.visits, farmer.id) {
-        uiState.visits.filter { it.partnerType == "Farmer" && it.partnerId == farmer.id }
-    }
     val farmerOrders = remember(uiState.ordersWithItems, farmer.id) {
         uiState.ordersWithItems.filter { it.order.farmerId == farmer.id }
     }
@@ -1012,13 +1050,13 @@ private fun FarmerProfileDetailView(
         }
 
         item {
-            Text("Visits (${farmerVisits.size}) & Direct Orders (${farmerOrders.size})", style = MaterialTheme.typography.titleMedium)
+            Text("Direct Orders (${farmerOrders.size})", style = MaterialTheme.typography.titleMedium)
         }
-        items(farmerVisits, key = { "fv-${it.id}" }) { v ->
+        items(farmerOrders, key = { "fo-${it.order.id}" }) { owi ->
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Text("${v.date} • ${v.visitType}: ${v.purpose}", style = MaterialTheme.typography.titleSmall)
-                    Text(v.discussion, style = MaterialTheme.typography.bodySmall)
+                    Text("${owi.order.orderNumber} (${owi.order.date}) • ${owi.order.totalBags} Bags", style = MaterialTheme.typography.titleSmall)
+                    Text("Status: ${owi.order.status}", style = MaterialTheme.typography.bodySmall)
                 }
             }
         }

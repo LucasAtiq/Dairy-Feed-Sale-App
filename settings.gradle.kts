@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "DairyFeed Pro"
+rootProject.name = "WandaBook Pro"
 
 include(":app")

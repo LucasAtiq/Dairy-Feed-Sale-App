@@ -38,7 +38,6 @@ import kotlin.math.roundToInt
 fun FieldOpsScreen(
     uiState: AppUiState,
     viewModel: DairyViewModel,
-    triggerNewVisit: Boolean = false,
     triggerNewTrial: Boolean = false,
     triggerNewExpense: Boolean = false,
     onConsumeTrigger: () -> Unit = {}
@@ -46,24 +45,16 @@ fun FieldOpsScreen(
     var showTrialDialog by remember { mutableStateOf(false) }
     var editingTrial by remember { mutableStateOf<FeedTrialEntity?>(null) }
 
-    var showVisitDialog by remember { mutableStateOf(false) }
-    var editingVisit by remember { mutableStateOf<VisitEntity?>(null) }
-
     var showComplaintDialog by remember { mutableStateOf(false) }
     var editingComplaint by remember { mutableStateOf<ComplaintEntity?>(null) }
 
     var showExpenseDialog by remember { mutableStateOf(false) }
     var showTravelDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(triggerNewVisit, triggerNewTrial, triggerNewExpense) {
+    LaunchedEffect(triggerNewTrial, triggerNewExpense) {
         if (triggerNewTrial) {
             editingTrial = null
             showTrialDialog = true
-            onConsumeTrigger()
-        }
-        if (triggerNewVisit) {
-            editingVisit = null
-            showVisitDialog = true
             onConsumeTrigger()
         }
         if (triggerNewExpense) {
@@ -88,7 +79,6 @@ fun FieldOpsScreen(
             SubModulePillBar(
                 modules = listOf(
                     SubModule.TRIALS,
-                    SubModule.VISITS,
                     SubModule.COMPLAINTS,
                     SubModule.EXPENSES_TRAVEL
                 ),
@@ -97,18 +87,6 @@ fun FieldOpsScreen(
             )
 
             when (uiState.activeSubModule) {
-                SubModule.VISITS -> VisitsListSection(
-                    uiState = uiState,
-                    viewModel = viewModel,
-                    onNewVisit = {
-                        editingVisit = null
-                        showVisitDialog = true
-                    },
-                    onEditVisit = {
-                        editingVisit = it
-                        showVisitDialog = true
-                    }
-                )
                 SubModule.COMPLAINTS -> ComplaintsListSection(
                     uiState = uiState,
                     viewModel = viewModel,
@@ -155,21 +133,6 @@ fun FieldOpsScreen(
             onSave = { saved ->
                 viewModel.saveFeedTrial(saved)
                 showTrialDialog = false
-            }
-        )
-    }
-
-    if (showVisitDialog) {
-        VisitFormDialog(
-            initialVisit = editingVisit,
-            existingCount = uiState.visits.size,
-            dealers = uiState.dealers.filter { !it.isArchived },
-            farmers = uiState.farmers.filter { !it.isArchived },
-            visitTypes = uiState.lookups.filter { it.categoryType == "VISIT_TYPE" && !it.isArchived }.map { it.name },
-            onDismiss = { showVisitDialog = false },
-            onSave = { saved ->
-                viewModel.saveVisit(saved)
-                showVisitDialog = false
             }
         )
     }
@@ -719,97 +682,6 @@ private fun MilkProductionLineChart(
 }
 
 @Composable
-private fun VisitsListSection(
-    uiState: AppUiState,
-    viewModel: DairyViewModel,
-    onNewVisit: () -> Unit,
-    onEditVisit: (VisitEntity) -> Unit
-) {
-    var searchQuery by remember { mutableStateOf("") }
-    var visitTypeFilter by remember { mutableStateOf("All") }
-
-    val visitTypes = remember(uiState.lookups) {
-        listOf("All") + uiState.lookups.filter { it.categoryType == "VISIT_TYPE" && !it.isArchived }.map { it.name }
-    }
-
-    val filtered = remember(uiState.visits, searchQuery, visitTypeFilter) {
-        uiState.visits.filter { v ->
-            (visitTypeFilter == "All" || v.visitType.equals(visitTypeFilter, true)) &&
-                (searchQuery.isBlank() ||
-                    v.partnerName.contains(searchQuery, true) ||
-                    v.location.contains(searchQuery, true) ||
-                    v.purpose.contains(searchQuery, true))
-        }
-    }
-
-    Scaffold(
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onNewVisit,
-                icon = { Icon(Icons.Default.AddLocationAlt, contentDescription = "Log Visit") },
-                text = { Text("Log Field Visit") },
-                modifier = Modifier.testTag("new_visit_fab")
-            )
-        }
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search visits by dealer, farmer, location, purpose...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-            item {
-                DropdownSelectorField(
-                    label = "Filter by Visit Type",
-                    options = visitTypes,
-                    selectedOption = visitTypeFilter,
-                    onOptionSelected = { visitTypeFilter = it }
-                )
-            }
-            items(filtered, key = { it.id }) { v ->
-                ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
-                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("${v.visitCode} • ${v.partnerName}", style = MaterialTheme.typography.titleMedium)
-                                Text("${v.date} • ${v.visitType} • Met: ${v.personMet}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            StatusBadge(v.partnerType)
-                        }
-                        Text("Location: ${v.location} | Purpose: ${v.purpose}", style = MaterialTheme.typography.bodySmall)
-                        Text(v.discussion, style = MaterialTheme.typography.bodyMedium)
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(
-                                "Potential: ${v.potentialOrderBags} Bags • Booked: ${v.orderReceivedBags} Bags",
-                                style = MaterialTheme.typography.labelMedium.copy(fontFamily = JetBrainsMonoFamily),
-                                color = StatusSuccess
-                            )
-                            if (v.followUpDate.isNotBlank()) {
-                                Text("Follow-up: ${v.followUpDate}", style = MaterialTheme.typography.labelSmall, color = StatusWarning)
-                            }
-                        }
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            OutlinedButton(onClick = { onEditVisit(v) }) { Text("Edit Visit") }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun ComplaintsListSection(
     uiState: AppUiState,
     viewModel: DairyViewModel,
@@ -1211,189 +1083,6 @@ private fun FeedTrialFormDialog(
                 }
             ) {
                 Text("Save Trial")
-            }
-        },
-        dismissButton = {
-            OutlinedButton(onClick = onDismiss) { Text("Cancel") }
-        }
-    )
-}
-
-@Composable
-private fun VisitFormDialog(
-    initialVisit: VisitEntity?,
-    existingCount: Int,
-    dealers: List<DealerEntity>,
-    farmers: List<FarmerEntity>,
-    visitTypes: List<String>,
-    onDismiss: () -> Unit,
-    onSave: (VisitEntity) -> Unit
-) {
-    var visitCode by remember { mutableStateOf(initialVisit?.visitCode ?: "VST-2026-00${existingCount + 1}") }
-    var date by remember { mutableStateOf(initialVisit?.date ?: SampleDataSeeder.todayDate()) }
-    var partnerType by remember { mutableStateOf(initialVisit?.partnerType ?: "Dealer") }
-    val partnerOptions = remember(partnerType, dealers, farmers) {
-        if (partnerType == "Farmer") farmers.map { "${it.name} (${it.farmName})" }
-        else dealers.map { it.businessName }
-    }
-    var partnerName by remember(partnerType) { mutableStateOf(initialVisit?.partnerName ?: (partnerOptions.firstOrNull() ?: "")) }
-    var location by remember { mutableStateOf(initialVisit?.location ?: "Sahiwal") }
-    var personMet by remember { mutableStateOf(initialVisit?.personMet ?: "") }
-    var visitType by remember { mutableStateOf(initialVisit?.visitType ?: (visitTypes.firstOrNull() ?: "Dealer Visit")) }
-    var purpose by remember { mutableStateOf(initialVisit?.purpose ?: "Order booking & recovery") }
-    var discussion by remember { mutableStateOf(initialVisit?.discussion ?: "") }
-    var potentialBags by remember { mutableStateOf(initialVisit?.potentialOrderBags?.toString() ?: "50") }
-    var receivedBags by remember { mutableStateOf(initialVisit?.orderReceivedBags?.toString() ?: "0") }
-    var followUpDate by remember { mutableStateOf(initialVisit?.followUpDate ?: SampleDataSeeder.daysOffset(3)) }
-    var remarks by remember { mutableStateOf(initialVisit?.remarks ?: "") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (initialVisit == null) "Log Field Visit" else "Edit Visit ${initialVisit.visitCode}") },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = visitCode,
-                        onValueChange = { visitCode = it },
-                        label = { Text("Visit ID") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = date,
-                        onValueChange = { date = it },
-                        label = { Text("Date") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DropdownSelectorField(
-                        label = "Partner Category",
-                        options = listOf("Dealer", "Farmer", "Institution"),
-                        selectedOption = partnerType,
-                        onOptionSelected = { partnerType = it },
-                        modifier = Modifier.weight(1f)
-                    )
-                    DropdownSelectorField(
-                        label = "Visit Type",
-                        options = visitTypes.ifEmpty { listOf("Dealer Visit", "Farmer Visit", "Farm Visit", "Follow-up") },
-                        selectedOption = visitType,
-                        onOptionSelected = { visitType = it },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                if (partnerOptions.isNotEmpty()) {
-                    DropdownSelectorField(
-                        label = "Dealer / Farmer",
-                        options = partnerOptions,
-                        selectedOption = partnerName,
-                        onOptionSelected = { partnerName = it }
-                    )
-                } else {
-                    OutlinedTextField(
-                        value = partnerName,
-                        onValueChange = { partnerName = it },
-                        label = { Text("Customer / Institution Name") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = personMet,
-                        onValueChange = { personMet = it },
-                        label = { Text("Person Met") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = location,
-                        onValueChange = { location = it },
-                        label = { Text("Location") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                OutlinedTextField(
-                    value = purpose,
-                    onValueChange = { purpose = it },
-                    label = { Text("Visit Purpose") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = discussion,
-                    onValueChange = { discussion = it },
-                    label = { Text("Discussion Summary *") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = potentialBags,
-                        onValueChange = { potentialBags = it },
-                        label = { Text("Potential (Bags)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = receivedBags,
-                        onValueChange = { receivedBags = it },
-                        label = { Text("Order Received") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                OutlinedTextField(
-                    value = followUpDate,
-                    onValueChange = { followUpDate = it },
-                    label = { Text("Follow-up Date (YYYY-MM-DD)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = remarks,
-                    onValueChange = { remarks = it },
-                    label = { Text("Remarks") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val dId = dealers.firstOrNull { it.businessName == partnerName }?.id
-                        ?: farmers.firstOrNull { "${it.name} (${it.farmName})" == partnerName }?.id
-                    onSave(
-                        VisitEntity(
-                            id = initialVisit?.id ?: 0,
-                            visitCode = visitCode.trim(),
-                            date = date.trim(),
-                            partnerType = partnerType,
-                            partnerId = dId,
-                            partnerName = partnerName.trim(),
-                            location = location.trim(),
-                            personMet = personMet.trim().ifBlank { partnerName.trim() },
-                            visitType = visitType,
-                            purpose = purpose.trim(),
-                            discussion = discussion.trim().ifBlank { purpose.trim() },
-                            potentialOrderBags = (potentialBags.toIntOrNull() ?: 0).coerceAtLeast(0),
-                            orderReceivedBags = (receivedBags.toIntOrNull() ?: 0).coerceAtLeast(0),
-                            followUpDate = followUpDate.trim(),
-                            remarks = remarks.trim()
-                        )
-                    )
-                }
-            ) {
-                Text("Save Visit")
             }
         },
         dismissButton = {

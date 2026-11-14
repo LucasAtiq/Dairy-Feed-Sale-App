@@ -18,11 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.data.BusinessCalculations
@@ -31,6 +31,7 @@ import com.example.ui.theme.StatusDanger
 import com.example.ui.theme.StatusInfo
 import com.example.ui.theme.StatusSuccess
 import com.example.ui.theme.StatusWarning
+import kotlin.math.roundToInt
 
 @Composable
 fun DashboardScreen(
@@ -43,6 +44,13 @@ fun DashboardScreen(
     var smartQueryInput by remember { mutableStateOf("") }
     var smartQueryAnswer by remember { mutableStateOf<String?>(null) }
 
+    val recentOrders = remember(uiState.ordersWithItems) {
+        uiState.ordersWithItems.filter { it.order.status != "Cancelled" }.take(4)
+    }
+    val recentPayments = remember(uiState.payments) {
+        uiState.payments.take(4)
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -50,21 +58,21 @@ fun DashboardScreen(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 1. Hero Banner Card
+        // 1. Commercial Executive Hero Card
         item {
             Card(
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(175.dp)
+                        .height(172.dp)
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.img_dairy_hero),
-                        contentDescription = "Dairy Farm Field Operations Banner",
+                        contentDescription = "WandaBook Pro Banner",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -74,8 +82,8 @@ fun DashboardScreen(
                             .background(
                                 Brush.verticalGradient(
                                     colors = listOf(
-                                        Color(0xAA072415),
-                                        Color(0xEE082E1B)
+                                        Color(0xB3072415),
+                                        Color(0xF2082E1B)
                                     )
                                 )
                             )
@@ -101,13 +109,13 @@ fun DashboardScreen(
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.CloudDone,
-                                        contentDescription = "Offline Ready",
+                                        imageVector = Icons.Default.Verified,
+                                        contentDescription = "Offline-First Ready",
                                         tint = Color.White,
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Text(
-                                        text = "Offline-First Ready • ${uiState.config.activeRole}",
+                                        text = "WandaBook Pro • Offline-First",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = Color.White
                                     )
@@ -129,16 +137,18 @@ fun DashboardScreen(
                             }
                         }
 
-                        Column {
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(
-                                text = uiState.config.companyName,
-                                style = MaterialTheme.typography.headlineSmall,
+                                text = "WandaBook Pro",
+                                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                                 color = Color.White
                             )
                             Text(
-                                text = "${uiState.config.businessTitle} • ${uiState.products.count { !it.isArchived }} Active Feed Lines",
+                                text = "Dairy Feed Sales & Management • ${uiState.config.companyName}",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFFD2F5E1)
+                                color = Color(0xFFD2F5E1),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -146,7 +156,7 @@ fun DashboardScreen(
             }
         }
 
-        // 2. Quick Actions Grid (8 Large One-Handed Mobile Buttons)
+        // 2. Quick-Action Buttons (Immediate 1-Tap Business Actions)
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
@@ -155,25 +165,25 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Quick Field Actions",
-                        style = MaterialTheme.typography.titleMedium
+                        text = "Quick Business Actions",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                     )
                     Text(
-                        text = "One-Handed Fast Entry",
+                        text = "Fast One-Handed Entry",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
                 val quickButtons = listOf(
-                    Triple("NEW_SALE", "New Sale", Icons.Default.AddShoppingCart),
-                    Triple("NEW_DEALER", "New Dealer", Icons.Default.Store),
-                    Triple("NEW_FARMER", "New Farmer", Icons.Default.Agriculture),
-                    Triple("PAYMENT", "Payment", Icons.Default.Payments),
-                    Triple("NEW_VISIT", "New Visit", Icons.Default.Place),
-                    Triple("NEW_TRIAL", "New Trial", Icons.Default.Science),
-                    Triple("STOCK_IN", "Stock In", Icons.Default.Inventory),
-                    Triple("EXPENSE", "Expense", Icons.Default.ReceiptLong)
+                    Triple("NEW_SALE", "+ New Order", Icons.Default.AddShoppingCart),
+                    Triple("NEW_DEALER", "+ Add Dealer", Icons.Default.PersonAdd),
+                    Triple("PAYMENT", "+ Add Payment", Icons.Default.Payments),
+                    Triple("VIEW_ORDERS", "View Orders", Icons.Default.ReceiptLong),
+                    Triple("BACKUP_DATA", "Backup Data", Icons.Default.Backup),
+                    Triple("STOCK_IN", "+ Stock In", Icons.Default.Inventory),
+                    Triple("CONSOLIDATED", "Consolidated", Icons.Default.Summarize),
+                    Triple("NEW_TRIAL", "+ Feed Trial", Icons.Default.Science)
                 )
 
                 quickButtons.chunked(4).forEach { rowItems ->
@@ -217,8 +227,9 @@ fun DashboardScreen(
                                     Spacer(modifier = Modifier.height(5.dp))
                                     Text(
                                         text = label,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        maxLines = 1
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
@@ -228,32 +239,55 @@ fun DashboardScreen(
             }
         }
 
-        // 3. Today's Summary Section
+        // 3. Executive At-A-Glance Summary Cards (Large Readable Numbers)
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    text = "Today's Field Summary",
-                    style = MaterialTheme.typography.titleMedium
+                    text = "Business Overview at a Glance",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     MetricStatCard(
-                        title = "Today's Orders",
-                        value = "${dash.todayOrdersCount}",
-                        subtitle = "${dash.todayBags} Bags booked",
+                        title = "This Month's Sales",
+                        value = BusinessCalculations.formatCurrency(dash.monthlySales, cur),
+                        subtitle = "Today: ${BusinessCalculations.formatCurrency(dash.todaySales, cur)}",
+                        icon = Icons.Default.TrendingUp,
+                        accentColor = StatusSuccess,
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewModel.navigateToSubModule(SubModule.ORDERS) }
+                    )
+                    MetricStatCard(
+                        title = "This Month's Orders",
+                        value = "${dash.monthlyOrdersCount} Orders",
+                        subtitle = "Today: ${dash.todayOrdersCount} (${dash.todayBags} bags)",
                         icon = Icons.Default.ShoppingBag,
                         accentColor = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f),
                         onClick = { viewModel.navigateToSubModule(SubModule.ORDERS) }
                     )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     MetricStatCard(
-                        title = "Today's Bags",
-                        value = "${dash.todayBags}",
-                        subtitle = "${BusinessCalculations.formatDecimal(dash.todayBags * 40.0 / 1000.0)} MT est.",
-                        icon = Icons.Default.Scale,
+                        title = "Total Bags",
+                        value = "${dash.monthlyBags} Bags",
+                        subtitle = "All-time: ${dash.totalAllTimeBags} Bags",
+                        icon = Icons.Default.Inventory2,
                         accentColor = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewModel.navigateToSubModule(SubModule.CONSOLIDATED) }
+                    )
+                    MetricStatCard(
+                        title = "Total Weight",
+                        value = "${dash.monthlyKg.roundToInt()} KG",
+                        subtitle = "${BusinessCalculations.formatDecimal(dash.monthlyMt)} Metric Tons (MT)",
+                        icon = Icons.Default.Scale,
+                        accentColor = StatusInfo,
                         modifier = Modifier.weight(1f),
                         onClick = { viewModel.navigateToSubModule(SubModule.CONSOLIDATED) }
                     )
@@ -263,20 +297,20 @@ fun DashboardScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     MetricStatCard(
-                        title = "Today's Sales",
-                        value = BusinessCalculations.formatCurrency(dash.todaySales, cur),
-                        subtitle = "Net invoiced today",
-                        icon = Icons.Default.TrendingUp,
-                        accentColor = StatusSuccess,
+                        title = "Total Sales Amount",
+                        value = BusinessCalculations.formatCurrency(dash.totalAllTimeSales, cur),
+                        subtitle = "Collected Mtd: ${BusinessCalculations.formatCurrency(dash.monthlyCollection, cur)}",
+                        icon = Icons.Default.AccountBalance,
+                        accentColor = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f),
-                        onClick = { viewModel.navigateToSubModule(SubModule.ORDERS) }
+                        onClick = { viewModel.navigateToSubModule(SubModule.REPORTS) }
                     )
                     MetricStatCard(
-                        title = "Today's Collection",
-                        value = BusinessCalculations.formatCurrency(dash.todayCollection, cur),
-                        subtitle = "Cash & Bank received",
+                        title = "Outstanding Amount",
+                        value = BusinessCalculations.formatCurrency(dash.totalOutstandingPayments, cur),
+                        subtitle = "${dash.overdueDealersCount} dealers overdue",
                         icon = Icons.Default.AccountBalanceWallet,
-                        accentColor = StatusInfo,
+                        accentColor = if (dash.totalOutstandingPayments > 0) StatusDanger else StatusSuccess,
                         modifier = Modifier.weight(1f),
                         onClick = { viewModel.navigateToSubModule(SubModule.PAYMENTS) }
                     )
@@ -286,31 +320,31 @@ fun DashboardScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     MetricStatCard(
-                        title = "Today's Visits",
-                        value = "${dash.todayVisitsCount}",
-                        subtitle = "Field visits logged",
-                        icon = Icons.Default.DirectionsWalk,
-                        accentColor = MaterialTheme.colorScheme.tertiary,
+                        title = "Number of Dealers",
+                        value = "${dash.activeDealersCount} Dealers",
+                        subtitle = "${uiState.farmers.count { !it.isArchived }} registered farmers",
+                        icon = Icons.Default.Groups,
+                        accentColor = StatusInfo,
                         modifier = Modifier.weight(1f),
-                        onClick = { viewModel.navigateToSubModule(SubModule.VISITS) }
+                        onClick = { viewModel.navigateToSubModule(SubModule.DEALERS) }
                     )
                     MetricStatCard(
-                        title = "Pending Deliveries",
-                        value = "${dash.pendingDeliveriesCount}",
-                        subtitle = "Awaiting dispatch",
-                        icon = Icons.Default.LocalShipping,
-                        accentColor = StatusWarning,
+                        title = "Low Stock / Alerts",
+                        value = "${dash.lowStockProductsCount} Low Stock",
+                        subtitle = "${dash.pendingDeliveriesCount} pending deliveries",
+                        icon = Icons.Default.WarningAmber,
+                        accentColor = if (dash.lowStockProductsCount > 0) StatusDanger else StatusWarning,
                         modifier = Modifier.weight(1f),
-                        onClick = { viewModel.navigateToSubModule(SubModule.ORDERS) }
+                        onClick = { viewModel.navigateToSubModule(SubModule.STOCK) }
                     )
                 }
             }
         }
 
-        // 4. Monthly Summary & Target Achievement Card
+        // 4. Monthly Target Progress Card
         item {
             ElevatedCard(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.elevatedCardColors(
                     containerColor = MaterialTheme.colorScheme.surface
@@ -318,7 +352,7 @@ fun DashboardScreen(
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -327,8 +361,8 @@ fun DashboardScreen(
                     ) {
                         Column {
                             Text(
-                                text = "Monthly Performance & Target",
-                                style = MaterialTheme.typography.titleMedium
+                                text = "Monthly Target Achievement",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                             )
                             Text(
                                 text = "Target: ${dash.monthlyTargetBags} Bags • Achieved: ${BusinessCalculations.formatDecimal(dash.achievementPercentBags, 1)}%",
@@ -337,7 +371,7 @@ fun DashboardScreen(
                             )
                         }
                         TextButton(onClick = { viewModel.navigateToSubModule(SubModule.TARGETS) }) {
-                            Text("Edit Target")
+                            Text("Target Settings")
                         }
                     }
 
@@ -356,69 +390,171 @@ fun DashboardScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column {
-                            Text("Monthly Bags", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("${dash.monthlyBags} Bags", style = MaterialTheme.typography.titleMedium.copy(fontFamily = JetBrainsMonoFamily))
-                        }
-                        Column {
-                            Text("Monthly MT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("${BusinessCalculations.formatDecimal(dash.monthlyMt)} MT", style = MaterialTheme.typography.titleMedium.copy(fontFamily = JetBrainsMonoFamily))
+                            Text("Sold This Month", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${dash.monthlyBags} Bags (${BusinessCalculations.formatDecimal(dash.monthlyMt)} MT)", style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold))
                         }
                         Column(horizontalAlignment = Alignment.End) {
                             Text("Remaining Target", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("${dash.remainingTargetBags} Bags", style = MaterialTheme.typography.titleMedium.copy(fontFamily = JetBrainsMonoFamily))
-                        }
-                    }
-
-                    HorizontalDivider()
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Monthly Sales", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(
-                                BusinessCalculations.formatCurrency(dash.monthlySales, cur),
-                                style = MaterialTheme.typography.titleMedium.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
-                                color = StatusSuccess
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Monthly Collection", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(
-                                BusinessCalculations.formatCurrency(dash.monthlyCollection, cur),
-                                style = MaterialTheme.typography.titleMedium.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
-                                color = StatusInfo
-                            )
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Outstanding Payments", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(
-                                BusinessCalculations.formatCurrency(dash.totalOutstandingPayments, cur),
-                                style = MaterialTheme.typography.titleMedium.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
-                                color = StatusDanger
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Est. Gross Profit", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(
-                                BusinessCalculations.formatCurrency(dash.monthlyGrossProfit, cur),
-                                style = MaterialTheme.typography.titleMedium.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            Text("${dash.remainingTargetBags} Bags", style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold))
                         }
                     }
                 }
             }
         }
 
-        // 5. Alerts & Actionable Field Reminders
+        // 5. Recent Orders Section
+        item {
+            ElevatedCard(
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Recent Orders",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        TextButton(onClick = { viewModel.navigateToSubModule(SubModule.ORDERS) }) {
+                            Text("View All Orders")
+                        }
+                    }
+
+                    if (recentOrders.isEmpty()) {
+                        Text(
+                            text = "No orders recorded yet. Tap '+ New Order' above to create your first sale.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        recentOrders.forEach { owi ->
+                            val o = owi.order
+                            val payStatus = BusinessCalculations.getOrderPaymentStatus(o.paidAmount, o.netAmount, o.outstandingAmount)
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.navigateToSubModule(SubModule.ORDERS)
+                                        viewModel.openInvoicePreview(o.id)
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "${o.orderNumber} • ${o.dealerName}",
+                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                                        )
+                                        Text(
+                                            text = "${o.date} • ${o.totalBags} Bags (${o.totalKg.roundToInt()} KG)",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text(
+                                            text = BusinessCalculations.formatCurrency(o.netAmount, cur),
+                                            style = MaterialTheme.typography.titleSmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold)
+                                        )
+                                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            StatusBadge(payStatus)
+                                            StatusBadge(o.status)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 6. Recent Payments Section
+        item {
+            ElevatedCard(
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Recent Payments",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        TextButton(onClick = { viewModel.navigateToSubModule(SubModule.PAYMENTS) }) {
+                            Text("View Ledger")
+                        }
+                    }
+
+                    if (recentPayments.isEmpty()) {
+                        Text(
+                            text = "No payments recorded yet. Tap '+ Add Payment' to log dealer collections.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        recentPayments.forEach { pay ->
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { viewModel.navigateToSubModule(SubModule.PAYMENTS) }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "${pay.paymentNumber} • ${pay.dealerName}",
+                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                                        )
+                                        Text(
+                                            text = "${pay.date} • ${pay.paymentMethod} ${if (pay.referenceNumber.isNotBlank()) "(${pay.referenceNumber})" else ""}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Text(
+                                        text = BusinessCalculations.formatCurrency(pay.amount, cur),
+                                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
+                                        color = StatusSuccess
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 7. Alerts & Actionable Field Reminders
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
@@ -427,21 +563,25 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Alerts & Field Reminders (${uiState.smartReminders.size})",
-                        style = MaterialTheme.typography.titleMedium
+                        text = "Low Stock & Important Alerts (${uiState.smartReminders.size})",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                     )
                     TextButton(onClick = { viewModel.navigateToSubModule(SubModule.REMINDERS) }) {
                         Text("View All")
                     }
                 }
 
-                // Alert Chips Row
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    AlertSummaryPill(
+                        label = "Low Stock: ${dash.lowStockProductsCount}",
+                        color = StatusDanger,
+                        onClick = { viewModel.navigateToSubModule(SubModule.STOCK) }
+                    )
                     AlertSummaryPill(
                         label = "Overdue Dealers: ${dash.overdueDealersCount}",
                         color = StatusDanger,
@@ -453,23 +593,13 @@ fun DashboardScreen(
                         onClick = { viewModel.navigateToSubModule(SubModule.ORDERS) }
                     )
                     AlertSummaryPill(
-                        label = "Active Feed Trials: ${dash.pendingTrialsCount}",
+                        label = "Active Trials: ${dash.pendingTrialsCount}",
                         color = StatusInfo,
                         onClick = { viewModel.navigateToSubModule(SubModule.TRIALS) }
                     )
-                    AlertSummaryPill(
-                        label = "Follow-ups Due: ${dash.followUpDueCount}",
-                        color = StatusWarning,
-                        onClick = { viewModel.navigateToSubModule(SubModule.VISITS) }
-                    )
-                    AlertSummaryPill(
-                        label = "Low Stock: ${dash.lowStockProductsCount}",
-                        color = StatusDanger,
-                        onClick = { viewModel.navigateToSubModule(SubModule.STOCK) }
-                    )
                 }
 
-                uiState.smartReminders.take(4).forEach { rem ->
+                uiState.smartReminders.take(3).forEach { rem ->
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -478,7 +608,7 @@ fun DashboardScreen(
                                     "STOCK" -> viewModel.navigateToSubModule(SubModule.STOCK)
                                     "PAYMENTS" -> viewModel.navigateToSubModule(SubModule.PAYMENTS)
                                     "ORDERS" -> viewModel.navigateToSubModule(SubModule.ORDERS)
-                                    "VISITS" -> viewModel.navigateToSubModule(SubModule.VISITS)
+                                    "COMPLAINTS" -> viewModel.navigateToSubModule(SubModule.COMPLAINTS)
                                     "TRIALS" -> viewModel.navigateToSubModule(SubModule.TRIALS)
                                     "TARGETS" -> viewModel.navigateToSubModule(SubModule.TARGETS)
                                 }
@@ -530,7 +660,7 @@ fun DashboardScreen(
             }
         }
 
-        // 6. Optional Offline Smart Business Query Foundation (Section 36)
+        // 8. Instant Offline Business Query
         item {
             ElevatedCard(
                 shape = RoundedCornerShape(16.dp),
@@ -551,7 +681,7 @@ fun DashboardScreen(
                         )
                         Text(
                             text = "Instant Offline Business Query",
-                            style = MaterialTheme.typography.titleSmall
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                         )
                     }
                     Row(

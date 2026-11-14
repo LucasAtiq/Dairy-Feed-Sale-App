@@ -22,7 +22,7 @@ interface DairyDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveBusinessConfig(config: BusinessConfigEntity)
 
-    // --- Lookup Items (Dynamic Areas, Payment Methods, Visit Types, Complaint Types, Expense Categories, Dealer Types, Categories) ---
+    // --- Lookup Items (Dynamic Areas, Payment Methods, Complaint Types, Expense Categories, Dealer Types, Categories) ---
     @Query("SELECT * FROM lookup_items WHERE isArchived = 0 ORDER BY categoryType ASC, sortOrder ASC, name ASC")
     fun observeActiveLookups(): Flow<List<LookupItemEntity>>
 
@@ -93,6 +93,9 @@ interface DairyDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPriceHistory(entry: PriceHistoryEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPriceHistories(entries: List<PriceHistoryEntity>)
 
     // --- Dealers ---
     @Query("SELECT * FROM dealers ORDER BY isArchived ASC, name ASC")
@@ -260,25 +263,6 @@ interface DairyDao {
     @Delete
     suspend fun deleteComplaint(complaint: ComplaintEntity)
 
-    // --- Visits ---
-    @Query("SELECT * FROM visits ORDER BY date DESC, id DESC")
-    fun observeAllVisits(): Flow<List<VisitEntity>>
-
-    @Query("SELECT * FROM visits")
-    suspend fun getAllVisitsOnce(): List<VisitEntity>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertVisit(visit: VisitEntity): Long
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertVisits(visits: List<VisitEntity>)
-
-    @Update
-    suspend fun updateVisit(visit: VisitEntity)
-
-    @Delete
-    suspend fun deleteVisit(visit: VisitEntity)
-
     // --- Sales Targets ---
     @Query("SELECT * FROM sales_targets ORDER BY periodLabel DESC")
     fun observeAllTargets(): Flow<List<SalesTargetEntity>>
@@ -384,9 +368,6 @@ interface DairyDao {
     @Query("DELETE FROM complaints")
     suspend fun clearAllComplaints()
 
-    @Query("DELETE FROM visits")
-    suspend fun clearAllVisits()
-
     @Query("DELETE FROM expenses")
     suspend fun clearAllExpenses()
 
@@ -401,6 +382,18 @@ interface DairyDao {
 
     @Query("DELETE FROM sales_targets")
     suspend fun clearAllTargets()
+
+    @Query("DELETE FROM lookup_items")
+    suspend fun clearAllLookups()
+
+    @Query("DELETE FROM bag_sizes")
+    suspend fun clearAllBagSizes()
+
+    @Query("DELETE FROM price_history")
+    suspend fun clearAllPriceHistory()
+
+    @Query("DELETE FROM custom_field_defs")
+    suspend fun clearAllCustomFieldDefs()
 
     // --- Atomic Order + Items + Stock Out + Initial Payment Transaction ---
     @Transaction

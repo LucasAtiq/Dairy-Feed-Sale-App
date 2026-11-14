@@ -54,7 +54,6 @@ fun DairyFeedAppRoot(
     var triggerStockIn by remember { mutableStateOf(false) }
     var triggerNewDealer by remember { mutableStateOf(false) }
     var triggerNewFarmer by remember { mutableStateOf(false) }
-    var triggerNewVisit by remember { mutableStateOf(false) }
     var triggerNewTrial by remember { mutableStateOf(false) }
     var triggerNewExpense by remember { mutableStateOf(false) }
 
@@ -93,7 +92,7 @@ fun DairyFeedAppRoot(
                     Column {
                         Text(
                             text = when (uiState.activeTab) {
-                                PrimaryTab.DASHBOARD -> "DairyFeed Pro"
+                                PrimaryTab.DASHBOARD -> "WandaBook Pro"
                                 else -> uiState.activeSubModule.title
                             },
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
@@ -101,7 +100,7 @@ fun DairyFeedAppRoot(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "${uiState.config.companyName} • ${uiState.config.currencySymbol}",
+                            text = "Dairy Feed Sales & Management • ${uiState.config.currencySymbol}",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
@@ -213,9 +212,14 @@ fun DairyFeedAppRoot(
                                 viewModel.navigateToSubModule(SubModule.PAYMENTS)
                                 triggerNewPayment = true
                             }
-                            "NEW_VISIT" -> {
-                                viewModel.navigateToSubModule(SubModule.VISITS)
-                                triggerNewVisit = true
+                            "CONSOLIDATED" -> {
+                                viewModel.navigateToSubModule(SubModule.CONSOLIDATED)
+                            }
+                            "VIEW_ORDERS" -> {
+                                viewModel.navigateToSubModule(SubModule.ORDERS)
+                            }
+                            "BACKUP_DATA" -> {
+                                viewModel.navigateToSubModule(SubModule.BACKUP)
                             }
                             "NEW_TRIAL" -> {
                                 viewModel.navigateToSubModule(SubModule.TRIALS)
@@ -257,11 +261,9 @@ fun DairyFeedAppRoot(
                 PrimaryTab.FIELD -> FieldOpsScreen(
                     uiState = uiState,
                     viewModel = viewModel,
-                    triggerNewVisit = triggerNewVisit,
                     triggerNewTrial = triggerNewTrial,
                     triggerNewExpense = triggerNewExpense,
                     onConsumeTrigger = {
-                        triggerNewVisit = false
                         triggerNewTrial = false
                         triggerNewExpense = false
                     }

@@ -1,5 +1,8 @@
 package com.example.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -15,10 +18,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.data.*
 import com.example.ui.theme.JetBrainsMonoFamily
@@ -44,7 +49,8 @@ fun MoreHubScreen(
                 SubModule.REMINDERS,
                 SubModule.SETTINGS,
                 SubModule.BACKUP,
-                SubModule.SEARCH
+                SubModule.SEARCH,
+                SubModule.ABOUT
             ),
             selected = uiState.activeSubModule,
             onSelect = { viewModel.navigateToSubModule(it) }
@@ -56,6 +62,7 @@ fun MoreHubScreen(
             SubModule.SETTINGS -> SettingsAndAdminSection(uiState, viewModel)
             SubModule.BACKUP -> BackupAndDemoDataSection(uiState, viewModel)
             SubModule.SEARCH -> GlobalSearchSection(uiState, viewModel)
+            SubModule.ABOUT -> AboutWandaBookSection(uiState, viewModel)
             else -> ComprehensiveReportsSection(uiState)
         }
     }
@@ -80,7 +87,6 @@ private fun ComprehensiveReportsSection(uiState: AppUiState) {
         "Profit Report",
         "Stock Report",
         "Feed Trial Report",
-        "Visit Report",
         "Complaint Report",
         "Expense Report",
         "Travel Report",
@@ -258,17 +264,6 @@ private fun ComprehensiveReportsSection(uiState: AppUiState) {
                 val m = listOf("Total Trials" to "${uiState.trialsWithMilk.size}")
                 Triple(h, r, m)
             }
-            "Visit Report" -> {
-                val h = listOf("Visit #", "Date", "Partner", "Type", "Potential", "Booked")
-                val r = uiState.visits.map {
-                    listOf(it.visitCode, it.date, it.partnerName, it.visitType, "${it.potentialOrderBags} Bags", "${it.orderReceivedBags} Bags")
-                }
-                val m = listOf(
-                    "Total Visits" to "${uiState.visits.size}",
-                    "Orders Booked on Visits" to "${uiState.visits.sumOf { it.orderReceivedBags }} Bags"
-                )
-                Triple(h, r, m)
-            }
             "Complaint Report" -> {
                 val h = listOf("ID", "Date", "Partner", "Product", "Type", "Status")
                 val r = uiState.complaints.map {
@@ -440,7 +435,7 @@ private fun ComprehensiveReportsSection(uiState: AppUiState) {
             }
         }
 
-        // Summary KPI Box
+        // Summary KPI Box & Visual Distribution Chart
         item {
             ElevatedCard(
                 shape = RoundedCornerShape(16.dp),
@@ -448,11 +443,62 @@ private fun ComprehensiveReportsSection(uiState: AppUiState) {
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("$selectedReport Summary", style = MaterialTheme.typography.titleSmall)
+                    Text("$selectedReport Summary", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
                     summaryMetrics.forEach { (k, v) ->
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(k, style = MaterialTheme.typography.bodyMedium)
                             Text(v, style = MaterialTheme.typography.titleSmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold))
+                        }
+                    }
+                }
+            }
+        }
+
+        if (rows.isNotEmpty()) {
+            item {
+                val chartEntries = remember(rows) {
+                    rows.take(6).map { r ->
+                        val label = r.firstOrNull() ?: ""
+                        val valueText = r.lastOrNull() ?: ""
+                        val numeric = valueText.replace(Regex("[^0-9.]"), "").toDoubleOrNull() ?: 0.0
+                        Triple(label, valueText, numeric)
+                    }
+                }
+                val maxVal = (chartEntries.maxOfOrNull { it.third } ?: 1.0).coerceAtLeast(1.0)
+                ElevatedCard(
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "Visual Breakdown ($selectedReport)",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                        )
+                        chartEntries.forEach { (label, valStr, num) ->
+                            val ratio = (num / maxVal).toFloat().coerceIn(0.05f, 1f)
+                            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(label, style = MaterialTheme.typography.bodySmall)
+                                    Text(
+                                        valStr,
+                                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                LinearProgressIndicator(
+                                    progress = { ratio },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(8.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                )
+                            }
                         }
                     }
                 }
@@ -688,7 +734,7 @@ private fun NotificationsAndRemindersSection(
                         ReminderToggleRow("Payment Due & Credit Limit Alerts", cfg.notifyPaymentDue) {
                             viewModel.saveBusinessConfig(cfg.copy(notifyPaymentDue = it))
                         }
-                        ReminderToggleRow("Visit & Complaint Follow-up Due", cfg.notifyFollowUpDue) {
+                        ReminderToggleRow("Complaint Follow-up Due", cfg.notifyFollowUpDue) {
                             viewModel.saveBusinessConfig(cfg.copy(notifyFollowUpDue = it))
                         }
                         ReminderToggleRow("Feed Trial Observation Reminders", cfg.notifyTrialFollowUp) {
@@ -752,8 +798,16 @@ private fun SettingsAndAdminSection(
     uiState: AppUiState,
     viewModel: DairyViewModel
 ) {
+    val context = LocalContext.current
     val cfg = uiState.config
     var adminTab by remember { mutableStateOf("BUSINESS") }
+    var showClearDataConfirm by remember { mutableStateOf(false) }
+
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            viewModel.importBackupFromUri(context, uri)
+        }
+    }
 
     // Business Profile state
     var companyName by remember(cfg) { mutableStateOf(cfg.companyName) }
@@ -793,7 +847,7 @@ private fun SettingsAndAdminSection(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf(
-                    "BUSINESS" to "Business & Appearance",
+                    "BUSINESS" to "App, Appearance & Data",
                     "LOOKUPS" to "Dynamic Lists (Areas/Methods/Types)",
                     "CUSTOM_FIELDS" to "Custom Fields Builder",
                     "SECURITY" to "Security & Roles",
@@ -810,10 +864,149 @@ private fun SettingsAndAdminSection(
 
         when (adminTab) {
             "BUSINESS" -> {
+                // 1. App Section
+                item {
+                    ElevatedCard(
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        "WandaBook Pro",
+                                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        "Dairy Feed Sales & Management",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                StatusBadge("v1.0")
+                            }
+                            HorizontalDivider()
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Developer", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Made by Attique ur Rehman", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Version", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("1.0 (Production)", style = MaterialTheme.typography.bodySmall)
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = { viewModel.navigateToSubModule(SubModule.ABOUT) },
+                                    modifier = Modifier.weight(1f).testTag("open_about_btn")
+                                ) {
+                                    Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("About WandaBook Pro")
+                                }
+                                Button(
+                                    onClick = { viewModel.navigateToSubModule(SubModule.BACKUP) },
+                                    modifier = Modifier.weight(1f).testTag("open_backup_settings_btn")
+                                ) {
+                                    Icon(Icons.Default.Backup, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Backup & Restore")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 2. Appearance Section
                 item {
                     ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text("Business Settings & Invoice Branding", style = MaterialTheme.typography.titleMedium)
+                            Text("Appearance", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                            Text(
+                                "Choose your preferred display theme for indoor or field sunlight visibility.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                listOf(
+                                    "LIGHT" to "Light Mode",
+                                    "DARK" to "Dark Mode",
+                                    "SYSTEM" to "System Default"
+                                ).forEach { (mode, label) ->
+                                    FilterChip(
+                                        selected = cfg.themeMode == mode,
+                                        onClick = { viewModel.saveBusinessConfig(cfg.copy(themeMode = mode)) },
+                                        label = { Text(label) },
+                                        modifier = Modifier.testTag("theme_chip_$mode")
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 3. Data Section
+                item {
+                    ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text("Data Management", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                Button(
+                                    onClick = { viewModel.performManualBackup(context, shareAfterSave = true) },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Export Data")
+                                }
+                                OutlinedButton(
+                                    onClick = { importLauncher.launch("application/json") },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Import Data")
+                                }
+                            }
+                            OutlinedButton(
+                                onClick = { showClearDataConfirm = true },
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusDanger),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.DeleteSweep, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Clear Data (With Confirmation)")
+                            }
+                        }
+                    }
+                }
+
+                // 4. Business & Invoice Branding
+                item {
+                    ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text("Business Settings & Invoice Branding", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
                             OutlinedTextField(
                                 value = companyName,
                                 onValueChange = { companyName = it },
@@ -889,21 +1082,17 @@ private fun SettingsAndAdminSection(
                     }
                 }
 
+                // Subtle Footer Attribution
                 item {
-                    ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text("Appearance (Light / Dark Mode)", style = MaterialTheme.typography.titleMedium)
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                listOf("SYSTEM" to "System", "LIGHT" to "Light Mode", "DARK" to "Dark Mode").forEach { (mode, label) ->
-                                    FilterChip(
-                                        selected = cfg.themeMode == mode,
-                                        onClick = { viewModel.saveBusinessConfig(cfg.copy(themeMode = mode)) },
-                                        label = { Text(label) }
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    Text(
+                        text = "WandaBook Pro • Dairy Feed Sales & Management\nMade by Attique ur Rehman",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                    )
                 }
             }
 
@@ -913,7 +1102,7 @@ private fun SettingsAndAdminSection(
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text("Dynamic Configurable Business Lists", style = MaterialTheme.typography.titleMedium)
                             Text(
-                                "Manage Areas, Payment Methods, Visit Types, Complaint Types, Expense Categories, Dealer Types, and Feed Categories without hard-coding.",
+                                "Manage Areas, Payment Methods, Complaint Types, Expense Categories, Dealer Types, and Feed Categories without hard-coding.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -922,7 +1111,6 @@ private fun SettingsAndAdminSection(
                                 options = listOf(
                                     "AREA",
                                     "PAYMENT_METHOD",
-                                    "VISIT_TYPE",
                                     "COMPLAINT_TYPE",
                                     "EXPENSE_CATEGORY",
                                     "DEALER_TYPE",
@@ -1163,6 +1351,16 @@ private fun SettingsAndAdminSection(
             }
         }
     }
+
+    if (showClearDataConfirm) {
+        ConfirmDestructiveDialog(
+            title = "Clear Transactional Data?",
+            message = "This will clear orders, payments, dealers, farmers, trials, and expenses while preserving your configured feed products (26P, 26M, 28P, 55M, CP Mamni). Make sure you have a backup first.",
+            confirmText = "Clear Data",
+            onConfirm = { viewModel.clearSampleDataStartFresh() },
+            onDismiss = { showClearDataConfirm = false }
+        )
+    }
 }
 
 @Composable
@@ -1171,9 +1369,27 @@ private fun BackupAndDemoDataSection(
     viewModel: DairyViewModel
 ) {
     val context = LocalContext.current
+    val cfg = uiState.config
     var showRestoreConfirm by remember { mutableStateOf(false) }
     var showClearSampleConfirm by remember { mutableStateOf(false) }
     var showReloadSampleConfirm by remember { mutableStateOf(false) }
+
+    var emailEnabled by remember(cfg) { mutableStateOf(cfg.emailBackupEnabled) }
+    var backupEmail by remember(cfg) { mutableStateOf(cfg.backupEmailAddress) }
+    var emailFreq by remember(cfg) { mutableStateOf(cfg.emailBackupFrequency) }
+    var emailTime by remember(cfg) { mutableStateOf(cfg.emailBackupTime) }
+    var webhookUrl by remember(cfg) { mutableStateOf(cfg.emailWebhookUrl) }
+
+    val importFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            viewModel.importBackupFromUri(context, uri)
+        }
+    }
+
+    val todayFileName = remember {
+        val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        "WandaBookPro_Backup_$dateStr.json"
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -1182,62 +1398,265 @@ private fun BackupAndDemoDataSection(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        // 1. Manual Backup Card
         item {
             ElevatedCard(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Data Backup & Restore (Section 27)", style = MaterialTheme.typography.titleMedium)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Manual Backup & Restore",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        StatusBadge("Safe JSON")
+                    }
                     Text(
-                        "Last Manual Backup: ${uiState.config.lastBackupAt}",
-                        style = MaterialTheme.typography.bodySmall,
+                        "File format: $todayFileName",
+                        style = MaterialTheme.typography.labelMedium.copy(fontFamily = JetBrainsMonoFamily),
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        "Creates a complete JSON snapshot of all Products, Bag Sizes, Dealers, Farmers, Orders, Order Items, Stock Movements, and Payments.",
+                        "Saves all orders, dealers, products, payments, balances, reports data, and app settings.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         Button(
                             onClick = { viewModel.performManualBackup(context, shareAfterSave = false) },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f).testTag("backup_now_btn")
                         ) {
                             Icon(Icons.Default.Backup, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Manual Backup")
+                            Text("Backup Now")
                         }
                         Button(
                             onClick = { viewModel.performManualBackup(context, shareAfterSave = true) },
                             colors = ButtonDefaults.buttonColors(containerColor = StatusInfo),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f).testTag("export_backup_btn")
                         ) {
                             Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Export Data")
+                            Text("Export Backup")
                         }
                     }
-                    OutlinedButton(
-                        onClick = { showRestoreConfirm = true },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Restore, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Restore Latest Backup (Requires Confirmation)")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(
+                            onClick = { showRestoreConfirm = true },
+                            modifier = Modifier.weight(1f).testTag("restore_backup_btn")
+                        ) {
+                            Icon(Icons.Default.Restore, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Restore Backup")
+                        }
+                        OutlinedButton(
+                            onClick = { importFileLauncher.launch("application/json") },
+                            modifier = Modifier.weight(1f).testTag("import_backup_file_btn")
+                        ) {
+                            Icon(Icons.Default.FileOpen, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Import File")
+                        }
                     }
                 }
             }
         }
 
+        // 2. Automatic Backup Card
         item {
             ElevatedCard(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Sample Data / Demo Mode Control (Section 42)", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Automatic Backup",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    )
+                    Text(
+                        "Automatically creates a safe local backup on schedule without overwriting or deleting existing records.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("OFF", "Daily", "Weekly").forEach { freq ->
+                            FilterChip(
+                                selected = cfg.autoBackupFrequency.equals(freq, true),
+                                onClick = {
+                                    val nextSchedule = BusinessCalculations.computeNextBackupSchedule(
+                                        frequency = freq,
+                                        timeLabel = cfg.emailBackupTime
+                                    )
+                                    viewModel.saveBusinessConfig(
+                                        cfg.copy(
+                                            autoBackupFrequency = freq,
+                                            nextBackupAt = nextSchedule,
+                                            lastBackupStatus = if (freq == "OFF") "Auto-backup OFF" else "Scheduled ($freq)"
+                                        )
+                                    )
+                                },
+                                label = { Text(freq) },
+                                modifier = Modifier.testTag("auto_backup_chip_$freq")
+                            )
+                        }
+                    }
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Last Backup:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(cfg.lastBackupAt, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Backup Status:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(cfg.lastBackupStatus, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), color = StatusSuccess)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Next Backup:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(cfg.nextBackupAt, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Email Backup Card
+        item {
+            ElevatedCard(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Email Backup",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                            )
+                            Text(
+                                "Send encrypted/JSON backup files to your backup email",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = emailEnabled,
+                            onCheckedChange = {
+                                emailEnabled = it
+                                viewModel.saveBusinessConfig(
+                                    cfg.copy(
+                                        emailBackupEnabled = it,
+                                        backupEmailAddress = backupEmail.trim(),
+                                        emailBackupFrequency = emailFreq,
+                                        emailBackupTime = emailTime.trim(),
+                                        emailWebhookUrl = webhookUrl.trim()
+                                    )
+                                )
+                            },
+                            modifier = Modifier.testTag("email_backup_switch")
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = backupEmail,
+                        onValueChange = { backupEmail = it },
+                        label = { Text("Backup Email") },
+                        placeholder = { Text("attiqueurrehman41@gmail.com") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("backup_email_input")
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DropdownSelectorField(
+                            label = "Frequency",
+                            options = listOf("Daily", "Weekly"),
+                            selectedOption = emailFreq,
+                            onOptionSelected = { emailFreq = it },
+                            modifier = Modifier.weight(1f)
+                        )
+                        DropdownSelectorField(
+                            label = "Time",
+                            options = listOf("07:30 PM", "09:00 AM", "01:00 PM", "06:00 PM", "10:00 PM"),
+                            selectedOption = emailTime,
+                            onOptionSelected = { emailTime = it },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = webhookUrl,
+                        onValueChange = { webhookUrl = it },
+                        label = { Text("Optional Cloud Relay / Webhook URL (No password needed)") },
+                        placeholder = { Text("https://... (leave blank to use Android Email Share)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(
+                            onClick = {
+                                val nextSched = BusinessCalculations.computeNextBackupSchedule(
+                                    frequency = if (emailEnabled) emailFreq else cfg.autoBackupFrequency,
+                                    timeLabel = emailTime
+                                )
+                                viewModel.saveBusinessConfig(
+                                    cfg.copy(
+                                        emailBackupEnabled = emailEnabled,
+                                        backupEmailAddress = backupEmail.trim(),
+                                        emailBackupFrequency = emailFreq,
+                                        emailBackupTime = emailTime.trim(),
+                                        emailWebhookUrl = webhookUrl.trim(),
+                                        nextBackupAt = nextSched
+                                    )
+                                )
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Save Email Settings")
+                        }
+                        Button(
+                            onClick = {
+                                viewModel.saveBusinessConfig(
+                                    cfg.copy(
+                                        emailBackupEnabled = emailEnabled,
+                                        backupEmailAddress = backupEmail.trim(),
+                                        emailBackupFrequency = emailFreq,
+                                        emailBackupTime = emailTime.trim(),
+                                        emailWebhookUrl = webhookUrl.trim()
+                                    )
+                                )
+                                viewModel.sendEmailBackup(context, backupEmail.trim(), isTest = true)
+                            },
+                            modifier = Modifier.weight(1f).testTag("send_test_backup_btn")
+                        ) {
+                            Icon(Icons.Default.Email, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Send Test Backup")
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Sample Data / Workspace Control
+        item {
+            ElevatedCard(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Sample Data / Clean Workspace Control", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
                     Text(
                         "Status: ${if (uiState.config.isSampleDataLoaded) "Sample Field Data Active" else "Clean Fresh Workspace"}",
                         style = MaterialTheme.typography.titleSmall,
                         color = if (uiState.config.isSampleDataLoaded) StatusSuccess else StatusInfo
                     )
                     Text(
-                        "Clearly separate demo/sample data from real user records. You can clear all sample transactions to start fresh while keeping your configurable feed products (26P, 28P, 26M, 55M, CP Mamni) and bag sizes (20 KG, 40 KG).",
+                        "You can clear sample records to start fresh while keeping your feed products (26P, 28P, 26M, 55M, CP Mamni) and bag sizes (20 KG, 40 KG).",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1263,9 +1682,9 @@ private fun BackupAndDemoDataSection(
 
     if (showRestoreConfirm) {
         ConfirmDestructiveDialog(
-            title = "Restore Database from Backup?",
-            message = "Restoring from backup will replace current dealers, farmers, orders, stock, and payments with the saved backup records. Are you sure you want to proceed?",
-            confirmText = "Restore Backup",
+            title = "Restore Backup?",
+            message = "This will replace or merge your current data. Make sure you have a recent backup before continuing.",
+            confirmText = "Restore",
             onConfirm = { viewModel.restoreBackup(context) },
             onDismiss = { showRestoreConfirm = false }
         )
@@ -1274,7 +1693,7 @@ private fun BackupAndDemoDataSection(
     if (showClearSampleConfirm) {
         ConfirmDestructiveDialog(
             title = "Clear Sample Data & Start Fresh?",
-            message = "This will remove all sample orders, payments, dealers, farmers, visits, trials, and expenses so you can enter real business records from scratch.",
+            message = "This will remove all sample orders, payments, dealers, farmers, trials, and expenses so you can enter real business records from scratch.",
             confirmText = "Clear & Start Fresh",
             onConfirm = { viewModel.clearSampleDataStartFresh() },
             onDismiss = { showClearSampleConfirm = false }
@@ -1284,7 +1703,7 @@ private fun BackupAndDemoDataSection(
     if (showReloadSampleConfirm) {
         ConfirmDestructiveDialog(
             title = "Reload Realistic Sample Data?",
-            message = "This will reset transactional records and load the complete sample dataset for testing all 18 modules.",
+            message = "This will reset transactional records and load the complete sample dataset for testing all modules.",
             confirmText = "Load Sample Data",
             onConfirm = { viewModel.reloadSampleData() },
             onDismiss = { showReloadSampleConfirm = false }
@@ -1452,6 +1871,137 @@ private fun GlobalSearchSection(
                         Text("Feed Trial ${t.trialCode} (${t.trialFeedCode})", style = MaterialTheme.typography.titleSmall)
                         Text("${t.farmName} (${t.farmerName}) • Status: ${t.status}", style = MaterialTheme.typography.bodySmall)
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AboutWandaBookSection(
+    uiState: AppUiState,
+    viewModel: DairyViewModel
+) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag("about_wandabook_section"),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            ElevatedCard(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.size(64.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Agriculture,
+                                contentDescription = "WandaBook Pro Icon",
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(36.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "WandaBook Pro",
+                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        text = "Dairy Feed Sales & Management",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    StatusBadge("Version: 1.0")
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Made by Attique ur Rehman",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+
+        item {
+            ElevatedCard(
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "About Application",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    )
+                    Text(
+                        text = "WandaBook Pro is a professional dairy feed sales and dealer management application designed to simplify daily sales, orders, dealer records, payments, and business reporting.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    HorizontalDivider()
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Application Name", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("WandaBook Pro", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Edition", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Dairy Feed Sales & Management", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Developer / Owner", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Made by Attique ur Rehman", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.primary)
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Version", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("1.0", style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily))
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Supported Feed Lines", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("26P, 26M, 28P, 55M, CP Mamni", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
+                    }
+                }
+            }
+        }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { viewModel.navigateToSubModule(SubModule.SETTINGS) },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Settings")
+                }
+                Button(
+                    onClick = { viewModel.navigateToSubModule(SubModule.BACKUP) },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Backup, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Backup & Restore")
                 }
             }
         }

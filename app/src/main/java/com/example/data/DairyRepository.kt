@@ -18,7 +18,6 @@ class DairyRepository(private val dao: DairyDao) {
     val allPayments: Flow<List<PaymentEntity>> = dao.observeAllPayments()
     val allTrialsWithMilk: Flow<List<TrialWithMilkRecords>> = dao.observeAllTrialsWithMilk()
     val allComplaints: Flow<List<ComplaintEntity>> = dao.observeAllComplaints()
-    val allVisits: Flow<List<VisitEntity>> = dao.observeAllVisits()
     val allTargets: Flow<List<SalesTargetEntity>> = dao.observeAllTargets()
     val allExpenses: Flow<List<ExpenseEntity>> = dao.observeAllExpenses()
     val allTravelLogs: Flow<List<TravelLogEntity>> = dao.observeAllTravelLogs()
@@ -285,13 +284,6 @@ class DairyRepository(private val dao: DairyDao) {
         dao.deleteMilkRecord(record)
     }
 
-    // --- Visits ---
-    suspend fun saveVisit(visit: VisitEntity) {
-        if (visit.id > 0) dao.updateVisit(visit) else dao.insertVisit(visit)
-    }
-
-    suspend fun deleteVisit(visit: VisitEntity) = dao.deleteVisit(visit)
-
     // --- Complaints ---
     suspend fun saveComplaint(complaint: ComplaintEntity) {
         if (complaint.id > 0) {
@@ -342,10 +334,22 @@ class DairyRepository(private val dao: DairyDao) {
     }
 
     suspend fun createBackupFile(context: Context): File {
-        return DocumentAndExportManager.saveBackupToLocalFile(context, dao)
+        return DocumentAndExportManager.saveBackupToLocalFile(context, dao, isAutoBackup = false)
+    }
+
+    suspend fun runAutoBackupIfDue(context: Context) {
+        DocumentAndExportManager.checkAndRunAutoBackupIfDue(context, dao)
+    }
+
+    suspend fun dispatchEmailBackup(context: Context, recipientEmail: String, isTest: Boolean = false): Pair<Boolean, String> {
+        return DocumentAndExportManager.dispatchEmailBackup(context, dao, recipientEmail, isTest)
     }
 
     suspend fun restoreFromLatestBackup(context: Context, customJson: String? = null): Boolean {
         return DocumentAndExportManager.restoreFromBackupJson(context, dao, customJson)
+    }
+
+    suspend fun restoreFromLatestBackupWithValidation(context: Context, customJson: String? = null): Pair<Boolean, String> {
+        return DocumentAndExportManager.restoreFromBackupJsonWithValidation(context, dao, customJson)
     }
 }

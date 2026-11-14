@@ -1,6 +1,6 @@
 {
-  "name": "DairyFeed Pro",
-  "description": "Offline-first dairy feed sales, inventory, dealer ledger, feed trial, and field business management system",
+  "name": "WandaBook Pro",
+  "description": "WandaBook Pro - Dairy Feed Sales & Management application for dealers, orders, inventory, ledger, and business reporting",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -8,30 +8,31 @@ import com.example.data.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+import android.net.Uri
+
 enum class PrimaryTab(val label: String) {
     DASHBOARD("Dashboard"),
-    SALES("Sales & Stock"),
-    PARTNERS("Partners"),
+    SALES("Orders"),
+    PARTNERS("Dealers"),
     FIELD("Field Ops"),
-    HUB("More Hub")
+    HUB("More")
 }
 
 enum class SubModule(val title: String) {
     // Under Sales & Stock
-    ORDERS("Sales & Orders"),
+    ORDERS("Orders & Sales"),
     CONSOLIDATED("Consolidated Orders"),
     STOCK("Stock & Inventory"),
     PAYMENTS("Payments & Ledger"),
     INVOICES("Invoices"),
-    PRODUCTS("Products & Pricing"),
+    PRODUCTS("Products & Feed"),
 
     // Under Partners
-    DEALERS("Dealers"),
+    DEALERS("Dealers & Customers"),
     FARMERS("Farmers"),
 
     // Under Field Ops
     TRIALS("Feed Trials & Milk"),
-    VISITS("Field Visits"),
     COMPLAINTS("Complaints"),
     EXPENSES_TRAVEL("Expenses & Odometer"),
 
@@ -41,7 +42,8 @@ enum class SubModule(val title: String) {
     REMINDERS("Notifications & Alerts"),
     SETTINGS("Settings & Admin"),
     BACKUP("Backup & Restore"),
-    SEARCH("Global Search")
+    SEARCH("Global Search"),
+    ABOUT("About WandaBook Pro")
 }
 
 data class DashboardMetrics(
@@ -50,14 +52,19 @@ data class DashboardMetrics(
     val todayBags: Int = 0,
     val todaySales: Double = 0.0,
     val todayCollection: Double = 0.0,
-    val todayVisitsCount: Int = 0,
     val pendingDeliveriesCount: Int = 0,
 
-    // Monthly Summary
+    // Monthly & Executive Summary
+    val monthlyOrdersCount: Int = 0,
     val monthlySales: Double = 0.0,
     val monthlyBags: Int = 0,
+    val monthlyKg: Double = 0.0,
     val monthlyMt: Double = 0.0,
     val monthlyCollection: Double = 0.0,
+    val totalAllTimeSales: Double = 0.0,
+    val totalAllTimeBags: Int = 0,
+    val totalAllTimeKg: Double = 0.0,
+    val activeDealersCount: Int = 0,
     val totalOutstandingPayments: Double = 0.0,
     val totalOverduePayments: Double = 0.0,
     val monthlyGrossProfit: Double = 0.0,
@@ -99,7 +106,6 @@ data class AppUiState(
     val payments: List<PaymentEntity> = emptyList(),
     val trialsWithMilk: List<TrialWithMilkRecords> = emptyList(),
     val complaints: List<ComplaintEntity> = emptyList(),
-    val visits: List<VisitEntity> = emptyList(),
     val targets: List<SalesTargetEntity> = emptyList(),
     val expenses: List<ExpenseEntity> = emptyList(),
     val travelLogs: List<TravelLogEntity> = emptyList(),
@@ -132,6 +138,7 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
     init {
         viewModelScope.launch {
             repository.ensureInitialized()
+            repository.runAutoBackupIfDue(getApplication())
             observeAllDataStreams()
         }
     }
@@ -162,11 +169,10 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
                 combine(
                     repository.allTrialsWithMilk,
                     repository.allComplaints,
-                    repository.allVisits,
                     repository.allTargets,
                     repository.allExpenses
-                ) { trials, complaints, visits, targets, expenses ->
-                    Tuple5(trials, complaints, visits, targets, expenses)
+                ) { trials, complaints, targets, expenses ->
+                    Tuple4(trials, complaints, targets, expenses)
                 }
             ) { (part1, part2), part3 ->
                 Triple(part1, part2, part3)
@@ -193,9 +199,8 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
 
                 val trials = part3.a
                 val complaints = part3.b
-                val visits = part3.c
-                val targets = part3.d
-                val expenses = part3.e
+                val targets = part3.c
+                val expenses = part3.d
 
                 val travelLogs = part4.first
                 val customDefs = part4.second
@@ -205,8 +210,8 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
                     BusinessCalculations.computeDealerSummary(d, orders, payments)
                 }
                 val stockStatuses = BusinessCalculations.computeProductStockStatuses(products, stockMovements)
-                val dash = computeDashboard(orders, payments, visits, trials, complaints, targets, dealerSummaries, stockStatuses)
-                val reminders = computeReminders(cfg, orders, visits, trials, dealerSummaries, stockStatuses, dash)
+                val dash = computeDashboard(orders, payments, trials, complaints, targets, dealerSummaries, stockStatuses)
+                val reminders = computeReminders(cfg, orders, complaints, trials, dealerSummaries, stockStatuses, dash)
 
                 _uiState.value.copy(
                     isInitialized = true,
@@ -225,7 +230,6 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
                     payments = payments,
                     trialsWithMilk = trials,
                     complaints = complaints,
-                    visits = visits,
                     targets = targets,
                     expenses = expenses,
                     travelLogs = travelLogs,
@@ -271,7 +275,6 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
     private fun computeDashboard(
         orders: List<OrderWithItems>,
         payments: List<PaymentEntity>,
-        visits: List<VisitEntity>,
         trials: List<TrialWithMilkRecords>,
         complaints: List<ComplaintEntity>,
         targets: List<SalesTargetEntity>,
@@ -288,16 +291,20 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
         val todayPayments = payments.filter { it.date == today }
         val monthPayments = payments.filter { it.date.startsWith(monthPrefix) }
 
-        val todayVisits = visits.filter { it.date == today }
         val pendingDeliveries = orders.count {
             it.order.status == "Pending" || it.order.status == "Confirmed" || it.order.status == "In Transit" || it.order.status == "Partially Delivered"
         }
 
         val monthlyBags = monthOrders.sumOf { it.order.totalBags }
+        val monthlyKg = monthOrders.sumOf { it.order.totalKg }
         val monthlyMt = monthOrders.sumOf { it.order.totalMt }
         val monthlySales = monthOrders.sumOf { it.order.netAmount }
         val monthlyProfit = monthOrders.sumOf { it.order.estimatedProfit }
         val monthlyCollection = monthPayments.sumOf { it.amount }
+
+        val totalAllTimeSales = validOrders.sumOf { it.order.netAmount }
+        val totalAllTimeBags = validOrders.sumOf { it.order.totalBags }
+        val totalAllTimeKg = validOrders.sumOf { it.order.totalKg }
 
         val activeDealers = dealerSummaries.filter { !it.dealer.isArchived }
         val totalOutstanding = activeDealers.sumOf { it.outstandingBalance.coerceAtLeast(0.0) }
@@ -313,8 +320,7 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
         val pendingTrials = trials.count {
             it.trial.status in listOf("Planned", "Started", "Transition", "Under Observation")
         }
-        val followUpDue = visits.count { it.followUpDate.isNotBlank() && it.followUpDate <= today } +
-            complaints.count { it.followUpDate.isNotBlank() && it.followUpDate <= today && it.status != "Closed" && it.status != "Resolved" }
+        val followUpDue = complaints.count { it.followUpDate.isNotBlank() && it.followUpDate <= today && it.status != "Closed" && it.status != "Resolved" }
         val lowStockCount = stockStatuses.count { it.isLowStock }
         val openComplaintsCount = complaints.count { it.status != "Closed" && it.status != "Resolved" }
 
@@ -323,12 +329,17 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
             todayBags = todayOrders.sumOf { it.order.totalBags },
             todaySales = todayOrders.sumOf { it.order.netAmount },
             todayCollection = todayPayments.sumOf { it.amount },
-            todayVisitsCount = todayVisits.size,
             pendingDeliveriesCount = pendingDeliveries,
+            monthlyOrdersCount = monthOrders.size,
             monthlySales = monthlySales,
             monthlyBags = monthlyBags,
+            monthlyKg = monthlyKg,
             monthlyMt = monthlyMt,
             monthlyCollection = monthlyCollection,
+            totalAllTimeSales = totalAllTimeSales,
+            totalAllTimeBags = totalAllTimeBags,
+            totalAllTimeKg = totalAllTimeKg,
+            activeDealersCount = activeDealers.size,
             totalOutstandingPayments = totalOutstanding,
             totalOverduePayments = totalOverdue,
             monthlyGrossProfit = monthlyProfit,
@@ -347,7 +358,7 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
     private fun computeReminders(
         cfg: BusinessConfigEntity,
         orders: List<OrderWithItems>,
-        visits: List<VisitEntity>,
+        complaints: List<ComplaintEntity>,
         trials: List<TrialWithMilkRecords>,
         dealerSummaries: List<DealerFinancialSummary>,
         stockStatuses: List<ProductStockStatus>,
@@ -408,16 +419,16 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         if (cfg.notifyFollowUpDue) {
-            visits.filter { it.followUpDate.isNotBlank() && it.followUpDate <= today }.forEach { v ->
+            complaints.filter { it.followUpDate.isNotBlank() && it.followUpDate <= today && it.status != "Closed" && it.status != "Resolved" }.forEach { c ->
                 list.add(
                     SmartReminderItem(
-                        id = "VST-${v.id}",
+                        id = "CMP-${c.id}",
                         category = "FOLLOW_UP",
-                        title = "Follow-up Due: ${v.partnerName}",
-                        subtitle = "${v.visitType} • Purpose: ${v.purpose} (Potential: ${v.potentialOrderBags} bags)",
+                        title = "Complaint Follow-up: ${c.partnerName}",
+                        subtitle = "${c.complaintType} (${c.productName}) • Status: ${c.status}",
                         severity = "MEDIUM",
-                        dateLabel = v.followUpDate,
-                        targetModule = "VISITS"
+                        dateLabel = c.followUpDate,
+                        targetModule = "COMPLAINTS"
                     )
                 )
             }
@@ -472,7 +483,6 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
             PrimaryTab.PARTNERS -> if (_activeSubModule.value in listOf(SubModule.DEALERS, SubModule.FARMERS)) _activeSubModule.value else SubModule.DEALERS
             PrimaryTab.FIELD -> if (_activeSubModule.value in listOf(
                     SubModule.TRIALS,
-                    SubModule.VISITS,
                     SubModule.COMPLAINTS,
                     SubModule.EXPENSES_TRAVEL
                 )
@@ -483,7 +493,8 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
                     SubModule.REMINDERS,
                     SubModule.SETTINGS,
                     SubModule.BACKUP,
-                    SubModule.SEARCH
+                    SubModule.SEARCH,
+                    SubModule.ABOUT
                 )
             ) _activeSubModule.value else SubModule.REPORTS
         }
@@ -505,8 +516,8 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
         val targetTab = when (subModule) {
             SubModule.ORDERS, SubModule.CONSOLIDATED, SubModule.STOCK, SubModule.PAYMENTS, SubModule.INVOICES, SubModule.PRODUCTS -> PrimaryTab.SALES
             SubModule.DEALERS, SubModule.FARMERS -> PrimaryTab.PARTNERS
-            SubModule.TRIALS, SubModule.VISITS, SubModule.COMPLAINTS, SubModule.EXPENSES_TRAVEL -> PrimaryTab.FIELD
-            SubModule.REPORTS, SubModule.TARGETS, SubModule.REMINDERS, SubModule.SETTINGS, SubModule.BACKUP, SubModule.SEARCH -> PrimaryTab.HUB
+            SubModule.TRIALS, SubModule.COMPLAINTS, SubModule.EXPENSES_TRAVEL -> PrimaryTab.FIELD
+            SubModule.REPORTS, SubModule.TARGETS, SubModule.REMINDERS, SubModule.SETTINGS, SubModule.BACKUP, SubModule.SEARCH, SubModule.ABOUT -> PrimaryTab.HUB
         }
         _activeTab.value = targetTab
         _activeSubModule.value = subModule
@@ -743,20 +754,6 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun saveVisit(visit: VisitEntity) {
-        viewModelScope.launch {
-            repository.saveVisit(visit)
-            showMessage("Saved visit ${visit.visitCode}")
-        }
-    }
-
-    fun deleteVisit(visit: VisitEntity) {
-        viewModelScope.launch {
-            repository.deleteVisit(visit)
-            showMessage("Deleted visit ${visit.visitCode}")
-        }
-    }
-
     fun saveComplaint(complaint: ComplaintEntity) {
         viewModelScope.launch {
             repository.saveComplaint(complaint)
@@ -836,21 +833,52 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
 
     fun performManualBackup(context: Context, shareAfterSave: Boolean = false) {
         viewModelScope.launch {
-            val file = repository.createBackupFile(context)
-            showMessage("Backup saved: ${file.name}")
-            if (shareAfterSave) {
-                DocumentAndExportManager.shareFile(context, file, "application/json", "Export DairyFeed Pro Backup")
+            try {
+                val file = repository.createBackupFile(context)
+                showMessage("Backup saved: ${file.name}")
+                if (shareAfterSave) {
+                    DocumentAndExportManager.shareFile(context, file, "application/json", "Export WandaBook Pro Backup")
+                }
+            } catch (_: Exception) {
+                showMessage("Something went wrong. Your data has not been deleted. Please try again.")
             }
         }
     }
 
     fun restoreBackup(context: Context, customJson: String? = null) {
         viewModelScope.launch {
-            val ok = repository.restoreFromLatestBackup(context, customJson)
-            if (ok) {
-                showMessage("Database restored from backup")
-            } else {
-                showMessage("No valid backup found to restore")
+            try {
+                val (_, message) = repository.restoreFromLatestBackupWithValidation(context, customJson)
+                showMessage(message)
+            } catch (_: Exception) {
+                showMessage("Something went wrong. Your data has not been deleted. Please try again.")
+            }
+        }
+    }
+
+    fun importBackupFromUri(context: Context, uri: Uri) {
+        viewModelScope.launch {
+            try {
+                val jsonText = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                if (jsonText.isNullOrBlank()) {
+                    showMessage("Selected backup file is empty. Your current data is safe.")
+                    return@launch
+                }
+                val (_, message) = repository.restoreFromLatestBackupWithValidation(context, jsonText)
+                showMessage(message)
+            } catch (_: Exception) {
+                showMessage("Something went wrong. Your data has not been deleted. Please try again.")
+            }
+        }
+    }
+
+    fun sendEmailBackup(context: Context, recipientEmail: String, isTest: Boolean = false) {
+        viewModelScope.launch {
+            try {
+                val (_, message) = repository.dispatchEmailBackup(context, recipientEmail, isTest)
+                showMessage(message)
+            } catch (_: Exception) {
+                showMessage("Something went wrong. Your data has not been deleted. Please try again.")
             }
         }
     }
@@ -916,4 +944,5 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
     }
 }
 
+private data class Tuple4<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
 private data class Tuple5<A, B, C, D, E>(val a: A, val b: B, val c: C, val d: D, val e: E)
