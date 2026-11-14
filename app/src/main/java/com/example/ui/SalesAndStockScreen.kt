@@ -1,12 +1,15 @@
 package com.example.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -16,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -293,7 +297,7 @@ private fun OrdersListSection(
                         Surface(
                             color = if (isSelected) Color(0xFF0F5233) else Color.White,
                             shape = RoundedCornerShape(50),
-                            border = androidx.compose.foundation.BorderStroke(
+                            border = BorderStroke(
                                 1.dp,
                                 if (isSelected) Color(0xFF0F5233) else Color(0xFFE2E8F0)
                             ),
@@ -315,10 +319,10 @@ private fun OrdersListSection(
             // 3. Orders List or Empty State
             if (filteredOrders.isEmpty()) {
                 item {
-                    ElevatedCard(
+                    Card(
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
@@ -352,15 +356,15 @@ private fun OrdersListSection(
                     val o = owi.order
                     val payStatus = BusinessCalculations.getOrderPaymentStatus(o.paidAmount, o.netAmount, o.outstandingAmount)
 
-                    ElevatedCard(
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { viewModel.openInvoicePreview(o.id) }
                             .testTag("order_card_${o.orderNumber}"),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
                         Row(
                             modifier = Modifier
@@ -373,12 +377,12 @@ private fun OrdersListSection(
                             Box(
                                 modifier = Modifier
                                     .size(44.dp)
-                                    .androidx.compose.ui.draw.clip(androidx.compose.foundation.shape.CircleShape)
+                                    .clip(CircleShape)
                                     .background(Color(0xFFF0FDF4))
-                                    .androidx.compose.foundation.border(
+                                    .border(
                                         1.dp,
                                         Color(0xFFBBF7D0),
-                                        androidx.compose.foundation.shape.CircleShape
+                                        CircleShape
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -1797,10 +1801,10 @@ private fun MultiProductOrderDialog(
                             color = Color(0xFF0F172A)
                         )
 
-                        ElevatedCard(
+                        Card(
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.fillMaxWidth()) {
@@ -2020,10 +2024,10 @@ private fun MultiProductOrderDialog(
                     }
 
                     // 4. Summary Box
-                    ElevatedCard(
+                    Card(
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(

@@ -1,7 +1,9 @@
 package com.example.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -18,6 +20,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -329,7 +332,7 @@ private fun FieldVisitsListSection(
                         Surface(
                             color = if (isSelected) Color(0xFF0F5233) else Color.White,
                             shape = RoundedCornerShape(50),
-                            border = androidx.compose.foundation.BorderStroke(
+                            border = BorderStroke(
                                 1.dp,
                                 if (isSelected) Color(0xFF0F5233) else Color(0xFFE2E8F0)
                             ),
@@ -351,10 +354,10 @@ private fun FieldVisitsListSection(
             // 3. Visit Cards (Timeline Style)
             if (filteredVisits.isEmpty()) {
                 item {
-                    ElevatedCard(
+                    Card(
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
@@ -385,11 +388,11 @@ private fun FieldVisitsListSection(
                 }
             } else {
                 items(filteredVisits, key = { it.id }) { visit ->
-                    ElevatedCard(
+                    Card(
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -403,9 +406,9 @@ private fun FieldVisitsListSection(
                             Box(
                                 modifier = Modifier
                                     .size(44.dp)
-                                    .androidx.compose.ui.draw.clip(CircleShape)
+                                    .clip(CircleShape)
                                     .background(Color(0xFFF0FDF4))
-                                    .androidx.compose.foundation.border(1.dp, Color(0xFFBBF7D0), CircleShape),
+                                    .border(1.dp, Color(0xFFBBF7D0), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(

@@ -1,5 +1,6 @@
 package com.example.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -409,21 +410,21 @@ fun DashboardScreen(
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         rowItems.forEach { (actionKey, label, icon) ->
-                            ElevatedCard(
+                            Card(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(88.dp)
                                     .clickable { onQuickAction(actionKey) }
                                     .testTag("quick_action_${actionKey.lowercase()}"),
                                 shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.elevatedCardColors(
+                                colors = CardDefaults.cardColors(
                                     containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White
                                 ),
-                                border = androidx.compose.foundation.BorderStroke(
+                                border = BorderStroke(
                                     1.dp,
                                     if (isDark) Color(0xFF2A4235) else Color(0xFFE2E8F0)
                                 ),
-                                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
+                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -460,19 +461,19 @@ fun DashboardScreen(
 
         // 6. RECENT ORDERS SECTION
         item {
-            ElevatedCard(
+            Card(
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
-                colors = CardDefaults.elevatedCardColors(
+                colors = CardDefaults.cardColors(
                     containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White
                 ),
-                border = androidx.compose.foundation.BorderStroke(
+                border = BorderStroke(
                     1.dp,
                     if (isDark) Color(0xFF2A4235) else Color(0xFFE2E8F0)
                 ),
-                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -706,17 +707,17 @@ private fun DashboardMainKpiCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    ElevatedCard(
+    Card(
         modifier = modifier.clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(
+        colors = CardDefaults.cardColors(
             containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White
         ),
-        border = androidx.compose.foundation.BorderStroke(
+        border = BorderStroke(
             1.dp,
             if (isDark) Color(0xFF2A4235) else Color(0xFFE2E8F0)
         ),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier

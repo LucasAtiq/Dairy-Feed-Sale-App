@@ -1,6 +1,8 @@
 package com.example.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -17,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -250,7 +253,7 @@ private fun DealersListSection(
                         Surface(
                             color = if (isSelected) Color(0xFF0F5233) else Color.White,
                             shape = RoundedCornerShape(50),
-                            border = androidx.compose.foundation.BorderStroke(
+                            border = BorderStroke(
                                 1.dp,
                                 if (isSelected) Color(0xFF0F5233) else Color(0xFFE2E8F0)
                             ),
@@ -272,10 +275,10 @@ private fun DealersListSection(
             // 3. Dealer Cards or Empty State
             if (filteredDealers.isEmpty()) {
                 item {
-                    ElevatedCard(
+                    Card(
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
@@ -307,15 +310,15 @@ private fun DealersListSection(
             } else {
                 items(filteredDealers, key = { it.dealer.id }) { summary ->
                     val d = summary.dealer
-                    ElevatedCard(
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { viewModel.openDealerDetail(d.id) }
                             .testTag("dealer_card_${d.code}"),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
                         Row(
                             modifier = Modifier
@@ -328,9 +331,9 @@ private fun DealersListSection(
                             Box(
                                 modifier = Modifier
                                     .size(46.dp)
-                                    .androidx.compose.ui.draw.clip(CircleShape)
+                                    .clip(CircleShape)
                                     .background(Color(0xFFF0FDF4))
-                                    .androidx.compose.foundation.border(1.dp, Color(0xFFBBF7D0), CircleShape),
+                                    .border(1.dp, Color(0xFFBBF7D0), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -517,11 +520,11 @@ private fun DealerProfileDetailView(
         ) {
             // 1. Dealer Header Card (Matching Concept Screen 5)
             item {
-                ElevatedCard(
+                Card(
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -539,9 +542,9 @@ private fun DealerProfileDetailView(
                             Box(
                                 modifier = Modifier
                                     .size(52.dp)
-                                    .androidx.compose.ui.draw.clip(CircleShape)
+                                    .clip(CircleShape)
                                     .background(Color(0xFFF0FDF4))
-                                    .androidx.compose.foundation.border(1.dp, Color(0xFFBBF7D0), CircleShape),
+                                    .border(1.dp, Color(0xFFBBF7D0), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -608,7 +611,7 @@ private fun DealerProfileDetailView(
                                         Box(
                                             modifier = Modifier
                                                 .size(34.dp)
-                                                .androidx.compose.ui.draw.clip(CircleShape)
+                                                .clip(CircleShape)
                                                 .background(Color(0xFF0F5233))
                                                 .clickable { DocumentAndExportManager.dialPhoneNumber(context, d.mobile) },
                                             contentAlignment = Alignment.Center
@@ -624,7 +627,7 @@ private fun DealerProfileDetailView(
                                         Box(
                                             modifier = Modifier
                                                 .size(34.dp)
-                                                .androidx.compose.ui.draw.clip(CircleShape)
+                                                .clip(CircleShape)
                                                 .background(Color(0xFF25D366))
                                                 .clickable {
                                                     DocumentAndExportManager.openWhatsAppChat(
@@ -745,11 +748,11 @@ private fun DealerProfileDetailView(
 
                     // Recent Orders Card (Matching Screen 5)
                     item {
-                        ElevatedCard(
+                        Card(
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
@@ -841,7 +844,7 @@ private fun DealerProfileDetailView(
                                 onClick = { showArchiveConfirm = true },
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFECACA)),
+                                border = BorderStroke(1.dp, Color(0xFFFECACA)),
                                 modifier = Modifier.height(44.dp)
                             ) {
                                 Icon(Icons.Default.Archive, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -863,10 +866,10 @@ private fun DealerProfileDetailView(
                     } else {
                         items(dealerOrders, key = { it.order.id }) { owi ->
                             val o = owi.order
-                            ElevatedCard(
+                            Card(
                                 shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable { viewModel.openInvoicePreview(o.id) }
@@ -1140,11 +1143,11 @@ private fun ProfileStatCard(
     iconColor: Color,
     modifier: Modifier = Modifier
 ) {
-    ElevatedCard(
+    Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         modifier = modifier
     ) {
         Column(
@@ -1166,7 +1169,7 @@ private fun ProfileStatCard(
                 Box(
                     modifier = Modifier
                         .size(32.dp)
-                        .androidx.compose.ui.draw.clip(CircleShape)
+                        .clip(CircleShape)
                         .background(iconBgColor),
                     contentAlignment = Alignment.Center
                 ) {
@@ -1201,10 +1204,10 @@ private fun ProfileStatCard(
 
 @Composable
 private fun EmptyStateCard(title: String, message: String) {
-    ElevatedCard(
+    Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
