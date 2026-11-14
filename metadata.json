@@ -1,0 +1,6 @@
+{
+  "name": "DairyFeed Pro",
+  "description": "Offline-first dairy feed sales, inventory, dealer ledger, feed trial, and field business management system",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
