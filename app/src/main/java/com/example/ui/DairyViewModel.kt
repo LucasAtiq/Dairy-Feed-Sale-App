@@ -38,6 +38,7 @@ enum class SubModule(val title: String) {
     EXPENSES_TRAVEL("Expenses & Odometer"),
 
     // Under Hub / More
+    MORE("More & Profile"),
     REPORTS("Business Reports"),
     TARGETS("Sales Targets"),
     REMINDERS("Notifications & Alerts"),
@@ -497,6 +498,7 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
                 )
             ) _activeSubModule.value else SubModule.VISITS
             PrimaryTab.HUB -> if (_activeSubModule.value in listOf(
+                    SubModule.MORE,
                     SubModule.REPORTS,
                     SubModule.TARGETS,
                     SubModule.REMINDERS,
@@ -526,7 +528,7 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
             SubModule.ORDERS, SubModule.CONSOLIDATED, SubModule.STOCK, SubModule.PAYMENTS, SubModule.INVOICES, SubModule.PRODUCTS -> PrimaryTab.SALES
             SubModule.DEALERS, SubModule.FARMERS -> PrimaryTab.PARTNERS
             SubModule.VISITS, SubModule.TRIALS, SubModule.COMPLAINTS, SubModule.EXPENSES_TRAVEL -> PrimaryTab.FIELD
-            SubModule.REPORTS, SubModule.TARGETS, SubModule.REMINDERS, SubModule.SETTINGS, SubModule.BACKUP, SubModule.SEARCH, SubModule.ABOUT -> PrimaryTab.HUB
+            SubModule.MORE, SubModule.REPORTS, SubModule.TARGETS, SubModule.REMINDERS, SubModule.SETTINGS, SubModule.BACKUP, SubModule.SEARCH, SubModule.ABOUT -> PrimaryTab.HUB
         }
         _activeTab.value = targetTab
         _activeSubModule.value = subModule

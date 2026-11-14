@@ -47,29 +47,452 @@ fun MoreHubScreen(
     uiState: AppUiState,
     viewModel: DairyViewModel
 ) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        SubModulePillBar(
-            modules = listOf(
-                SubModule.REPORTS,
-                SubModule.TARGETS,
-                SubModule.REMINDERS,
-                SubModule.SETTINGS,
-                SubModule.BACKUP,
-                SubModule.SEARCH,
-                SubModule.ABOUT
-            ),
-            selected = uiState.activeSubModule,
-            onSelect = { viewModel.navigateToSubModule(it) }
-        )
+    var showLogoutDialog by remember { mutableStateOf(false) }
+    var showEditProfileDialog by remember { mutableStateOf(false) }
+    var showHelpDialog by remember { mutableStateOf(false) }
 
-        when (uiState.activeSubModule) {
-            SubModule.TARGETS -> TargetsSection(uiState, viewModel)
-            SubModule.REMINDERS -> NotificationsAndRemindersSection(uiState, viewModel)
-            SubModule.SETTINGS -> SettingsAndAdminSection(uiState, viewModel)
-            SubModule.BACKUP -> BackupAndDemoDataSection(uiState, viewModel)
-            SubModule.SEARCH -> GlobalSearchSection(uiState, viewModel)
-            SubModule.ABOUT -> AboutWandaBookSection(uiState, viewModel)
-            else -> ComprehensiveReportsSection(uiState)
+    when (uiState.activeSubModule) {
+        SubModule.TARGETS -> {
+            Column(modifier = Modifier.fillMaxSize()) {
+                HubSubHeader(title = "Targets & KPIs", onBack = { viewModel.navigateToSubModule(SubModule.MORE) })
+                TargetsSection(uiState, viewModel)
+            }
+        }
+        SubModule.REMINDERS -> {
+            Column(modifier = Modifier.fillMaxSize()) {
+                HubSubHeader(title = "Notifications & Reminders", onBack = { viewModel.navigateToSubModule(SubModule.MORE) })
+                NotificationsAndRemindersSection(uiState, viewModel)
+            }
+        }
+        SubModule.SETTINGS -> {
+            Column(modifier = Modifier.fillMaxSize()) {
+                HubSubHeader(title = "Settings & Administration", onBack = { viewModel.navigateToSubModule(SubModule.MORE) })
+                SettingsAndAdminSection(uiState, viewModel)
+            }
+        }
+        SubModule.BACKUP -> {
+            Column(modifier = Modifier.fillMaxSize()) {
+                HubSubHeader(title = "Sync & Data Backup", onBack = { viewModel.navigateToSubModule(SubModule.MORE) })
+                BackupAndDemoDataSection(uiState, viewModel)
+            }
+        }
+        SubModule.SEARCH -> {
+            Column(modifier = Modifier.fillMaxSize()) {
+                HubSubHeader(title = "Global Search", onBack = { viewModel.navigateToSubModule(SubModule.MORE) })
+                GlobalSearchSection(uiState, viewModel)
+            }
+        }
+        SubModule.ABOUT -> {
+            Column(modifier = Modifier.fillMaxSize()) {
+                HubSubHeader(title = "About WandaBook Pro", onBack = { viewModel.navigateToSubModule(SubModule.MORE) })
+                AboutWandaBookSection(uiState, viewModel)
+            }
+        }
+        SubModule.REPORTS -> {
+            ComprehensiveReportsSection(uiState)
+        }
+        else -> {
+            MoreHubOverviewSection(
+                uiState = uiState,
+                viewModel = viewModel,
+                onEditProfile = { showEditProfileDialog = true },
+                onHelp = { showHelpDialog = true },
+                onLogout = { showLogoutDialog = true }
+            )
+        }
+    }
+
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text("Logout Session", fontWeight = FontWeight.Bold) },
+            text = { Text("Are you sure you want to log out of WandaBook Pro? Your local database and offline records will remain safely preserved.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLogoutDialog = false
+                        viewModel.navigateToTab(PrimaryTab.DASHBOARD)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+                ) {
+                    Text("Confirm Logout")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showLogoutDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showHelpDialog) {
+        val context = LocalContext.current
+        AlertDialog(
+            onDismissRequest = { showHelpDialog = false },
+            title = { Text("Help & Support", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("For assistance, technical issues, or sales targets configuration, reach out to Dairy Feed Support:")
+                    Text("• Helpline / UAN: 0800-DAIRY (32479)", fontWeight = FontWeight.Bold)
+                    Text("• WhatsApp Support: +92 300 1234567")
+                    Text("• Email: support@wandabook.pro")
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        DocumentAndExportManager.openWhatsAppChat(context, "03001234567", "Assalam-o-Alaikum, I need support with WandaBook Pro.")
+                        showHelpDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF15803D))
+                ) {
+                    Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("WhatsApp Helpline")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showHelpDialog = false }) { Text("Close") }
+            }
+        )
+    }
+
+    if (showEditProfileDialog) {
+        var salesPersonName by remember { mutableStateOf(uiState.config.companyName.ifBlank { "Attique ur Rehman" }) }
+        var phoneStr by remember { mutableStateOf(uiState.config.companyPhone.ifBlank { "0301-7654321" }) }
+        var emailStr by remember { mutableStateOf(uiState.config.companyEmail.ifBlank { "attique@cp-pakistan.com" }) }
+        var addressStr by remember { mutableStateOf(uiState.config.companyAddress.ifBlank { "CP Pakistan - Dairy Feed Business, Region Sahiwal/Faisalabad" }) }
+
+        AlertDialog(
+            onDismissRequest = { showEditProfileDialog = false },
+            title = { Text("Edit Regional Manager Profile", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = salesPersonName,
+                        onValueChange = { salesPersonName = it },
+                        label = { Text("Full Name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = "Region Sale Manager",
+                        onValueChange = {},
+                        enabled = false,
+                        label = { Text("Designation") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = phoneStr,
+                        onValueChange = { phoneStr = it },
+                        label = { Text("Mobile Phone") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = emailStr,
+                        onValueChange = { emailStr = it },
+                        label = { Text("Official Email") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = addressStr,
+                        onValueChange = { addressStr = it },
+                        label = { Text("Division / Territory") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.saveBusinessConfig(
+                            uiState.config.copy(
+                                companyName = salesPersonName.trim(),
+                                companyPhone = phoneStr.trim(),
+                                companyEmail = emailStr.trim(),
+                                companyAddress = addressStr.trim()
+                            )
+                        )
+                        showEditProfileDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233))
+                ) {
+                    Text("Save Profile")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showEditProfileDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+}
+
+@Composable
+private fun MoreHubOverviewSection(
+    uiState: AppUiState,
+    viewModel: DairyViewModel,
+    onEditProfile: () -> Unit,
+    onHelp: () -> Unit,
+    onLogout: () -> Unit
+) {
+    val cfg = uiState.config
+    val managerName = cfg.companyName.ifBlank { "Attique ur Rehman" }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF8FAF9)),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 40.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        // 1. User Profile Header Card (Matching Screen 8)
+        item {
+            ElevatedCard(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // Circular Avatar
+                    Box(
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1E3A2B)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "AR",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        )
+                    }
+
+                    // User Info
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Text(
+                            text = managerName,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 16.sp
+                            ),
+                            color = Color(0xFF0F172A)
+                        )
+                        Text(
+                            text = "Region Sale Manager",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF64748B)
+                        )
+                        Text(
+                            text = "CP Pakistan – Dairy Feed Business",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF94A3B8)
+                        )
+                    }
+
+                    // Edit Icon
+                    IconButton(
+                        onClick = onEditProfile,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit Profile",
+                            tint = Color(0xFF15803D),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // 2. Navigation Rows (Matching Screen 8)
+        item {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Row 1: My Profile
+                MoreNavigationRow(
+                    icon = Icons.Default.PersonOutline,
+                    title = "My Profile",
+                    onClick = onEditProfile
+                )
+
+                // Row 2: Targets & KPIs
+                MoreNavigationRow(
+                    icon = Icons.Default.TrackChanges,
+                    title = "Targets & KPIs",
+                    onClick = { viewModel.navigateToSubModule(SubModule.TARGETS) }
+                )
+
+                // Row 3: Products (Feed Codes)
+                MoreNavigationRow(
+                    icon = Icons.Default.Inventory2,
+                    title = "Products (Feed Codes)",
+                    onClick = { viewModel.navigateToSubModule(SubModule.PRODUCTS) }
+                )
+
+                // Row 4: Trial Records
+                MoreNavigationRow(
+                    icon = Icons.Default.Science,
+                    title = "Trial Records",
+                    onClick = { viewModel.navigateToSubModule(SubModule.TRIALS) }
+                )
+
+                // Row 5: Sync / Backup
+                MoreNavigationRow(
+                    icon = Icons.Default.CloudSync,
+                    title = "Sync / Backup",
+                    onClick = { viewModel.navigateToSubModule(SubModule.BACKUP) }
+                )
+
+                // Row 6: Settings
+                MoreNavigationRow(
+                    icon = Icons.Default.Settings,
+                    title = "Settings",
+                    onClick = { viewModel.navigateToSubModule(SubModule.SETTINGS) }
+                )
+
+                // Row 7: Help & Support
+                MoreNavigationRow(
+                    icon = Icons.Default.HelpOutline,
+                    title = "Help & Support",
+                    onClick = onHelp
+                )
+
+                // Row 8: About WandaBook Pro
+                MoreNavigationRow(
+                    icon = Icons.Default.Info,
+                    title = "About WandaBook Pro",
+                    onClick = { viewModel.navigateToSubModule(SubModule.ABOUT) }
+                )
+            }
+        }
+
+        // 3. Logout Button (Matching Screen 8)
+        item {
+            Spacer(modifier = Modifier.height(10.dp))
+            Button(
+                onClick = onLogout,
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Logout,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Logout",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Color.White
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MoreNavigationRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    onClick: () -> Unit
+) {
+    ElevatedCard(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.5.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color(0xFF15803D),
+                modifier = Modifier.size(22.dp)
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.5.sp
+                ),
+                color = Color(0xFF1E293B),
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = Color(0xFF94A3B8),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun HubSubHeader(
+    title: String,
+    onBack: () -> Unit
+) {
+    Surface(
+        color = Color(0xFF0F5233),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back to More",
+                    tint = Color.White
+                )
+            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = Color.White
+            )
         }
     }
 }

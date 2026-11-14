@@ -212,12 +212,12 @@ fun DairyFeedAppRoot(
                         }
                     }
                     IconButton(
-                        onClick = { viewModel.navigateToSubModule(SubModule.SETTINGS) },
+                        onClick = { viewModel.navigateToSubModule(SubModule.MORE) },
                         modifier = Modifier.testTag("top_bar_settings_button")
                     ) {
                         Icon(
                             imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings & Admin",
+                            contentDescription = "Settings & More",
                             tint = Color.White
                         )
                     }
@@ -289,6 +289,9 @@ fun DairyFeedAppRoot(
                             "EXPENSE" -> {
                                 viewModel.navigateToSubModule(SubModule.EXPENSES_TRAVEL)
                                 triggerNewExpense = true
+                            }
+                            "MORE_HUB" -> {
+                                viewModel.navigateToSubModule(SubModule.MORE)
                             }
                         }
                     }
