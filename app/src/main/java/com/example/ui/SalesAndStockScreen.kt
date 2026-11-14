@@ -16,11 +16,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.data.*
 import com.example.ui.theme.JetBrainsMonoFamily
 import com.example.ui.theme.StatusDanger
@@ -203,17 +205,19 @@ private fun OrdersListSection(
     val context = LocalContext.current
     val cur = uiState.config.currencySymbol
     var searchQuery by remember { mutableStateOf("") }
-    var statusFilter by remember { mutableStateOf("All") }
-    var paymentFilter by remember { mutableStateOf("All") }
-    var sortBy by remember { mutableStateOf("Newest") }
+    var selectedFilterPill by remember { mutableStateOf("All Orders") }
     var cancellingOrder by remember { mutableStateOf<SaleOrderEntity?>(null) }
 
-    val filteredOrders = remember(uiState.ordersWithItems, searchQuery, statusFilter, paymentFilter, sortBy) {
-        val base = uiState.ordersWithItems.filter { owi ->
+    val filteredOrders = remember(uiState.ordersWithItems, searchQuery, selectedFilterPill) {
+        uiState.ordersWithItems.filter { owi ->
             val o = owi.order
             val pStatus = BusinessCalculations.getOrderPaymentStatus(o.paidAmount, o.netAmount, o.outstandingAmount)
-            val matchStatus = statusFilter == "All" || o.status.equals(statusFilter, true)
-            val matchPayment = paymentFilter == "All" || pStatus.equals(paymentFilter, true)
+            val matchStatus = when (selectedFilterPill) {
+                "Pending" -> o.status.equals("Pending", true) || pStatus.equals("Unpaid", true)
+                "Partial" -> pStatus.equals("Partial", true) || o.status.equals("Partial", true)
+                "Delivered" -> o.status.equals("Delivered", true)
+                else -> true
+            }
             val q = searchQuery.trim().lowercase()
             val matchQuery = q.isEmpty() ||
                 o.orderNumber.lowercase().contains(q) ||
@@ -222,73 +226,60 @@ private fun OrdersListSection(
                 o.date.lowercase().contains(q) ||
                 o.location.lowercase().contains(q) ||
                 owi.items.any { it.productCode.lowercase().contains(q) || it.productName.lowercase().contains(q) }
-            matchStatus && matchPayment && matchQuery
-        }
-        when (sortBy) {
-            "Oldest" -> base.sortedBy { it.order.date }
-            "Highest Amount" -> base.sortedByDescending { it.order.netAmount }
-            "Highest Bags" -> base.sortedByDescending { it.order.totalBags }
-            else -> base.sortedByDescending { it.order.date }
-        }
+            matchStatus && matchQuery
+        }.sortedByDescending { it.order.date }
     }
 
-    Scaffold(
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onNewOrder,
-                icon = { Icon(Icons.Default.AddShoppingCart, contentDescription = "New Order") },
-                text = { Text("+ New Order") },
-                modifier = Modifier.testTag("new_sale_order_fab")
-            )
-        }
-    ) { innerPadding ->
+    Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
+                .background(Color(0xFFF8FAF9)),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // 1. Search Bar with Filter Icon
             item {
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search order #, date (YYYY-MM-DD), dealer, product (26P, 55M)...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    trailingIcon = if (searchQuery.isNotEmpty()) {
-                        {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear search")
-                            }
-                        }
-                    } else null,
+                    placeholder = {
+                        Text(
+                            "Search by Order No., Dealer or Date",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xFF94A3B8)
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = Color(0xFF64748B)
+                        )
+                    },
+                    trailingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.FilterList,
+                            contentDescription = "Filter",
+                            tint = Color(0xFF15803D),
+                            modifier = Modifier.clickable { /* Filter options */ }
+                        )
+                    },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        focusedBorderColor = Color(0xFF0F5233),
+                        unfocusedBorderColor = Color(0xFFE2E8F0)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("orders_search_input")
                 )
             }
 
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    DropdownSelectorField(
-                        label = "Payment Status",
-                        options = listOf("All", "Paid", "Partial", "Unpaid"),
-                        selectedOption = paymentFilter,
-                        onOptionSelected = { paymentFilter = it },
-                        modifier = Modifier.weight(1f)
-                    )
-                    DropdownSelectorField(
-                        label = "Sort Orders",
-                        options = listOf("Newest", "Oldest", "Highest Amount", "Highest Bags"),
-                        selectedOption = sortBy,
-                        onOptionSelected = { sortBy = it },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-
+            // 2. Filter Pills (All Orders, Pending, Partial, Delivered)
             item {
                 Row(
                     modifier = Modifier
@@ -296,177 +287,269 @@ private fun OrdersListSection(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    listOf("All", "Delivered", "Pending", "Confirmed", "In Transit", "Partially Delivered", "Draft", "Cancelled").forEach { st ->
-                        FilterChip(
-                            selected = statusFilter == st,
-                            onClick = { statusFilter = st },
-                            label = { Text(st) }
-                        )
+                    val filterPills = listOf("All Orders", "Pending", "Partial", "Delivered")
+                    filterPills.forEach { pill ->
+                        val isSelected = selectedFilterPill == pill
+                        Surface(
+                            color = if (isSelected) Color(0xFF0F5233) else Color.White,
+                            shape = RoundedCornerShape(50),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isSelected) Color(0xFF0F5233) else Color(0xFFE2E8F0)
+                            ),
+                            modifier = Modifier.clickable { selectedFilterPill = pill }
+                        ) {
+                            Text(
+                                text = pill,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                ),
+                                color = if (isSelected) Color.White else Color(0xFF334155),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
                     }
                 }
             }
 
+            // 3. Orders List or Empty State
             if (filteredOrders.isEmpty()) {
                 item {
                     ElevatedCard(
                         shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(24.dp),
+                                .padding(32.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Icon(Icons.Default.ReceiptLong, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                            Text("No orders match your search or filter", style = MaterialTheme.typography.titleSmall)
-                            Text("Tap '+ New Order' to create a new dairy feed sale order.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(
+                                imageVector = Icons.Default.ReceiptLong,
+                                contentDescription = null,
+                                tint = Color(0xFF0F5233),
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Text(
+                                "No orders found",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = Color(0xFF1E293B)
+                            )
+                            Text(
+                                "Tap '+ New Order' below to create a new dairy feed order.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF64748B)
+                            )
                         }
                     }
                 }
-            }
+            } else {
+                items(filteredOrders, key = { it.order.id }) { owi ->
+                    val o = owi.order
+                    val payStatus = BusinessCalculations.getOrderPaymentStatus(o.paidAmount, o.netAmount, o.outstandingAmount)
 
-            items(filteredOrders, key = { it.order.id }) { owi ->
-                val o = owi.order
-                val payStatus = BusinessCalculations.getOrderPaymentStatus(o.paidAmount, o.netAmount, o.outstandingAmount)
-                ElevatedCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { viewModel.openInvoicePreview(o.id) }
-                        .testTag("order_card_${o.orderNumber}"),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ElevatedCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { viewModel.openInvoicePreview(o.id) }
+                            .testTag("order_card_${o.orderNumber}"),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Top
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    "${o.orderNumber} • ${o.dealerName}",
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                                )
-                                Text(
-                                    "Date: ${o.date} • ${o.location} (${o.area}) • Inv: ${o.invoiceNumber}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                            // Circular Store Emblem
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .androidx.compose.ui.draw.clip(androidx.compose.foundation.shape.CircleShape)
+                                    .background(Color(0xFFF0FDF4))
+                                    .androidx.compose.foundation.border(
+                                        1.dp,
+                                        Color(0xFFBBF7D0),
+                                        androidx.compose.foundation.shape.CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Storefront,
+                                    contentDescription = null,
+                                    tint = Color(0xFF15803D),
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                StatusBadge(payStatus)
-                                StatusBadge(o.status)
-                            }
-                        }
 
-                        // Multi-product line breakdown showing Product, Quantity, Bag size, Weight, Price, Discount & Amount
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                owi.items.forEach { item ->
+                            // Middle Info Column
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = o.orderNumber,
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 14.sp
+                                    ),
+                                    color = Color(0xFF0F172A)
+                                )
+                                Text(
+                                    text = o.dealerName,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
+                                    color = Color(0xFF334155),
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
                                     Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
-                                        Text(
-                                            "${item.productCode} — ${item.quantityBags} bags × ${item.bagSizeLabel} (${item.totalKg.roundToInt()} KG)",
-                                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold)
+                                        Icon(
+                                            imageVector = Icons.Default.CalendarToday,
+                                            contentDescription = null,
+                                            tint = Color(0xFF94A3B8),
+                                            modifier = Modifier.size(13.dp)
                                         )
                                         Text(
-                                            "@ ${item.pricePerBag.roundToInt()}${if (item.discountTotal > 0) " (-${item.discountTotal.roundToInt()})" else ""} = ${BusinessCalculations.formatCurrency(item.netAmount, cur)}",
-                                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily)
+                                            text = o.date,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Color(0xFF64748B)
+                                        )
+                                    }
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Inventory2,
+                                            contentDescription = null,
+                                            tint = Color(0xFF94A3B8),
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                        Text(
+                                            text = "${o.totalBags} Bags",
+                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                            color = Color(0xFF64748B)
                                         )
                                     }
                                 }
                             }
-                        }
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column {
-                                Text("Total Bags & Weight", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            // Right Amount & Badges Column
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
                                 Text(
-                                    "${o.totalBags} Bags (${o.totalKg.roundToInt()} KG = ${BusinessCalculations.formatDecimal(o.totalMt)} MT)",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold)
+                                    text = BusinessCalculations.formatCurrency(o.netAmount, cur),
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        fontFamily = JetBrainsMonoFamily,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 14.sp
+                                    ),
+                                    color = Color(0xFF0F172A)
                                 )
-                                if (o.discountAmount > 0) {
-                                    Text(
-                                        "Discount: ${BusinessCalculations.formatCurrency(o.discountAmount, cur)}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = StatusWarning
-                                    )
-                                }
-                            }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text("Total Amount / Due", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(
-                                    "${BusinessCalculations.formatCurrency(o.netAmount, cur)} (Due: ${BusinessCalculations.formatCurrency(o.outstandingAmount, cur)})",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
-                                    color = if (o.outstandingAmount > 0) StatusDanger else StatusSuccess
-                                )
-                                Text(
-                                    "Paid: ${BusinessCalculations.formatCurrency(o.paidAmount, cur)}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = StatusSuccess
-                                )
-                            }
-                        }
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (o.status != "Cancelled") {
-                                TextButton(
-                                    onClick = { cancellingOrder = o },
-                                    colors = ButtonDefaults.textButtonColors(contentColor = StatusDanger)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    Text("Delete / Cancel")
+                                    CleanStatusBadge(status = payStatus)
+                                    CleanStatusBadge(status = o.status)
                                 }
                             }
-                            IconButton(
-                                onClick = {
-                                    val pdf = DocumentAndExportManager.generateInvoicePdfFile(context, uiState.config, owi)
-                                    DocumentAndExportManager.shareFile(context, pdf, "application/pdf", "Share Order ${o.orderNumber}")
-                                }
-                            ) {
-                                Icon(Icons.Default.Share, contentDescription = "Share Order PDF", tint = MaterialTheme.colorScheme.primary)
-                            }
-                            OutlinedButton(
-                                onClick = { onEditOrder(owi) },
-                                modifier = Modifier.padding(horizontal = 4.dp)
-                            ) {
-                                Text("Edit")
-                            }
-                            Button(onClick = { viewModel.openInvoicePreview(o.id) }) {
-                                Icon(Icons.Default.Receipt, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Details")
-                            }
+
+                            // Arrow Right
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = "View Details",
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
                 }
             }
         }
+
+        // Floating Bottom "+ New Order" Pill Button
+        Button(
+            onClick = onNewOrder,
+            shape = RoundedCornerShape(50),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233)),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 20.dp)
+                .height(48.dp)
+                .testTag("new_sale_order_fab")
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "New Order",
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                color = Color.White
+            )
+        }
+
+        if (cancellingOrder != null) {
+            ConfirmDestructiveDialog(
+                title = "Delete / Cancel Order ${cancellingOrder!!.orderNumber}?",
+                message = "This will cancel the order, reverse any automatic stock-out deduction, and remove its debit from the dealer's active balance.",
+                confirmText = "Confirm Cancel",
+                onConfirm = {
+                    viewModel.cancelOrder(cancellingOrder!!)
+                    cancellingOrder = null
+                },
+                onDismiss = { cancellingOrder = null }
+            )
+        }
+    }
+}
+
+@Composable
+private fun CleanStatusBadge(status: String) {
+    val (bgColor, fgColor) = when (status.lowercase()) {
+        "delivered", "paid" -> Pair(Color(0xFFDCFCE7), Color(0xFF15803D)) // Soft green
+        "partial", "partially delivered" -> Pair(Color(0xFFFFEDD5), Color(0xFFC2410C)) // Soft peach/orange
+        "pending", "in transit" -> Pair(Color(0xFFFEF3C7), Color(0xFFB45309)) // Soft amber
+        else -> Pair(Color(0xFFFEE2E2), Color(0xFFB91C1C))
     }
 
-    if (cancellingOrder != null) {
-        ConfirmDestructiveDialog(
-            title = "Delete / Cancel Order ${cancellingOrder!!.orderNumber}?",
-            message = "This will cancel the order, reverse any automatic stock-out deduction, and remove its debit from the dealer's active balance.",
-            confirmText = "Confirm Cancel",
-            onConfirm = { viewModel.cancelOrder(cancellingOrder!!) },
-            onDismiss = { cancellingOrder = null }
+    Surface(
+        color = bgColor,
+        shape = RoundedCornerShape(50)
+    ) {
+        Text(
+            text = status,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 10.sp
+            ),
+            color = fgColor,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
         )
     }
 }
@@ -1450,6 +1533,7 @@ private fun ProductsAndPricingSection(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MultiProductOrderDialog(
     initialOrder: OrderWithItems?,
@@ -1470,12 +1554,8 @@ private fun MultiProductOrderDialog(
     var date by remember { mutableStateOf(existing?.date ?: SampleDataSeeder.todayDate()) }
     var selectedDealerName by remember { mutableStateOf(existing?.dealerName ?: (dealers.firstOrNull()?.businessName ?: "")) }
     var selectedFarmerName by remember { mutableStateOf(existing?.farmerName ?: "None") }
-    var location by remember {
-        mutableStateOf(
-            existing?.location ?: (dealers.firstOrNull()?.city ?: "Sahiwal")
-        )
-    }
-    var status by remember { mutableStateOf(existing?.status ?: "Delivered") }
+    var location by remember { mutableStateOf(existing?.location ?: (dealers.firstOrNull()?.city ?: "Sahiwal")) }
+    var status by remember { mutableStateOf(existing?.status ?: "Pending") }
     var expectedDeliveryDate by remember { mutableStateOf(existing?.expectedDeliveryDate ?: SampleDataSeeder.todayDate()) }
     var paidAmountStr by remember { mutableStateOf(existing?.paidAmount?.roundToInt()?.toString() ?: "0") }
     var paymentMethod by remember { mutableStateOf(paymentMethods.firstOrNull() ?: "Cash") }
@@ -1485,40 +1565,33 @@ private fun MultiProductOrderDialog(
     // Draft line items list
     var lineItems by remember {
         mutableStateOf(
-            initialOrder?.items ?: listOfNotNull(
-                products.firstOrNull()?.let { firstProd ->
+            initialOrder?.items ?: run {
+                val firstProd = products.firstOrNull()
+                if (firstProd != null) {
                     val bagKg = firstProd.defaultBagWeightKg
-                    OrderItemEntity(
-                        orderId = 0,
-                        productId = firstProd.id,
-                        productCode = firstProd.code,
-                        productName = firstProd.name,
-                        bagSizeLabel = "${bagKg.roundToInt()} KG",
-                        bagWeightKg = bagKg,
-                        quantityBags = 50,
-                        totalKg = 50 * bagKg,
-                        totalMt = (50 * bagKg) / 1000.0,
-                        purchasePriceSnapshot = firstProd.purchasePrice,
-                        pricePerBag = firstProd.salePrice,
-                        discountPerBag = 0.0,
-                        grossAmount = 50 * firstProd.salePrice,
-                        discountTotal = 0.0,
-                        netAmount = 50 * firstProd.salePrice
+                    listOf(
+                        OrderItemEntity(
+                            orderId = 0,
+                            productId = firstProd.id,
+                            productCode = firstProd.code,
+                            productName = firstProd.name,
+                            bagSizeLabel = "${bagKg.roundToInt()} KG",
+                            bagWeightKg = bagKg,
+                            quantityBags = 50,
+                            totalKg = 50 * bagKg,
+                            totalMt = (50 * bagKg) / 1000.0,
+                            purchasePriceSnapshot = firstProd.purchasePrice,
+                            pricePerBag = firstProd.salePrice,
+                            discountPerBag = 0.0,
+                            grossAmount = 50 * firstProd.salePrice,
+                            discountTotal = 0.0,
+                            netAmount = 50 * firstProd.salePrice
+                        )
                     )
-                }
-            )
+                } else emptyList()
+            }
         )
     }
-
-    // Add Line Item inputs
-    var selProdCode by remember { mutableStateOf(products.firstOrNull()?.code ?: "26P") }
-    var selBagLabel by remember { mutableStateOf(bagSizes.lastOrNull()?.label ?: "40 KG") }
-    var qtyBagsStr by remember { mutableStateOf("25") }
-    var customPriceStr by remember(selProdCode) {
-        val p = products.firstOrNull { it.code == selProdCode }
-        mutableStateOf(p?.salePrice?.roundToInt()?.toString() ?: "3500")
-    }
-    var discountPerBagStr by remember { mutableStateOf("0") }
 
     val totalBags = lineItems.sumOf { it.quantityBags }
     val totalKg = lineItems.sumOf { it.totalKg }
@@ -1529,312 +1602,472 @@ private fun MultiProductOrderDialog(
     val paidAmount = paidAmountStr.toDoubleOrNull() ?: 0.0
     val outstandingAmount = (netAmount - paidAmount).coerceAtLeast(0.0)
 
-    AlertDialog(
+    androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (existing == null) "New Multi-Product Sale Order" else "Edit Order ${existing.orderNumber}") },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                if (errorMsg != null) {
-                    Text(errorMsg!!, color = StatusDanger, style = MaterialTheme.typography.bodySmall)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = orderNumber,
-                        onValueChange = { orderNumber = it },
-                        label = { Text("Order ID") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = Color(0xFFF8FAF9)
+        ) {
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = {
+                            Text(
+                                text = if (existing == null) "New Order" else "Edit Order ${existing.orderNumber}",
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                color = Color.White
+                            )
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onDismiss) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowBack,
+                                    contentDescription = "Back",
+                                    tint = Color.White
+                                )
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color(0xFF0F5233)
+                        )
                     )
-                    OutlinedTextField(
-                        value = date,
-                        onValueChange = { date = it },
-                        label = { Text("Date (YYYY-MM-DD)") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                DropdownSelectorField(
-                    label = "Dealer *",
-                    options = dealers.map { it.businessName }.ifEmpty { listOf("Walk-in Dealer") },
-                    selectedOption = selectedDealerName,
-                    onOptionSelected = { dName ->
-                        selectedDealerName = dName
-                        dealers.firstOrNull { it.businessName == dName }?.let {
-                            location = "${it.city} (${it.area})"
-                        }
-                    }
-                )
-                DropdownSelectorField(
-                    label = "Farmer (Optional)",
-                    options = listOf("None") + farmers.map { "${it.name} (${it.farmName})" },
-                    selectedOption = selectedFarmerName,
-                    onOptionSelected = { selectedFarmerName = it }
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = location,
-                        onValueChange = { location = it },
-                        label = { Text("Delivery Location") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                    DropdownSelectorField(
-                        label = "Order Status",
-                        options = listOf("Delivered", "Pending", "Confirmed", "In Transit", "Partially Delivered", "Draft"),
-                        selectedOption = status,
-                        onOptionSelected = { status = it },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                HorizontalDivider()
-                Text("Order Products (${lineItems.size} items)", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-
-                lineItems.forEachIndexed { idx, item ->
+                },
+                bottomBar = {
                     Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(10.dp),
+                        color = Color.White,
+                        shadowElevation = 8.dp,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .navigationBarsPadding()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("${item.productCode} — ${item.quantityBags} bags × ${item.bagSizeLabel}", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+                            OutlinedButton(
+                                onClick = onDismiss,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                            ) {
                                 Text(
-                                    "${item.totalKg.roundToInt()} KG (${BusinessCalculations.formatDecimal(item.totalMt)} MT) @ ${item.pricePerBag.roundToInt()} = ${BusinessCalculations.formatCurrency(item.netAmount, currencySymbol)}",
-                                    style = MaterialTheme.typography.bodySmall
+                                    "Cancel",
+                                    color = Color(0xFF64748B),
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                                 )
                             }
-                            IconButton(
+                            Button(
                                 onClick = {
-                                    lineItems = lineItems.toMutableList().also { it.removeAt(idx) }
-                                }
+                                    if (lineItems.isEmpty()) {
+                                        errorMsg = "Please add at least one product."
+                                        return@Button
+                                    }
+                                    val dealerObj = dealers.firstOrNull { it.businessName == selectedDealerName } ?: dealers.firstOrNull()
+                                    if (dealerObj == null) {
+                                        errorMsg = "Please select a valid Dealer."
+                                        return@Button
+                                    }
+                                    val farmerObj = farmers.firstOrNull { "${it.name} (${it.farmName})" == selectedFarmerName }
+                                    val estProfit = lineItems.sumOf {
+                                        (it.pricePerBag - it.discountPerBag - it.purchasePriceSnapshot) * it.quantityBags
+                                    }
+                                    onSave(
+                                        SaleOrderEntity(
+                                            id = existing?.id ?: 0,
+                                            orderNumber = orderNumber.trim(),
+                                            invoiceNumber = invoiceNumber.trim(),
+                                            date = date.trim(),
+                                            dealerId = dealerObj.id,
+                                            dealerName = dealerObj.businessName,
+                                            dealerAddress = "${dealerObj.address}, ${dealerObj.city}",
+                                            farmerId = farmerObj?.id,
+                                            farmerName = farmerObj?.name ?: "",
+                                            location = location.trim(),
+                                            area = dealerObj.area,
+                                            totalBags = totalBags,
+                                            totalKg = totalKg,
+                                            totalMt = totalMt,
+                                            grossAmount = grossAmount,
+                                            discountAmount = discountAmount,
+                                            netAmount = netAmount,
+                                            paidAmount = paidAmount.coerceAtLeast(0.0),
+                                            outstandingAmount = outstandingAmount,
+                                            estimatedProfit = estProfit,
+                                            status = status,
+                                            expectedDeliveryDate = expectedDeliveryDate.trim(),
+                                            remarks = remarks.trim()
+                                        ),
+                                        lineItems,
+                                        paymentMethod
+                                    )
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233)),
+                                modifier = Modifier
+                                    .weight(1.3f)
+                                    .height(48.dp)
                             ) {
-                                Icon(Icons.Default.Delete, contentDescription = "Remove Line", tint = StatusDanger)
+                                Text(
+                                    "Save Order",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                                )
                             }
                         }
                     }
                 }
-
-                // Add Product Line Builder Box
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)),
-                    modifier = Modifier.fillMaxWidth()
+            ) { innerPadding ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .padding(horizontal = 16.dp, vertical = 16.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Add Product to Order", style = MaterialTheme.typography.labelLarge)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            DropdownSelectorField(
-                                label = "Product",
-                                options = products.map { it.code },
-                                selectedOption = selProdCode,
-                                onOptionSelected = { code ->
-                                    selProdCode = code
-                                    products.firstOrNull { it.code == code }?.let { p ->
-                                        customPriceStr = p.salePrice.roundToInt().toString()
-                                        selBagLabel = "${p.defaultBagWeightKg.roundToInt()} KG"
-                                    }
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                            DropdownSelectorField(
-                                label = "Bag Size",
-                                options = bagSizes.map { it.label }.ifEmpty { listOf("20 KG", "40 KG") },
-                                selectedOption = selBagLabel,
-                                onOptionSelected = { selBagLabel = it },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = qtyBagsStr,
-                                onValueChange = { qtyBagsStr = it },
-                                label = { Text("Bags") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                singleLine = true,
-                                modifier = Modifier.weight(1f)
-                            )
-                            OutlinedTextField(
-                                value = customPriceStr,
-                                onValueChange = { customPriceStr = it },
-                                label = { Text("Price/Bag") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                singleLine = true,
-                                modifier = Modifier.weight(1f)
-                            )
-                            OutlinedTextField(
-                                value = discountPerBagStr,
-                                onValueChange = { discountPerBagStr = it },
-                                label = { Text("Disc/Bag") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                singleLine = true,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                        Button(
-                            onClick = {
-                                val p = products.firstOrNull { it.code == selProdCode } ?: return@Button
-                                val bagW = bagSizes.firstOrNull { it.label == selBagLabel }?.weightKg ?: p.defaultBagWeightKg
-                                val bags = qtyBagsStr.toIntOrNull() ?: 0
-                                val rate = customPriceStr.toDoubleOrNull() ?: p.salePrice
-                                val disc = (discountPerBagStr.toDoubleOrNull() ?: 0.0).coerceAtLeast(0.0)
-                                if (bags <= 0 || rate <= 0.0) {
-                                    errorMsg = "Bags and Price per bag must be positive."
-                                    return@Button
-                                }
-                                val kg = bags * bagW
-                                val mt = kg / 1000.0
-                                val gross = bags * rate
-                                val discTot = bags * disc
-                                val net = (gross - discTot).coerceAtLeast(0.0)
-                                lineItems = lineItems + OrderItemEntity(
-                                    orderId = existing?.id ?: 0,
-                                    productId = p.id,
-                                    productCode = p.code,
-                                    productName = p.name,
-                                    bagSizeLabel = selBagLabel,
-                                    bagWeightKg = bagW,
-                                    quantityBags = bags,
-                                    totalKg = kg,
-                                    totalMt = mt,
-                                    purchasePriceSnapshot = p.purchasePrice,
-                                    pricePerBag = rate,
-                                    discountPerBag = disc,
-                                    grossAmount = gross,
-                                    discountTotal = discTot,
-                                    netAmount = net
-                                )
-                                errorMsg = null
-                            },
+                    if (errorMsg != null) {
+                        Surface(
+                            color = Color(0xFFFEE2E2),
+                            shape = RoundedCornerShape(10.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Add Product Line to Order")
+                            Text(
+                                text = errorMsg!!,
+                                color = Color(0xFFB91C1C),
+                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
+
+                    // 1. Select Dealer *
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row {
+                            Text("Select Dealer", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xFF1E293B))
+                            Text(" *", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xFFDC2626))
+                        }
+                        DropdownSelectorField(
+                            label = "Choose Dealer",
+                            options = dealers.map { it.businessName }.ifEmpty { listOf("Walk-in Dealer") },
+                            selectedOption = selectedDealerName.ifEmpty { "Choose Dealer" },
+                            onOptionSelected = { dName ->
+                                selectedDealerName = dName
+                                dealers.firstOrNull { it.businessName == dName }?.let {
+                                    location = "${it.city} (${it.area})"
+                                }
+                            }
+                        )
+                    }
+
+                    // 2. Order Date *
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row {
+                            Text("Order Date", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xFF1E293B))
+                            Text(" *", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xFFDC2626))
+                        }
+                        OutlinedTextField(
+                            value = date,
+                            onValueChange = { date = it },
+                            placeholder = { Text("YYYY-MM-DD") },
+                            leadingIcon = {
+                                Icon(Icons.Default.CalendarToday, contentDescription = null, tint = Color(0xFF0F5233), modifier = Modifier.size(18.dp))
+                            },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = Color.White,
+                                focusedBorderColor = Color(0xFF0F5233),
+                                unfocusedBorderColor = Color(0xFFE2E8F0)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    // 3. Add Products Section & Table
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Add Products",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
+                            color = Color(0xFF0F172A)
+                        )
+
+                        ElevatedCard(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                // Table Header
+                                Surface(
+                                    color = Color(0xFFF1F5F9),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("Feed Code", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = Color(0xFF475569), modifier = Modifier.weight(1.1f))
+                                        Text("Bag (Qty)", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = Color(0xFF475569), modifier = Modifier.weight(1f))
+                                        Text("Price/Bag", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = Color(0xFF475569), modifier = Modifier.weight(1.1f))
+                                        Text("Amount", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = Color(0xFF475569), modifier = Modifier.weight(1.2f))
+                                        Spacer(modifier = Modifier.width(36.dp))
+                                    }
+                                }
+
+                                HorizontalDivider(color = Color(0xFFE2E8F0))
+
+                                // Table Rows
+                                if (lineItems.isEmpty()) {
+                                    Text(
+                                        "No products added yet. Tap '+ Add Another Product' below.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFF94A3B8),
+                                        modifier = Modifier.padding(16.dp)
+                                    )
+                                } else {
+                                    lineItems.forEachIndexed { index, item ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            // 1. Feed Code Dropdown
+                                            Box(modifier = Modifier.weight(1.1f)) {
+                                                var codeExpanded by remember { mutableStateOf(false) }
+                                                Surface(
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                                                    color = Color.White,
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .height(40.dp)
+                                                        .clickable { codeExpanded = true }
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(item.productCode, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                    }
+                                                }
+                                                DropdownMenu(
+                                                    expanded = codeExpanded,
+                                                    onDismissRequest = { codeExpanded = false }
+                                                ) {
+                                                    products.forEach { prod ->
+                                                        DropdownMenuItem(
+                                                            text = { Text("${prod.code} - ${prod.name}", fontSize = 12.sp) },
+                                                            onClick = {
+                                                                val updated = lineItems.toMutableList()
+                                                                val bagW = prod.defaultBagWeightKg
+                                                                val gross = item.quantityBags * prod.salePrice
+                                                                updated[index] = item.copy(
+                                                                    productId = prod.id,
+                                                                    productCode = prod.code,
+                                                                    productName = prod.name,
+                                                                    bagWeightKg = bagW,
+                                                                    bagSizeLabel = "${bagW.roundToInt()} KG",
+                                                                    pricePerBag = prod.salePrice,
+                                                                    purchasePriceSnapshot = prod.purchasePrice,
+                                                                    grossAmount = gross,
+                                                                    netAmount = gross
+                                                                )
+                                                                lineItems = updated
+                                                                codeExpanded = false
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                            }
+
+                                            // 2. Qty Input
+                                            var qtyText by remember(item.quantityBags) { mutableStateOf(item.quantityBags.toString()) }
+                                            OutlinedTextField(
+                                                value = qtyText,
+                                                onValueChange = { newText ->
+                                                    qtyText = newText
+                                                    val q = newText.toIntOrNull() ?: 0
+                                                    val updated = lineItems.toMutableList()
+                                                    val kg = q * item.bagWeightKg
+                                                    val gross = q * item.pricePerBag
+                                                    updated[index] = item.copy(
+                                                        quantityBags = q,
+                                                        totalKg = kg,
+                                                        totalMt = kg / 1000.0,
+                                                        grossAmount = gross,
+                                                        netAmount = gross
+                                                    )
+                                                    lineItems = updated
+                                                },
+                                                singleLine = true,
+                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Bold),
+                                                shape = RoundedCornerShape(8.dp),
+                                                modifier = Modifier.weight(1f).height(48.dp)
+                                            )
+
+                                            // 3. Price/Bag Input
+                                            var priceText by remember(item.pricePerBag) { mutableStateOf(item.pricePerBag.roundToInt().toString()) }
+                                            OutlinedTextField(
+                                                value = priceText,
+                                                onValueChange = { newText ->
+                                                    priceText = newText
+                                                    val p = newText.toDoubleOrNull() ?: item.pricePerBag
+                                                    val updated = lineItems.toMutableList()
+                                                    val gross = item.quantityBags * p
+                                                    updated[index] = item.copy(
+                                                        pricePerBag = p,
+                                                        grossAmount = gross,
+                                                        netAmount = gross
+                                                    )
+                                                    lineItems = updated
+                                                },
+                                                singleLine = true,
+                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Bold),
+                                                shape = RoundedCornerShape(8.dp),
+                                                modifier = Modifier.weight(1.1f).height(48.dp)
+                                            )
+
+                                            // 4. Row Amount
+                                            Text(
+                                                text = BusinessCalculations.formatDecimal(item.netAmount),
+                                                fontSize = 11.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF0F172A),
+                                                modifier = Modifier.weight(1.2f)
+                                            )
+
+                                            // 5. Delete Action
+                                            IconButton(
+                                                onClick = {
+                                                    val updated = lineItems.toMutableList()
+                                                    updated.removeAt(index)
+                                                    lineItems = updated
+                                                },
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.DeleteOutline,
+                                                    contentDescription = "Delete",
+                                                    tint = Color(0xFFEF4444),
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+
+                                        if (index < lineItems.size - 1) {
+                                            HorizontalDivider(color = Color(0xFFF1F5F9))
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // "+ Add Another Product" Button
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            val nextProd = products.firstOrNull { p -> lineItems.none { it.productId == p.id } } ?: products.firstOrNull()
+                                            if (nextProd != null) {
+                                                val bagW = nextProd.defaultBagWeightKg
+                                                lineItems = lineItems + OrderItemEntity(
+                                                    orderId = 0,
+                                                    productId = nextProd.id,
+                                                    productCode = nextProd.code,
+                                                    productName = nextProd.name,
+                                                    bagSizeLabel = "${bagW.roundToInt()} KG",
+                                                    bagWeightKg = bagW,
+                                                    quantityBags = 25,
+                                                    totalKg = 25 * bagW,
+                                                    totalMt = (25 * bagW) / 1000.0,
+                                                    purchasePriceSnapshot = nextProd.purchasePrice,
+                                                    pricePerBag = nextProd.salePrice,
+                                                    discountPerBag = 0.0,
+                                                    grossAmount = 25 * nextProd.salePrice,
+                                                    discountTotal = 0.0,
+                                                    netAmount = 25 * nextProd.salePrice
+                                                )
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(10.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0F5233)),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0F5233))
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("+ Add Another Product", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 4. Summary Box
+                    ElevatedCard(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Total Bags", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF64748B))
+                                Text("$totalBags Bags", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.ExtraBold), color = Color(0xFF0F172A))
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Total Weight", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF64748B))
+                                Text("${BusinessCalculations.formatDecimal(totalMt)} MT", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.ExtraBold), color = Color(0xFF0F172A))
+                            }
+                            HorizontalDivider(color = Color(0xFFE2E8F0))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Total Amount", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xFF0F172A))
+                                Text(
+                                    text = BusinessCalculations.formatCurrency(netAmount, currencySymbol),
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontFamily = JetBrainsMonoFamily,
+                                        fontWeight = FontWeight.ExtraBold
+                                    ),
+                                    color = Color(0xFF0F5233)
+                                )
+                            }
                         }
                     }
                 }
-
-                // Automatic Order Summary
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            "Total Volume: $totalBags Bags × Bag Weight = ${totalKg.roundToInt()} KG = ${BusinessCalculations.formatDecimal(totalMt)} MT",
-                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = JetBrainsMonoFamily)
-                        )
-                        Text(
-                            "Gross: ${BusinessCalculations.formatCurrency(grossAmount, currencySymbol)} | Discount: ${BusinessCalculations.formatCurrency(discountAmount, currencySymbol)} | Net: ${BusinessCalculations.formatCurrency(netAmount, currencySymbol)}",
-                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold)
-                        )
-                        Text(
-                            "Outstanding Balance on Order: ${BusinessCalculations.formatCurrency(outstandingAmount, currencySymbol)}",
-                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily),
-                            color = if (outstandingAmount > 0) StatusDanger else StatusSuccess
-                        )
-                    }
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = paidAmountStr,
-                        onValueChange = { paidAmountStr = it },
-                        label = { Text("Payment Received") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                    DropdownSelectorField(
-                        label = "Pay Method",
-                        options = paymentMethods.ifEmpty { listOf("Cash", "Bank Transfer", "Online") },
-                        selectedOption = paymentMethod,
-                        onOptionSelected = { paymentMethod = it },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                OutlinedTextField(
-                    value = expectedDeliveryDate,
-                    onValueChange = { expectedDeliveryDate = it },
-                    label = { Text("Expected Delivery Date (YYYY-MM-DD)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = remarks,
-                    onValueChange = { remarks = it },
-                    label = { Text("Order / Dispatch Remarks") },
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (lineItems.isEmpty()) {
-                        errorMsg = "Please add at least one product line item to the order."
-                        return@Button
-                    }
-                    val dealerObj = dealers.firstOrNull { it.businessName == selectedDealerName } ?: dealers.firstOrNull()
-                    if (dealerObj == null) {
-                        errorMsg = "Please select a valid Dealer."
-                        return@Button
-                    }
-                    val farmerObj = farmers.firstOrNull { "${it.name} (${it.farmName})" == selectedFarmerName }
-                    val estProfit = lineItems.sumOf {
-                        (it.pricePerBag - it.discountPerBag - it.purchasePriceSnapshot) * it.quantityBags
-                    }
-                    onSave(
-                        SaleOrderEntity(
-                            id = existing?.id ?: 0,
-                            orderNumber = orderNumber.trim(),
-                            invoiceNumber = invoiceNumber.trim(),
-                            date = date.trim(),
-                            dealerId = dealerObj.id,
-                            dealerName = dealerObj.businessName,
-                            dealerAddress = "${dealerObj.address}, ${dealerObj.city}",
-                            farmerId = farmerObj?.id,
-                            farmerName = farmerObj?.name ?: "",
-                            location = location.trim(),
-                            area = dealerObj.area,
-                            totalBags = totalBags,
-                            totalKg = totalKg,
-                            totalMt = totalMt,
-                            grossAmount = grossAmount,
-                            discountAmount = discountAmount,
-                            netAmount = netAmount,
-                            paidAmount = paidAmount.coerceAtLeast(0.0),
-                            outstandingAmount = outstandingAmount,
-                            estimatedProfit = estProfit,
-                            status = status,
-                            expectedDeliveryDate = expectedDeliveryDate.trim(),
-                            remarks = remarks.trim()
-                        ),
-                        lineItems,
-                        paymentMethod
-                    )
-                }
-            ) {
-                Text("Save Order")
-            }
-        },
-        dismissButton = {
-            OutlinedButton(onClick = onDismiss) { Text("Cancel") }
         }
-    )
+    }
 }
 
 @Composable
