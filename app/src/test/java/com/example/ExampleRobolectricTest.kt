@@ -193,4 +193,89 @@ class ExampleRobolectricTest {
         val ordersAfterRestore = dao.getAllOrdersOnce()
         assertEquals(60, ordersAfterRestore.first { it.orderNumber == "ORD-TEST-01" }.totalBags)
     }
+
+    @Test
+    fun `verify dashboard monthly calculations update dynamically on new order and payment`() = runBlocking {
+        repository.ensureInitialized()
+        val today = SampleDataSeeder.todayDate()
+        val monthPrefix = SampleDataSeeder.currentMonthPrefix()
+
+        val initialMonthOrders = dao.getAllOrdersOnce()
+            .filter { it.status != "Cancelled" && it.status != "Draft" && it.date.startsWith(monthPrefix) && it.date <= today }
+        val initialBags = initialMonthOrders.sumOf { it.totalBags }
+        val initialPayments = dao.getAllPaymentsOnce()
+            .filter { it.date.startsWith(monthPrefix) && it.date <= today }
+            .sumOf { it.amount }
+
+        assertTrue("Initial seeded monthly bags should be positive", initialBags > 0)
+        assertTrue("Initial seeded monthly payments should be positive", initialPayments > 0.0)
+
+        // Add a new order today for 40 bags (1.60 MT) with 50,000 paid
+        val dealer = dao.getAllDealersOnce().first()
+        val prod = dao.getAllProductsOnce().first { it.code == "26P" }
+        repository.saveOrderTransaction(
+            order = SaleOrderEntity(
+                orderNumber = "ORD-DASH-99",
+                invoiceNumber = "INV-DASH-99",
+                date = today,
+                dealerId = dealer.id,
+                dealerName = dealer.businessName,
+                dealerAddress = dealer.address,
+                location = dealer.city,
+                area = dealer.area,
+                totalBags = 40,
+                totalKg = 1600.0,
+                totalMt = 1.6,
+                grossAmount = 140000.0,
+                discountAmount = 0.0,
+                netAmount = 140000.0,
+                paidAmount = 50000.0,
+                outstandingAmount = 90000.0,
+                estimatedProfit = 14000.0,
+                status = "Delivered",
+                expectedDeliveryDate = today
+            ),
+            items = listOf(
+                OrderItemEntity(
+                    orderId = 0,
+                    productId = prod.id,
+                    productCode = prod.code,
+                    productName = prod.name,
+                    bagSizeLabel = "40 KG",
+                    bagWeightKg = 40.0,
+                    quantityBags = 40,
+                    totalKg = 1600.0,
+                    totalMt = 1.6,
+                    purchasePriceSnapshot = prod.purchasePrice,
+                    pricePerBag = 3500.0,
+                    grossAmount = 140000.0,
+                    discountTotal = 0.0,
+                    netAmount = 140000.0
+                )
+            ),
+            paymentMethodForInitialPaid = "Cash"
+        )
+
+        // Add an additional standalone payment today of Rs. 25,000
+        repository.savePayment(
+            PaymentEntity(
+                paymentNumber = "PAY-DASH-99",
+                date = today,
+                dealerId = dealer.id,
+                dealerName = dealer.businessName,
+                amount = 25000.0,
+                paymentMethod = "Cash"
+            )
+        )
+
+        val updatedMonthOrders = dao.getAllOrdersOnce()
+            .filter { it.status != "Cancelled" && it.status != "Draft" && it.date.startsWith(monthPrefix) && it.date <= today }
+        val updatedBags = updatedMonthOrders.sumOf { it.totalBags }
+        val updatedPayments = dao.getAllPaymentsOnce()
+            .filter { it.date.startsWith(monthPrefix) && it.date <= today }
+            .sumOf { it.amount }
+
+        assertEquals(initialBags + 40, updatedBags)
+        assertEquals(initialPayments + 50000.0 + 25000.0, updatedPayments, 0.01)
+    }
 }

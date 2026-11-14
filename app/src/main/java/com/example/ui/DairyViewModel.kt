@@ -61,6 +61,7 @@ data class DashboardMetrics(
     val monthlyKg: Double = 0.0,
     val monthlyMt: Double = 0.0,
     val monthlyCollection: Double = 0.0,
+    val monthlyPaymentsCount: Int = 0,
     val totalAllTimeSales: Double = 0.0,
     val totalAllTimeBags: Int = 0,
     val totalAllTimeKg: Double = 0.0,
@@ -286,10 +287,10 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
 
         val validOrders = orders.filter { it.order.status != "Cancelled" && it.order.status != "Draft" }
         val todayOrders = validOrders.filter { it.order.date == today }
-        val monthOrders = validOrders.filter { it.order.date.startsWith(monthPrefix) }
+        val monthOrders = validOrders.filter { it.order.date.startsWith(monthPrefix) && it.order.date <= today }
 
         val todayPayments = payments.filter { it.date == today }
-        val monthPayments = payments.filter { it.date.startsWith(monthPrefix) }
+        val monthPayments = payments.filter { it.date.startsWith(monthPrefix) && it.date <= today }
 
         val pendingDeliveries = orders.count {
             it.order.status == "Pending" || it.order.status == "Confirmed" || it.order.status == "In Transit" || it.order.status == "Partially Delivered"
@@ -301,6 +302,7 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
         val monthlySales = monthOrders.sumOf { it.order.netAmount }
         val monthlyProfit = monthOrders.sumOf { it.order.estimatedProfit }
         val monthlyCollection = monthPayments.sumOf { it.amount }
+        val monthlyPaymentsCount = monthPayments.size
 
         val totalAllTimeSales = validOrders.sumOf { it.order.netAmount }
         val totalAllTimeBags = validOrders.sumOf { it.order.totalBags }
@@ -314,7 +316,11 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
         val currentTarget = targets.firstOrNull { it.periodLabel == monthPrefix } ?: targets.firstOrNull()
         val targetBags = currentTarget?.targetBags ?: 1000
         val targetSales = currentTarget?.targetSalesValue ?: 3600000.0
-        val achPct = if (targetBags > 0) (monthlyBags.toDouble() / targetBags.toDouble()) * 100.0 else 0.0
+        val achPct = if (targetBags > 0) {
+            ((monthlyBags.toDouble() / targetBags.toDouble()) * 100.0).coerceIn(0.0, 100.0)
+        } else {
+            0.0
+        }
         val remBags = (targetBags - monthlyBags).coerceAtLeast(0)
 
         val pendingTrials = trials.count {
@@ -336,6 +342,7 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
             monthlyKg = monthlyKg,
             monthlyMt = monthlyMt,
             monthlyCollection = monthlyCollection,
+            monthlyPaymentsCount = monthlyPaymentsCount,
             totalAllTimeSales = totalAllTimeSales,
             totalAllTimeBags = totalAllTimeBags,
             totalAllTimeKg = totalAllTimeKg,
@@ -772,6 +779,28 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.saveTarget(target)
             showMessage("Saved target for ${target.periodLabel}")
+        }
+    }
+
+    fun updateMonthlyTargetBags(newTargetBags: Int) {
+        viewModelScope.launch {
+            val safeBags = newTargetBags.coerceAtLeast(1)
+            val monthPrefix = SampleDataSeeder.currentMonthPrefix()
+            val existing = _uiState.value.targets.firstOrNull { it.periodLabel == monthPrefix }
+                ?: _uiState.value.targets.firstOrNull()
+            val avgBagPrice = 3600.0
+            val updated = SalesTargetEntity(
+                id = existing?.id ?: 0,
+                periodLabel = monthPrefix,
+                periodType = "Monthly",
+                targetBags = safeBags,
+                targetMt = (safeBags * 40.0) / 1000.0,
+                targetSalesValue = existing?.targetSalesValue ?: (safeBags * avgBagPrice),
+                targetCollection = existing?.targetCollection ?: (safeBags * avgBagPrice * 0.85),
+                notes = existing?.notes ?: "Monthly Sales Target"
+            )
+            repository.saveTarget(updated)
+            showMessage("Monthly Sales Target set to $safeBags Bags")
         }
     }
 

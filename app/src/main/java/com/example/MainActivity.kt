@@ -6,7 +6,12 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -14,10 +19,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.*
@@ -41,6 +53,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+private val BrandDarkGreen = Color(0xFF0A4D2E)
+private val BrandDeepEmblemBg = Color(0xFF06351E)
+private val BrandGoldAccent = Color(0xFFF5C518)
+private val BrandSubtitleMint = Color(0xFFD2EFE0)
+
+private data class BottomNavDestination(
+    val key: String,
+    val label: String,
+    val filledIcon: ImageVector,
+    val outlinedIcon: ImageVector,
+    val isSelected: (AppUiState) -> Boolean,
+    val onSelect: () -> Unit
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,23 +115,66 @@ fun DairyFeedAppRoot(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = when (uiState.activeTab) {
-                                PrimaryTab.DASHBOARD -> "WandaBook Pro"
-                                else -> uiState.activeSubModule.title
-                            },
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = "Dairy Feed Sales & Management • ${uiState.config.currencySymbol}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.clickable {
+                            viewModel.navigateToTab(PrimaryTab.DASHBOARD)
+                        }
+                    ) {
+                        // WandaBook Pro Circular Emblem
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(BrandDeepEmblemBg)
+                                .border(1.5.dp, BrandGoldAccent.copy(alpha = 0.85f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Agriculture,
+                                contentDescription = "WandaBook Pro Logo",
+                                tint = BrandGoldAccent,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        Column {
+                            Text(
+                                text = buildAnnotatedString {
+                                    withStyle(
+                                        SpanStyle(
+                                            color = Color.White,
+                                            fontWeight = FontWeight.ExtraBold
+                                        )
+                                    ) {
+                                        append("WandaBook ")
+                                    }
+                                    withStyle(
+                                        SpanStyle(
+                                            color = BrandGoldAccent,
+                                            fontWeight = FontWeight.ExtraBold
+                                        )
+                                    ) {
+                                        append("Pro")
+                                    }
+                                },
+                                style = MaterialTheme.typography.titleLarge,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = if (uiState.activeTab == PrimaryTab.DASHBOARD) {
+                                    "Dairy Feed Sales & Management"
+                                } else {
+                                    "Dairy Feed Sales & Management • ${uiState.activeSubModule.title}"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = BrandSubtitleMint,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 },
                 actions = {
@@ -115,13 +184,19 @@ fun DairyFeedAppRoot(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Search,
-                            contentDescription = "Global Search"
+                            contentDescription = "Global Search",
+                            tint = Color.White
                         )
                     }
                     BadgedBox(
                         badge = {
                             if (uiState.smartReminders.isNotEmpty()) {
-                                Badge { Text("${uiState.smartReminders.size}") }
+                                Badge(
+                                    containerColor = Color(0xFFE53935),
+                                    contentColor = Color.White
+                                ) {
+                                    Text("${uiState.smartReminders.size}")
+                                }
                             }
                         }
                     ) {
@@ -131,7 +206,8 @@ fun DairyFeedAppRoot(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Notifications,
-                                contentDescription = "Reminders & Alerts"
+                                contentDescription = "Reminders & Alerts",
+                                tint = Color.White
                             )
                         }
                     }
@@ -141,48 +217,23 @@ fun DairyFeedAppRoot(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings & Admin"
+                            contentDescription = "Settings & Admin",
+                            tint = Color.White
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = BrandDarkGreen,
+                    titleContentColor = Color.White,
+                    actionIconContentColor = Color.White
                 )
             )
         },
         bottomBar = {
-            NavigationBar(
-                modifier = Modifier.testTag("bottom_navigation_bar")
-            ) {
-                val navItems = listOf(
-                    Triple(PrimaryTab.DASHBOARD, Icons.Filled.Dashboard, Icons.Outlined.Dashboard),
-                    Triple(PrimaryTab.SALES, Icons.Filled.ShoppingCart, Icons.Outlined.ShoppingCart),
-                    Triple(PrimaryTab.PARTNERS, Icons.Filled.Groups, Icons.Outlined.Groups),
-                    Triple(PrimaryTab.FIELD, Icons.Filled.Agriculture, Icons.Outlined.Agriculture),
-                    Triple(PrimaryTab.HUB, Icons.Filled.Apps, Icons.Outlined.Apps)
-                )
-                navItems.forEach { (tab, filledIcon, outlinedIcon) ->
-                    val selected = uiState.activeTab == tab
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = { viewModel.navigateToTab(tab) },
-                        icon = {
-                            Icon(
-                                imageVector = if (selected) filledIcon else outlinedIcon,
-                                contentDescription = tab.label
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = tab.label,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        },
-                        modifier = Modifier.testTag("bottom_nav_${tab.name.lowercase()}")
-                    )
-                }
-            }
+            WandaBookBottomNavigationBar(
+                uiState = uiState,
+                viewModel = viewModel
+            )
         }
     ) { innerPadding ->
         Box(
@@ -211,6 +262,12 @@ fun DairyFeedAppRoot(
                             "PAYMENT" -> {
                                 viewModel.navigateToSubModule(SubModule.PAYMENTS)
                                 triggerNewPayment = true
+                            }
+                            "CREATE_INVOICE" -> {
+                                viewModel.navigateToSubModule(SubModule.INVOICES)
+                            }
+                            "REPORTS" -> {
+                                viewModel.navigateToSubModule(SubModule.REPORTS)
                             }
                             "CONSOLIDATED" -> {
                                 viewModel.navigateToSubModule(SubModule.CONSOLIDATED)
@@ -302,6 +359,133 @@ fun DairyFeedAppRoot(
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WandaBookBottomNavigationBar(
+    uiState: AppUiState,
+    viewModel: DairyViewModel
+) {
+    val destinations = remember(viewModel) {
+        listOf(
+            BottomNavDestination(
+                key = "dashboard",
+                label = "Dashboard",
+                filledIcon = Icons.Filled.Home,
+                outlinedIcon = Icons.Outlined.Home,
+                isSelected = { it.activeTab == PrimaryTab.DASHBOARD },
+                onSelect = { viewModel.navigateToTab(PrimaryTab.DASHBOARD) }
+            ),
+            BottomNavDestination(
+                key = "orders",
+                label = "Orders",
+                filledIcon = Icons.Filled.ShoppingCart,
+                outlinedIcon = Icons.Outlined.ShoppingCart,
+                isSelected = { it.activeTab == PrimaryTab.SALES && it.activeSubModule == SubModule.ORDERS },
+                onSelect = { viewModel.navigateToSubModule(SubModule.ORDERS) }
+            ),
+            BottomNavDestination(
+                key = "dealers",
+                label = "Dealers",
+                filledIcon = Icons.Filled.Storefront,
+                outlinedIcon = Icons.Outlined.Storefront,
+                isSelected = { it.activeTab == PrimaryTab.PARTNERS && it.activeSubModule == SubModule.DEALERS },
+                onSelect = { viewModel.navigateToSubModule(SubModule.DEALERS) }
+            ),
+            BottomNavDestination(
+                key = "farmers",
+                label = "Farmers",
+                filledIcon = Icons.Filled.Agriculture,
+                outlinedIcon = Icons.Outlined.Agriculture,
+                isSelected = { it.activeTab == PrimaryTab.PARTNERS && it.activeSubModule == SubModule.FARMERS },
+                onSelect = { viewModel.navigateToSubModule(SubModule.FARMERS) }
+            ),
+            BottomNavDestination(
+                key = "payments",
+                label = "Payments",
+                filledIcon = Icons.Filled.AccountBalanceWallet,
+                outlinedIcon = Icons.Outlined.AccountBalanceWallet,
+                isSelected = { it.activeTab == PrimaryTab.SALES && it.activeSubModule == SubModule.PAYMENTS },
+                onSelect = { viewModel.navigateToSubModule(SubModule.PAYMENTS) }
+            ),
+            BottomNavDestination(
+                key = "reports",
+                label = "Reports",
+                filledIcon = Icons.Filled.BarChart,
+                outlinedIcon = Icons.Outlined.BarChart,
+                isSelected = { it.activeTab == PrimaryTab.HUB && it.activeSubModule == SubModule.REPORTS },
+                onSelect = { viewModel.navigateToSubModule(SubModule.REPORTS) }
+            ),
+            BottomNavDestination(
+                key = "more",
+                label = "More",
+                filledIcon = Icons.Filled.Apps,
+                outlinedIcon = Icons.Outlined.Apps,
+                isSelected = {
+                    it.activeTab == PrimaryTab.FIELD ||
+                        (it.activeTab == PrimaryTab.HUB && it.activeSubModule != SubModule.REPORTS) ||
+                        (it.activeTab == PrimaryTab.SALES && it.activeSubModule !in listOf(SubModule.ORDERS, SubModule.PAYMENTS))
+                },
+                onSelect = { viewModel.navigateToSubModule(SubModule.SETTINGS) }
+            )
+        )
+    }
+
+    Surface(
+        color = BrandDarkGreen,
+        contentColor = Color.White,
+        shadowElevation = 8.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("bottom_navigation_bar")
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .height(64.dp)
+                .padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            destinations.forEach { dest ->
+                val selected = dest.isSelected(uiState)
+                val tintColor = if (selected) BrandGoldAccent else Color.White.copy(alpha = 0.85f)
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable { dest.onSelect() }
+                        .padding(vertical = 6.dp)
+                        .testTag("bottom_nav_${dest.key}"),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Icon(
+                        imageVector = if (selected) dest.filledIcon else dest.outlinedIcon,
+                        contentDescription = dest.label,
+                        tint = tintColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Text(
+                        text = dest.label,
+                        fontSize = 10.sp,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                        color = tintColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Box(
+                        modifier = Modifier
+                            .width(28.dp)
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(if (selected) BrandGoldAccent else Color.Transparent)
+                    )
                 }
             }
         }

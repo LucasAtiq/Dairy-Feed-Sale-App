@@ -933,7 +933,52 @@ private fun SettingsAndAdminSection(
                     }
                 }
 
-                // 2. Appearance Section
+                // 2. Monthly Sales Target Section
+                item {
+                    var targetBagsInput by remember(uiState.dashboard.monthlyTargetBags) {
+                        mutableStateOf(uiState.dashboard.monthlyTargetBags.toString())
+                    }
+                    ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                "Monthly Sales Target",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                            )
+                            Text(
+                                "Set your monthly sales target in Bags. Dashboard progress and remaining bags automatically recalculate.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = targetBagsInput,
+                                    onValueChange = { targetBagsInput = it },
+                                    label = { Text("Monthly Target (Bags)") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    singleLine = true,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .testTag("settings_monthly_target_input")
+                                )
+                                Button(
+                                    onClick = {
+                                        val b = (targetBagsInput.toIntOrNull() ?: 1000).coerceAtLeast(1)
+                                        viewModel.updateMonthlyTargetBags(b)
+                                    },
+                                    modifier = Modifier.testTag("settings_save_monthly_target_btn")
+                                ) {
+                                    Text("Save Target")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 3. Appearance Section
                 item {
                     ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -966,7 +1011,7 @@ private fun SettingsAndAdminSection(
                     }
                 }
 
-                // 3. Data Section
+                // 4. Data Section
                 item {
                     ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
