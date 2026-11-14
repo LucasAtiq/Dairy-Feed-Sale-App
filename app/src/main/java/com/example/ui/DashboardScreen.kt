@@ -39,9 +39,12 @@ import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.data.BusinessCalculations
 import com.example.ui.theme.JetBrainsMonoFamily
+import com.example.ui.theme.ResponsiveDimens
+import com.example.ui.theme.ScreenBucket
 import com.example.ui.theme.StatusDanger
 import com.example.ui.theme.StatusSuccess
 import com.example.ui.theme.StatusWarning
+import com.example.ui.theme.rememberResponsiveDimens
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -70,9 +73,12 @@ fun DashboardScreen(
 
     var showTargetEditDialog by remember { mutableStateOf(false) }
 
-    // Dynamically generated current device date (never hard-coded)
-    val currentDeviceDateLabel = remember {
-        SimpleDateFormat("EEE, dd MMM yyyy", Locale.US).format(Date())
+    val dimens = rememberResponsiveDimens()
+
+    // Dynamically generated current device date (never hard-coded, adapts to compact screens)
+    val currentDeviceDateLabel = remember(dimens.bucket) {
+        val pattern = if (dimens.bucket == ScreenBucket.COMPACT) "dd MMM yyyy" else "EEE, dd MMM yyyy"
+        SimpleDateFormat(pattern, Locale.US).format(Date())
     }
 
     // Latest 3-5 non-cancelled orders
@@ -91,7 +97,7 @@ fun DashboardScreen(
             .background(pageBgColor)
             .testTag("dashboard_screen"),
         contentPadding = PaddingValues(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(dimens.sectionSpacing)
     ) {
         // 1 & 2. UNIFIED BRAND HEADER + USER PROFILE + DATE BANNER (Matching ChatGPT Screen 1)
         item {
@@ -104,7 +110,7 @@ fun DashboardScreen(
                         )
                     )
                     .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .padding(horizontal = dimens.pageHorizontalPadding, vertical = 12.dp)
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -168,7 +174,7 @@ fun DashboardScreen(
                         }
                     }
 
-                    // Row 2: User Profile Info + Dynamic Date Chip
+                    // Row 2: User Profile Info + Dynamic Date Chip (Responsive, no text clipping)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -176,12 +182,12 @@ fun DashboardScreen(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.weight(1f, fill = false)
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(42.dp)
+                                    .size(if (dimens.bucket == ScreenBucket.COMPACT) 36.dp else 42.dp)
                                     .clip(CircleShape)
                                     .background(Color.White),
                                 contentAlignment = Alignment.Center
@@ -190,7 +196,7 @@ fun DashboardScreen(
                                     imageVector = Icons.Default.Person,
                                     contentDescription = "User Profile",
                                     tint = DashDarkGreen,
-                                    modifier = Modifier.size(26.dp)
+                                    modifier = Modifier.size(if (dimens.bucket == ScreenBucket.COMPACT) 22.dp else 26.dp)
                                 )
                             }
                             Column {
@@ -198,7 +204,7 @@ fun DashboardScreen(
                                     text = "Welcome, Attique ur Rehman",
                                     style = MaterialTheme.typography.titleSmall.copy(
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 13.5.sp
+                                        fontSize = if (dimens.bucket == ScreenBucket.COMPACT) 12.sp else 13.5.sp
                                     ),
                                     color = Color.White,
                                     maxLines = 1,
@@ -206,7 +212,9 @@ fun DashboardScreen(
                                 )
                                 Text(
                                     text = "Region Sale Manager",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontSize = if (dimens.bucket == ScreenBucket.COMPACT) 10.sp else 11.sp
+                                    ),
                                     color = Color(0xFFD2EFE0),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -222,7 +230,10 @@ fun DashboardScreen(
                             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f))
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                modifier = Modifier.padding(
+                                    horizontal = if (dimens.bucket == ScreenBucket.COMPACT) 8.dp else 10.dp,
+                                    vertical = if (dimens.bucket == ScreenBucket.COMPACT) 4.dp else 6.dp
+                                ),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
@@ -230,13 +241,13 @@ fun DashboardScreen(
                                     imageVector = Icons.Default.CalendarToday,
                                     contentDescription = "Current Date",
                                     tint = Color.White,
-                                    modifier = Modifier.size(13.dp)
+                                    modifier = Modifier.size(if (dimens.bucket == ScreenBucket.COMPACT) 11.dp else 13.dp)
                                 )
                                 Text(
                                     text = currentDeviceDateLabel,
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontWeight = FontWeight.SemiBold,
-                                        fontSize = 11.5.sp
+                                        fontSize = if (dimens.bucket == ScreenBucket.COMPACT) 10.sp else 11.5.sp
                                     ),
                                     color = Color.White,
                                     maxLines = 1
@@ -253,14 +264,15 @@ fun DashboardScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = dimens.pageHorizontalPadding),
+                horizontalArrangement = Arrangement.spacedBy(dimens.kpiCardSpacing)
             ) {
                 DashboardMainKpiCard(
                     title = "This Month Sales",
                     primaryValue = "${dash.monthlyBags} Bags",
                     secondaryValue = "(${BusinessCalculations.formatDecimal(dash.monthlyMt)} MT)",
                     growthBadge = "+12%",
+                    dimens = dimens,
                     isDark = isDark,
                     modifier = Modifier.weight(1f).testTag("kpi_this_month_sales"),
                     onClick = { viewModel.navigateToSubModule(SubModule.REPORTS) }
@@ -270,6 +282,7 @@ fun DashboardScreen(
                     primaryValue = "${dash.monthlyOrdersCount} Orders",
                     secondaryValue = "(${BusinessCalculations.formatDecimal(dash.monthlyMt)} MT)",
                     growthBadge = "+18%",
+                    dimens = dimens,
                     isDark = isDark,
                     modifier = Modifier.weight(1f).testTag("kpi_this_month_orders"),
                     onClick = { viewModel.navigateToSubModule(SubModule.ORDERS) }
@@ -279,6 +292,7 @@ fun DashboardScreen(
                     primaryValue = BusinessCalculations.formatCurrency(dash.monthlyCollection, cur),
                     secondaryValue = "(${dash.monthlyPaymentsCount} Receipts)",
                     growthBadge = "+10%",
+                    dimens = dimens,
                     isDark = isDark,
                     modifier = Modifier.weight(1f).testTag("kpi_payments_received"),
                     onClick = { viewModel.navigateToSubModule(SubModule.PAYMENTS) }
@@ -298,7 +312,7 @@ fun DashboardScreen(
                 colors = CardDefaults.cardColors(containerColor = DashDeepGreen),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp)
+                    .padding(horizontal = dimens.pageHorizontalPadding)
                     .clickable { showTargetEditDialog = true }
                     .testTag("monthly_target_card")
             ) {
@@ -322,8 +336,8 @@ fun DashboardScreen(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
-                            .width(130.dp)
-                            .height(115.dp)
+                            .width(dimens.targetHeroImgWidth)
+                            .height(dimens.targetHeroImgHeight)
                             .alpha(0.28f)
                     )
                     // Smooth gradient overlay to guarantee 100% crisp text contrast
@@ -344,8 +358,8 @@ fun DashboardScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                            .padding(dimens.targetCardPadding),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         // Row 1: Target Icon + "Monthly Target" & "50 / 1,000 Bags"
                         Row(
@@ -355,7 +369,7 @@ fun DashboardScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(42.dp)
+                                    .size(dimens.targetIconSize)
                                     .clip(CircleShape)
                                     .background(Color.White.copy(alpha = 0.14f))
                                     .border(1.dp, Color.White.copy(alpha = 0.3f), CircleShape),
@@ -365,7 +379,7 @@ fun DashboardScreen(
                                     imageVector = Icons.Default.TrackChanges,
                                     contentDescription = "Monthly Target",
                                     tint = Color.White,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(if (dimens.bucket == ScreenBucket.COMPACT) 20.dp else 24.dp)
                                 )
                             }
 
@@ -378,7 +392,7 @@ fun DashboardScreen(
                                         text = "Monthly Target",
                                         style = MaterialTheme.typography.labelMedium.copy(
                                             fontWeight = FontWeight.SemiBold,
-                                            fontSize = 12.sp
+                                            fontSize = if (dimens.bucket == ScreenBucket.COMPACT) 11.sp else 12.sp
                                         ),
                                         color = Color(0xFFE2F5EA)
                                     )
@@ -393,7 +407,7 @@ fun DashboardScreen(
                                     text = "${numberFormatter.format(dash.monthlyBags)} / ${numberFormatter.format(dash.monthlyTargetBags)} Bags",
                                     style = MaterialTheme.typography.titleLarge.copy(
                                         fontWeight = FontWeight.Black,
-                                        fontSize = 18.sp
+                                        fontSize = dimens.targetBagsFontSize
                                     ),
                                     color = Color.White,
                                     maxLines = 1
@@ -405,12 +419,12 @@ fun DashboardScreen(
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(20.dp)
+                                    .height(if (dimens.bucket == ScreenBucket.COMPACT) 18.dp else 20.dp)
                                     .clip(RoundedCornerShape(50))
                                     .background(Color.White.copy(alpha = 0.22f))
                                     .border(1.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(50))
@@ -434,7 +448,7 @@ fun DashboardScreen(
                                         text = "${progressPct.roundToInt()}%",
                                         style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = FontWeight.ExtraBold,
-                                            fontSize = 10.sp
+                                            fontSize = 9.5.sp
                                         ),
                                         color = Color(0xFF78350F)
                                     )
@@ -445,7 +459,7 @@ fun DashboardScreen(
                                 text = "Remaining: ${numberFormatter.format(dash.remainingTargetBags)} Bags",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 11.5.sp
+                                    fontSize = dimens.targetRemainingFontSize
                                 ),
                                 color = Color.White,
                                 maxLines = 1
@@ -470,19 +484,19 @@ fun DashboardScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .padding(horizontal = dimens.pageHorizontalPadding),
+                verticalArrangement = Arrangement.spacedBy(dimens.quickActionGridSpacing)
             ) {
                 quickActions.chunked(3).forEach { rowItems ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(dimens.quickActionGridSpacing)
                     ) {
                         rowItems.forEach { (actionKey, label, icon) ->
                             Card(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(74.dp)
+                                    .height(dimens.quickActionHeight)
                                     .clickable { onQuickAction(actionKey) }
                                     .testTag("quick_action_${actionKey.lowercase()}"),
                                 shape = RoundedCornerShape(14.dp),
@@ -498,7 +512,7 @@ fun DashboardScreen(
                                 Column(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .padding(horizontal = 4.dp, vertical = 6.dp),
+                                        .padding(horizontal = 4.dp, vertical = 4.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center
                                 ) {
@@ -506,14 +520,14 @@ fun DashboardScreen(
                                         imageVector = icon,
                                         contentDescription = label,
                                         tint = if (isDark) Color(0xFF4ADE80) else DashPrimaryGreen,
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(dimens.quickActionIconSize)
                                     )
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Spacer(modifier = Modifier.height(3.dp))
                                     Text(
                                         text = label,
                                         style = MaterialTheme.typography.bodySmall.copy(
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 11.sp
+                                            fontSize = dimens.quickActionFontSize
                                         ),
                                         color = if (isDark) Color(0xFFE2E8F0) else Color(0xFF1E293B),
                                         textAlign = TextAlign.Center,
@@ -534,7 +548,7 @@ fun DashboardScreen(
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = dimens.pageHorizontalPadding),
                 colors = CardDefaults.cardColors(
                     containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White
                 ),
@@ -547,8 +561,8 @@ fun DashboardScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(if (dimens.bucket == ScreenBucket.COMPACT) 12.dp else 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -772,6 +786,7 @@ private fun DashboardMainKpiCard(
     primaryValue: String,
     secondaryValue: String,
     growthBadge: String,
+    dimens: ResponsiveDimens,
     isDark: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
@@ -791,15 +806,15 @@ private fun DashboardMainKpiCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
+                .padding(dimens.kpiCardPadding),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodySmall.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 11.sp,
-                    lineHeight = 13.sp
+                    fontSize = dimens.kpiTitleFontSize,
+                    lineHeight = dimens.kpiTitleLineHeight
                 ),
                 color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
                 maxLines = 2,
@@ -811,7 +826,7 @@ private fun DashboardMainKpiCard(
                 text = primaryValue,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.ExtraBold,
-                    fontSize = 13.5.sp
+                    fontSize = dimens.kpiPrimaryValueFontSize
                 ),
                 color = if (isDark) Color.White else Color(0xFF0F172A),
                 maxLines = 1,
@@ -821,7 +836,7 @@ private fun DashboardMainKpiCard(
             Text(
                 text = secondaryValue,
                 style = MaterialTheme.typography.bodySmall.copy(
-                    fontSize = 10.sp
+                    fontSize = dimens.kpiSecondaryValueFontSize
                 ),
                 color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF64748B),
                 maxLines = 1,
@@ -843,11 +858,11 @@ private fun DashboardMainKpiCard(
                         imageVector = Icons.Default.ArrowUpward,
                         contentDescription = null,
                         tint = if (isDark) Color(0xFF4ADE80) else Color(0xFF15803D),
-                        modifier = Modifier.size(10.dp)
+                        modifier = Modifier.size(9.dp)
                     )
                     Text(
                         text = growthBadge,
-                        fontSize = 9.5.sp,
+                        fontSize = dimens.kpiBadgeFontSize,
                         fontWeight = FontWeight.ExtraBold,
                         color = if (isDark) Color(0xFF4ADE80) else Color(0xFF15803D)
                     )

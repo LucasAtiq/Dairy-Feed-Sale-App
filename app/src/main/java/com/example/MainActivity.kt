@@ -34,6 +34,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.*
 import com.example.ui.theme.DairyFeedTheme
+import com.example.ui.theme.rememberResponsiveDimens
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
@@ -375,6 +376,7 @@ private fun WandaBookBottomNavigationBar(
     uiState: AppUiState,
     viewModel: DairyViewModel
 ) {
+    val dimens = rememberResponsiveDimens()
     val destinations = remember(viewModel) {
         listOf(
             BottomNavDestination(
@@ -432,7 +434,7 @@ private fun WandaBookBottomNavigationBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .height(64.dp)
+                .height(dimens.bottomNavHeight)
                 .padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
@@ -445,7 +447,7 @@ private fun WandaBookBottomNavigationBar(
                         .weight(1f)
                         .fillMaxHeight()
                         .clickable { dest.onSelect() }
-                        .padding(vertical = 6.dp)
+                        .padding(vertical = 4.dp)
                         .testTag("bottom_nav_${dest.key}"),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween
@@ -454,11 +456,11 @@ private fun WandaBookBottomNavigationBar(
                         imageVector = if (selected) dest.filledIcon else dest.outlinedIcon,
                         contentDescription = dest.label,
                         tint = tintColor,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(dimens.bottomNavIconSize)
                     )
                     Text(
                         text = dest.label,
-                        fontSize = 10.sp,
+                        fontSize = dimens.bottomNavFontSize,
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                         color = tintColor,
                         maxLines = 1,
