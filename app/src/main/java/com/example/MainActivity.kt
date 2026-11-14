@@ -397,20 +397,12 @@ private fun WandaBookBottomNavigationBar(
                 onSelect = { viewModel.navigateToSubModule(SubModule.DEALERS) }
             ),
             BottomNavDestination(
-                key = "farmers",
-                label = "Farmers",
+                key = "field_ops",
+                label = "Field Ops",
                 filledIcon = Icons.Filled.Agriculture,
                 outlinedIcon = Icons.Outlined.Agriculture,
-                isSelected = { it.activeTab == PrimaryTab.PARTNERS && it.activeSubModule == SubModule.FARMERS },
-                onSelect = { viewModel.navigateToSubModule(SubModule.FARMERS) }
-            ),
-            BottomNavDestination(
-                key = "payments",
-                label = "Payments",
-                filledIcon = Icons.Filled.AccountBalanceWallet,
-                outlinedIcon = Icons.Outlined.AccountBalanceWallet,
-                isSelected = { it.activeTab == PrimaryTab.SALES && it.activeSubModule == SubModule.PAYMENTS },
-                onSelect = { viewModel.navigateToSubModule(SubModule.PAYMENTS) }
+                isSelected = { it.activeTab == PrimaryTab.FIELD },
+                onSelect = { viewModel.navigateToTab(PrimaryTab.FIELD) }
             ),
             BottomNavDestination(
                 key = "reports",
@@ -419,18 +411,6 @@ private fun WandaBookBottomNavigationBar(
                 outlinedIcon = Icons.Outlined.BarChart,
                 isSelected = { it.activeTab == PrimaryTab.HUB && it.activeSubModule == SubModule.REPORTS },
                 onSelect = { viewModel.navigateToSubModule(SubModule.REPORTS) }
-            ),
-            BottomNavDestination(
-                key = "more",
-                label = "More",
-                filledIcon = Icons.Filled.Apps,
-                outlinedIcon = Icons.Outlined.Apps,
-                isSelected = {
-                    it.activeTab == PrimaryTab.FIELD ||
-                        (it.activeTab == PrimaryTab.HUB && it.activeSubModule != SubModule.REPORTS) ||
-                        (it.activeTab == PrimaryTab.SALES && it.activeSubModule !in listOf(SubModule.ORDERS, SubModule.PAYMENTS))
-                },
-                onSelect = { viewModel.navigateToSubModule(SubModule.SETTINGS) }
             )
         )
     }

@@ -181,110 +181,39 @@ fun DashboardScreen(
 
         // 3. MAIN KPI CARDS (This Month Sales | This Month Orders | Payments Received)
         item {
-            BoxWithConstraints(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp)
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                val useCompactStack = maxWidth < 340.dp
-                val salesBg = if (isDark) Color(0xFF142E21) else Color(0xFFE8F6EE)
-                val ordersBg = if (isDark) Color(0xFF2D2315) else Color(0xFFFDF3E4)
-                val paymentsBg = if (isDark) Color(0xFF132535) else Color(0xFFEAF4FE)
-
-                if (useCompactStack) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        DashboardMainKpiCard(
-                            title = "This Month Sales",
-                            primaryValue = "${dash.monthlyBags} Bags",
-                            secondaryValue = "(${BusinessCalculations.formatDecimal(dash.monthlyMt)} MT)",
-                            badgeText = BusinessCalculations.formatCurrency(dash.monthlySales, cur),
-                            icon = Icons.Default.Inventory2,
-                            iconTint = Color(0xFF15803D),
-                            containerColor = salesBg,
-                            isDark = isDark,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("kpi_this_month_sales"),
-                            onClick = { viewModel.navigateToSubModule(SubModule.REPORTS) }
-                        )
-                        DashboardMainKpiCard(
-                            title = "This Month Orders",
-                            primaryValue = "${dash.monthlyBags} Bags",
-                            secondaryValue = "(${BusinessCalculations.formatDecimal(dash.monthlyMt)} MT)",
-                            badgeText = "${dash.monthlyOrdersCount} Orders",
-                            icon = Icons.Default.Assignment,
-                            iconTint = Color(0xFFB45309),
-                            containerColor = ordersBg,
-                            isDark = isDark,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("kpi_this_month_orders"),
-                            onClick = { viewModel.navigateToSubModule(SubModule.ORDERS) }
-                        )
-                        DashboardMainKpiCard(
-                            title = "Payments Received",
-                            primaryValue = BusinessCalculations.formatCurrency(dash.monthlyCollection, cur),
-                            secondaryValue = "(${dash.monthlyPaymentsCount} Receipts)",
-                            badgeText = "Active",
-                            icon = Icons.Default.Paid,
-                            iconTint = Color(0xFF0F766E),
-                            containerColor = paymentsBg,
-                            isDark = isDark,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("kpi_payments_received"),
-                            onClick = { viewModel.navigateToSubModule(SubModule.PAYMENTS) }
-                        )
-                    }
-                } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        DashboardMainKpiCard(
-                            title = "This Month Sales",
-                            primaryValue = "${dash.monthlyBags} Bags",
-                            secondaryValue = "(${BusinessCalculations.formatDecimal(dash.monthlyMt)} MT)",
-                            badgeText = BusinessCalculations.formatCurrency(dash.monthlySales, cur),
-                            icon = Icons.Default.Inventory2,
-                            iconTint = Color(0xFF15803D),
-                            containerColor = salesBg,
-                            isDark = isDark,
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("kpi_this_month_sales"),
-                            onClick = { viewModel.navigateToSubModule(SubModule.REPORTS) }
-                        )
-                        DashboardMainKpiCard(
-                            title = "This Month Orders",
-                            primaryValue = "${dash.monthlyBags} Bags",
-                            secondaryValue = "(${BusinessCalculations.formatDecimal(dash.monthlyMt)} MT)",
-                            badgeText = "${dash.monthlyOrdersCount} Orders",
-                            icon = Icons.Default.Assignment,
-                            iconTint = Color(0xFFB45309),
-                            containerColor = ordersBg,
-                            isDark = isDark,
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("kpi_this_month_orders"),
-                            onClick = { viewModel.navigateToSubModule(SubModule.ORDERS) }
-                        )
-                        DashboardMainKpiCard(
-                            title = "Payments Received",
-                            primaryValue = BusinessCalculations.formatCurrency(dash.monthlyCollection, cur),
-                            secondaryValue = "(${dash.monthlyPaymentsCount} Receipts)",
-                            badgeText = "${dash.activeDealersCount} Dealers",
-                            icon = Icons.Default.Paid,
-                            iconTint = Color(0xFF0F766E),
-                            containerColor = paymentsBg,
-                            isDark = isDark,
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("kpi_payments_received"),
-                            onClick = { viewModel.navigateToSubModule(SubModule.PAYMENTS) }
-                        )
-                    }
-                }
+                DashboardMainKpiCard(
+                    title = "This Month Sales",
+                    primaryValue = "${dash.monthlyBags} Bags",
+                    secondaryValue = "(${BusinessCalculations.formatDecimal(dash.monthlyMt)} MT)",
+                    growthBadge = "+12%",
+                    isDark = isDark,
+                    modifier = Modifier.weight(1f).testTag("kpi_this_month_sales"),
+                    onClick = { viewModel.navigateToSubModule(SubModule.REPORTS) }
+                )
+                DashboardMainKpiCard(
+                    title = "This Month Orders",
+                    primaryValue = "${dash.monthlyOrdersCount} Orders",
+                    secondaryValue = "(${BusinessCalculations.formatDecimal(dash.monthlyMt)} MT)",
+                    growthBadge = "+18%",
+                    isDark = isDark,
+                    modifier = Modifier.weight(1f).testTag("kpi_this_month_orders"),
+                    onClick = { viewModel.navigateToSubModule(SubModule.ORDERS) }
+                )
+                DashboardMainKpiCard(
+                    title = "Payments Received",
+                    primaryValue = BusinessCalculations.formatCurrency(dash.monthlyCollection, cur),
+                    secondaryValue = "(${dash.monthlyPaymentsCount} Receipts)",
+                    growthBadge = "+10%",
+                    isDark = isDark,
+                    modifier = Modifier.weight(1f).testTag("kpi_payments_received"),
+                    onClick = { viewModel.navigateToSubModule(SubModule.PAYMENTS) }
+                )
             }
         }
 
@@ -460,68 +389,67 @@ fun DashboardScreen(
         // 5. QUICK ACTIONS (New Order, Add Dealer, Add Farmer, Add Payment, Create Invoice, Reports)
         item {
             val quickActions = listOf(
-                Triple("NEW_SALE", "+ New Order", Icons.Default.PostAdd),
-                Triple("NEW_DEALER", "+ Add Dealer", Icons.Default.Groups),
-                Triple("NEW_FARMER", "+ Add Farmer", Icons.Default.Agriculture),
-                Triple("PAYMENT", "+ Add Payment", Icons.Default.Payments),
+                Triple("NEW_SALE", "New Order", Icons.Default.PostAdd),
+                Triple("NEW_DEALER", "Add Dealer", Icons.Default.Groups),
+                Triple("NEW_FARMER", "Add Farmer", Icons.Default.Agriculture),
+                Triple("PAYMENT", "Add Payment", Icons.Default.Payments),
                 Triple("CREATE_INVOICE", "Create Invoice", Icons.Default.Description),
                 Triple("REPORTS", "Reports", Icons.Default.BarChart)
             )
 
-            BoxWithConstraints(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp)
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                val columns = when {
-                    maxWidth >= 560.dp -> 6
-                    maxWidth >= 340.dp -> 3
-                    else -> 2
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    quickActions.chunked(columns).forEach { rowItems ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            rowItems.forEach { (actionKey, label, icon) ->
-                                ElevatedCard(
+                quickActions.chunked(3).forEach { rowItems ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        rowItems.forEach { (actionKey, label, icon) ->
+                            ElevatedCard(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(88.dp)
+                                    .clickable { onQuickAction(actionKey) }
+                                    .testTag("quick_action_${actionKey.lowercase()}"),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.elevatedCardColors(
+                                    containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White
+                                ),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (isDark) Color(0xFF2A4235) else Color(0xFFE2E8F0)
+                                ),
+                                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
+                            ) {
+                                Column(
                                     modifier = Modifier
-                                        .weight(1f)
-                                        .height(82.dp)
-                                        .clickable { onQuickAction(actionKey) }
-                                        .testTag("quick_action_${actionKey.lowercase()}"),
-                                    shape = RoundedCornerShape(14.dp),
-                                    colors = CardDefaults.elevatedCardColors(
-                                        containerColor = MaterialTheme.colorScheme.surface
-                                    ),
-                                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+                                        .fillMaxSize()
+                                        .padding(horizontal = 4.dp, vertical = 8.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
                                 ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(horizontal = 6.dp, vertical = 8.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = icon,
-                                            contentDescription = label,
-                                            tint = if (isDark) Color(0xFF4ADE80) else DashPrimaryGreen,
-                                            modifier = Modifier.size(28.dp)
-                                        )
-                                        Spacer(modifier = Modifier.height(6.dp))
-                                        Text(
-                                            text = label,
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                fontWeight = FontWeight.SemiBold
-                                            ),
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            textAlign = TextAlign.Center,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = label,
+                                        tint = if (isDark) Color(0xFF4ADE80) else DashPrimaryGreen,
+                                        modifier = Modifier.size(26.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.5.sp
+                                        ),
+                                        color = if (isDark) Color(0xFFE2E8F0) else Color(0xFF1E293B),
+                                        textAlign = TextAlign.Center,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
                             }
                         }
@@ -533,20 +461,24 @@ fun DashboardScreen(
         // 6. RECENT ORDERS SECTION
         item {
             ElevatedCard(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp),
+                    .padding(horizontal = 16.dp),
                 colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White
                 ),
-                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (isDark) Color(0xFF2A4235) else Color(0xFFE2E8F0)
+                ),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -561,12 +493,13 @@ fun DashboardScreen(
                                 imageVector = Icons.Default.Assignment,
                                 contentDescription = "Recent Orders",
                                 tint = if (isDark) Color(0xFF4ADE80) else DashPrimaryGreen,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                             Text(
                                 text = "Recent Orders",
                                 style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
                                 ),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -578,21 +511,15 @@ fun DashboardScreen(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
                                 .clickable { viewModel.navigateToSubModule(SubModule.ORDERS) }
-                                .padding(horizontal = 6.dp, vertical = 4.dp)
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
                                 .testTag("view_all_orders_btn")
                         ) {
                             Text(
-                                text = "View All Orders",
-                                style = MaterialTheme.typography.labelLarge.copy(
+                                text = "View All →",
+                                style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = FontWeight.Bold
                                 ),
                                 color = if (isDark) Color(0xFF4ADE80) else DashPrimaryGreen
-                            )
-                            Icon(
-                                imageVector = Icons.Default.ArrowForward,
-                                contentDescription = "View All Orders",
-                                tint = if (isDark) Color(0xFF4ADE80) else DashPrimaryGreen,
-                                modifier = Modifier.size(16.dp)
                             )
                         }
                     }
@@ -601,12 +528,12 @@ fun DashboardScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 20.dp),
+                                .padding(vertical = 16.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "No orders recorded yet. Tap '+ New Order' above to add your first order.",
-                                style = MaterialTheme.typography.bodyMedium,
+                                text = "No orders recorded yet. Tap 'New Order' above to add your first order.",
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
                             )
@@ -619,11 +546,10 @@ fun DashboardScreen(
                                 netAmount = o.netAmount,
                                 outstandingAmount = o.outstandingAmount
                             )
-                            val friendlyDate = remember(o.date) { formatOrderDateForDashboard(o.date) }
 
                             if (idx > 0) {
                                 HorizontalDivider(
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                                 )
                             }
 
@@ -634,7 +560,7 @@ fun DashboardScreen(
                                         viewModel.navigateToSubModule(SubModule.ORDERS)
                                         viewModel.openInvoicePreview(o.id)
                                     }
-                                    .padding(vertical = 8.dp)
+                                    .padding(vertical = 6.dp)
                                     .testTag("recent_order_row_${o.orderNumber}"),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -642,10 +568,15 @@ fun DashboardScreen(
                                 // Storefront Icon Circle
                                 Box(
                                     modifier = Modifier
-                                        .size(44.dp)
+                                        .size(40.dp)
                                         .clip(CircleShape)
                                         .background(
-                                            if (isDark) Color(0xFF143322) else Color(0xFFEAF6EE)
+                                            if (isDark) Color(0xFF143322) else Color(0xFFF0FDF4)
+                                        )
+                                        .border(
+                                            1.dp,
+                                            if (isDark) Color(0xFF166534) else Color(0xFFBBF7D0),
+                                            CircleShape
                                         ),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -653,7 +584,7 @@ fun DashboardScreen(
                                         imageVector = Icons.Default.Storefront,
                                         contentDescription = null,
                                         tint = if (isDark) Color(0xFF4ADE80) else DashPrimaryGreen,
-                                        modifier = Modifier.size(22.dp)
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
 
@@ -665,134 +596,48 @@ fun DashboardScreen(
                                     Text(
                                         text = o.orderNumber,
                                         style = MaterialTheme.typography.titleSmall.copy(
-                                            fontWeight = FontWeight.Bold
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 13.sp
                                         ),
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                     Text(
                                         text = o.dealerName,
-                                        style = MaterialTheme.typography.bodyMedium,
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontWeight = FontWeight.Medium
+                                        ),
                                         color = MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
-                                        text = "$friendlyDate  |  ${o.totalBags} Bags (${o.totalKg.roundToInt()} KG)",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        text = "${o.totalBags} Bags (${o.totalKg.roundToInt()} KG)",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
 
                                 // Amount & Status Badges Column
                                 Column(
                                     horizontalAlignment = Alignment.End,
-                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Text(
                                         text = BusinessCalculations.formatCurrency(o.netAmount, cur),
                                         style = MaterialTheme.typography.titleSmall.copy(
                                             fontFamily = JetBrainsMonoFamily,
-                                            fontWeight = FontWeight.ExtraBold
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 13.sp
                                         ),
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        DashboardOrderStatusPill(status = payStatus, isOutlined = true)
-                                        DashboardOrderStatusPill(status = o.status, isOutlined = false)
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        DashboardOrderStatusPill(status = payStatus)
+                                        DashboardOrderStatusPill(status = o.status)
                                     }
                                 }
-
-                                Icon(
-                                    imageVector = Icons.Default.ChevronRight,
-                                    contentDescription = "Open Order",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
                             }
                         }
-                    }
-                }
-            }
-        }
-
-        // 7. ADDITIONAL BUSINESS SECTIONS (Sales Report | Field Visits | Trials)
-        item {
-            BoxWithConstraints(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp)
-            ) {
-                val useVerticalCards = maxWidth < 380.dp
-                if (useVerticalCards) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        AdditionalBusinessCard(
-                            title = "Sales Report",
-                            subtitle = "Sales, Orders & Targets",
-                            icon = Icons.Default.BarChart,
-                            isDark = isDark,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("card_sales_report"),
-                            onClick = { viewModel.navigateToSubModule(SubModule.REPORTS) }
-                        )
-                        AdditionalBusinessCard(
-                            title = "Field Visits",
-                            subtitle = "Visits & Follow-ups",
-                            icon = Icons.Default.Route,
-                            isDark = isDark,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("card_field_visits"),
-                            onClick = { viewModel.navigateToSubModule(SubModule.REMINDERS) }
-                        )
-                        AdditionalBusinessCard(
-                            title = "Trials",
-                            subtitle = "Feed Trial Records",
-                            icon = Icons.Default.Science,
-                            isDark = isDark,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("card_feed_trials"),
-                            onClick = { viewModel.navigateToSubModule(SubModule.TRIALS) }
-                        )
-                    }
-                } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        AdditionalBusinessCard(
-                            title = "Sales Report",
-                            subtitle = "Sales, Orders & Targets",
-                            icon = Icons.Default.BarChart,
-                            isDark = isDark,
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("card_sales_report"),
-                            onClick = { viewModel.navigateToSubModule(SubModule.REPORTS) }
-                        )
-                        AdditionalBusinessCard(
-                            title = "Field Visits",
-                            subtitle = "Visits & Follow-ups",
-                            icon = Icons.Default.Route,
-                            isDark = isDark,
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("card_field_visits"),
-                            onClick = { viewModel.navigateToSubModule(SubModule.REMINDERS) }
-                        )
-                        AdditionalBusinessCard(
-                            title = "Trials",
-                            subtitle = "Feed Trial Records",
-                            icon = Icons.Default.Science,
-                            isDark = isDark,
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("card_feed_trials"),
-                            onClick = { viewModel.navigateToSubModule(SubModule.TRIALS) }
-                        )
                     }
                 }
             }
@@ -856,10 +701,7 @@ private fun DashboardMainKpiCard(
     title: String,
     primaryValue: String,
     secondaryValue: String,
-    badgeText: String,
-    icon: ImageVector,
-    iconTint: Color,
-    containerColor: Color,
+    growthBadge: String,
     isDark: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
@@ -867,80 +709,75 @@ private fun DashboardMainKpiCard(
     ElevatedCard(
         modifier = modifier.clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.elevatedCardColors(containerColor = containerColor),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (isDark) Color(0xFF2A4235) else Color(0xFFE2E8F0)
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp),
+                .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(iconTint.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = title,
-                        tint = iconTint,
-                        modifier = Modifier.size(17.dp)
-                    )
-                }
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = if (isDark) Color(0xFFE2E8F0) else Color(0xFF1E293B),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 11.sp
+                ),
+                color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
 
             Text(
                 text = primaryValue,
                 style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.ExtraBold
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 14.5.sp
                 ),
                 color = if (isDark) Color.White else Color(0xFF0F172A),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = secondaryValue,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF475569),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
+            Text(
+                text = secondaryValue,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 10.5.sp
+                ),
+                color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF64748B),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
 
-                Surface(
-                    color = Color(0xFF16A34A).copy(alpha = if (isDark) 0.25f else 0.15f),
-                    shape = RoundedCornerShape(50)
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Surface(
+                color = if (isDark) Color(0xFF14532D).copy(alpha = 0.5f) else Color(0xFFDCFCE7),
+                shape = RoundedCornerShape(50)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowUpward,
+                        contentDescription = null,
+                        tint = if (isDark) Color(0xFF4ADE80) else Color(0xFF15803D),
+                        modifier = Modifier.size(10.dp)
+                    )
                     Text(
-                        text = badgeText,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDark) Color(0xFF4ADE80) else Color(0xFF15803D),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        text = growthBadge,
+                        fontSize = 9.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (isDark) Color(0xFF4ADE80) else Color(0xFF15803D)
                     )
                 }
             }
@@ -950,110 +787,28 @@ private fun DashboardMainKpiCard(
 
 @Composable
 private fun DashboardOrderStatusPill(
-    status: String,
-    isOutlined: Boolean
+    status: String
 ) {
-    val (bgColor, fgColor, borderColor) = when (status.lowercase()) {
-        "paid", "delivered" -> Triple(
-            StatusSuccess.copy(alpha = 0.16f),
-            StatusSuccess,
-            StatusSuccess.copy(alpha = 0.6f)
-        )
-        "partial", "pending", "confirmed", "in transit", "partially delivered" -> Triple(
-            StatusWarning.copy(alpha = 0.18f),
-            Color(0xFFB45309),
-            StatusWarning.copy(alpha = 0.7f)
-        )
-        else -> Triple(
-            StatusDanger.copy(alpha = 0.16f),
-            StatusDanger,
-            StatusDanger.copy(alpha = 0.6f)
-        )
+    val (bgColor, fgColor) = when (status.lowercase()) {
+        "delivered", "paid" -> Pair(Color(0xFFDCFCE7), Color(0xFF15803D))
+        "partial", "partially delivered" -> Pair(Color(0xFFFFEDD5), Color(0xFFC2410C))
+        "pending", "in transit" -> Pair(Color(0xFFFEF3C7), Color(0xFFB45309))
+        else -> Pair(Color(0xFFFEE2E2), Color(0xFFB91C1C))
     }
 
     Surface(
-        color = if (isOutlined) Color.Transparent else bgColor,
-        shape = RoundedCornerShape(50),
-        border = if (isOutlined) {
-            androidx.compose.foundation.BorderStroke(1.dp, borderColor)
-        } else null
+        color = bgColor,
+        shape = RoundedCornerShape(50)
     ) {
         Text(
             text = status,
             style = MaterialTheme.typography.labelSmall.copy(
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                fontSize = 10.sp
             ),
             color = fgColor,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
         )
-    }
-}
-
-@Composable
-private fun AdditionalBusinessCard(
-    title: String,
-    subtitle: String,
-    icon: ImageVector,
-    isDark: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    ElevatedCard(
-        modifier = modifier.clickable { onClick() },
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(
-                        if (isDark) Color(0xFF143322) else Color(0xFFEAF6EE)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = title,
-                    tint = if (isDark) Color(0xFF4ADE80) else DashPrimaryGreen,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp)
-            )
-        }
     }
 }
 
