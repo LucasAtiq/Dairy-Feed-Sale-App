@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -16,16 +17,20 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.data.*
 import com.example.ui.theme.JetBrainsMonoFamily
 import com.example.ui.theme.StatusDanger
 import com.example.ui.theme.StatusInfo
 import com.example.ui.theme.StatusSuccess
+import com.example.ui.theme.StatusWarning
+import kotlin.math.roundToInt
 
 @Composable
 fun PartnersScreen(
@@ -159,20 +164,17 @@ private fun DealersListSection(
     val context = LocalContext.current
     val cur = uiState.config.currencySymbol
     var searchQuery by remember { mutableStateOf("") }
-    var statusFilter by remember { mutableStateOf("All") }
-    var areaFilter by remember { mutableStateOf("All") }
-    var sortBy by remember { mutableStateOf("Outstanding") }
+    var selectedFilterPill by remember { mutableStateOf("All Dealers") }
 
-    val areas = remember(uiState.lookups) {
-        listOf("All") + uiState.lookups.filter { it.categoryType == "AREA" && !it.isArchived }.map { it.name }
-    }
-
-    val filteredDealers = remember(uiState.dealerSummaries, searchQuery, statusFilter, areaFilter, sortBy) {
+    val filteredDealers = remember(uiState.dealerSummaries, searchQuery, selectedFilterPill) {
         uiState.dealerSummaries.filter { ds ->
             val d = ds.dealer
-            val matchArchived = if (statusFilter == "Archived") d.isArchived else !d.isArchived
-            val matchStatus = statusFilter == "All" || statusFilter == "Archived" || d.status.equals(statusFilter, true)
-            val matchArea = areaFilter == "All" || d.area.equals(areaFilter, true)
+            val matchFilter = when (selectedFilterPill) {
+                "Active" -> !d.isArchived && d.status.equals("Active", true)
+                "With Balance" -> ds.outstandingBalance > 0.0
+                "Archived" -> d.isArchived
+                else -> !d.isArchived
+            }
             val q = searchQuery.trim().lowercase()
             val matchSearch = q.isEmpty() ||
                 d.name.lowercase().contains(q) ||
@@ -180,55 +182,61 @@ private fun DealersListSection(
                 d.code.lowercase().contains(q) ||
                 d.mobile.contains(q) ||
                 d.city.lowercase().contains(q) ||
-                d.village.lowercase().contains(q)
-            matchArchived && matchStatus && matchArea && matchSearch
-        }.let { list ->
-            when (sortBy) {
-                "Outstanding" -> list.sortedByDescending { it.outstandingBalance }
-                "Sales" -> list.sortedByDescending { it.totalSales }
-                "Bags" -> list.sortedByDescending { it.totalBags }
-                else -> list.sortedBy { it.dealer.businessName }
-            }
-        }
+                d.area.lowercase().contains(q)
+            matchFilter && matchSearch
+        }.sortedByDescending { it.totalBags }
     }
 
-    Scaffold(
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onAddDealer,
-                icon = { Icon(Icons.Default.PersonAdd, contentDescription = "Add Dealer") },
-                text = { Text("Add Dealer") },
-                modifier = Modifier.testTag("add_dealer_fab")
-            )
-        }
-    ) { innerPadding ->
+    Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
+                .background(Color(0xFFF8FAF9)),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // 1. Search Bar with Filter Icon
             item {
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search dealer name, business, mobile, city, ID...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    trailingIcon = if (searchQuery.isNotEmpty()) {
-                        {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Default.Clear, contentDescription = "Clear")
-                            }
-                        }
-                    } else null,
+                    placeholder = {
+                        Text(
+                            "Search Dealer (Name / Area)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xFF94A3B8)
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = Color(0xFF64748B)
+                        )
+                    },
+                    trailingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.FilterList,
+                            contentDescription = "Filter",
+                            tint = Color(0xFF15803D),
+                            modifier = Modifier.clickable { /* Filter options */ }
+                        )
+                    },
                     singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        focusedBorderColor = Color(0xFF0F5233),
+                        unfocusedBorderColor = Color(0xFFE2E8F0)
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("dealer_search_input")
                 )
             }
 
+            // 2. Filter Pills
             item {
                 Row(
                     modifier = Modifier
@@ -236,167 +244,208 @@ private fun DealersListSection(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    listOf("All", "Active", "Potential", "Inactive", "Blocked", "Archived").forEach { st ->
-                        FilterChip(
-                            selected = statusFilter == st,
-                            onClick = { statusFilter = st },
-                            label = { Text(st) }
-                        )
+                    val filterPills = listOf("All Dealers", "Active", "With Balance", "Archived")
+                    filterPills.forEach { pill ->
+                        val isSelected = selectedFilterPill == pill
+                        Surface(
+                            color = if (isSelected) Color(0xFF0F5233) else Color.White,
+                            shape = RoundedCornerShape(50),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isSelected) Color(0xFF0F5233) else Color(0xFFE2E8F0)
+                            ),
+                            modifier = Modifier.clickable { selectedFilterPill = pill }
+                        ) {
+                            Text(
+                                text = pill,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                ),
+                                color = if (isSelected) Color.White else Color(0xFF334155),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
                     }
                 }
             }
 
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    DropdownSelectorField(
-                        label = "Area Territory",
-                        options = areas,
-                        selectedOption = areaFilter,
-                        onOptionSelected = { areaFilter = it },
-                        modifier = Modifier.weight(1f)
-                    )
-                    DropdownSelectorField(
-                        label = "Sort By",
-                        options = listOf("Outstanding", "Sales", "Bags", "Name"),
-                        selectedOption = sortBy,
-                        onOptionSelected = { sortBy = it },
-                        modifier = Modifier.weight(1f)
-                    )
+            // 3. Dealer Cards or Empty State
+            if (filteredDealers.isEmpty()) {
+                item {
+                    ElevatedCard(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Storefront,
+                                contentDescription = null,
+                                tint = Color(0xFF0F5233),
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Text(
+                                "No dealers found",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = Color(0xFF1E293B)
+                            )
+                            Text(
+                                "Tap '+ Add Dealer' below to register a new agency or feed dealer.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+                    }
                 }
-            }
-
-            items(filteredDealers, key = { it.dealer.id }) { summary ->
-                val d = summary.dealer
-                val dealerPaymentStatus = BusinessCalculations.getDealerPaymentStatus(
-                    totalSales = summary.totalSales,
-                    totalPayments = summary.totalPayments,
-                    outstandingBalance = summary.outstandingBalance
-                )
-                ElevatedCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { viewModel.openDealerDetail(d.id) }
-                        .testTag("dealer_card_${d.code}"),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+            } else {
+                items(filteredDealers, key = { it.dealer.id }) { summary ->
+                    val d = summary.dealer
+                    ElevatedCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { viewModel.openDealerDetail(d.id) }
+                            .testTag("dealer_card_${d.code}"),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Top
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "${d.businessName} (${d.code})",
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                            // Circular Store Emblem
+                            Box(
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .androidx.compose.ui.draw.clip(CircleShape)
+                                    .background(Color(0xFFF0FDF4))
+                                    .androidx.compose.foundation.border(1.dp, Color(0xFFBBF7D0), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Storefront,
+                                    contentDescription = null,
+                                    tint = Color(0xFF15803D),
+                                    modifier = Modifier.size(24.dp)
                                 )
+                            }
+
+                            // Middle Info Column
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Text(
-                                    text = "${d.name} • Phone: ${d.mobile} • ${d.address}, ${d.city} (${d.area})",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = d.businessName,
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    ),
+                                    color = Color(0xFF0F172A),
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                 )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocationOn,
+                                        contentDescription = null,
+                                        tint = Color(0xFF94A3B8),
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Text(
+                                        text = "${d.city}${if (d.area.isNotBlank()) ", " + d.area else ""}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFF64748B),
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                    )
+                                }
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Phone,
+                                        contentDescription = null,
+                                        tint = Color(0xFF94A3B8),
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Text(
+                                        text = d.mobile,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFF64748B)
+                                    )
+                                }
+                            }
+
+                            // Right Column (MTD Sales)
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
                                 Text(
-                                    text = "Orders: ${summary.totalOrders} • Last Order: ${summary.lastOrderDate}",
+                                    text = "MTD Sales",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = Color(0xFF94A3B8)
                                 )
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                StatusBadge(status = dealerPaymentStatus)
-                                StatusBadge(status = if (d.isArchived) "Archived" else d.status)
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column {
-                                Text("Total Bags / MT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text(
-                                    "${summary.totalBags} bags (${BusinessCalculations.formatDecimal(summary.totalMt)} MT)",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.SemiBold)
+                                    text = "${summary.totalBags} Bags",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 15.sp
+                                    ),
+                                    color = Color(0xFF15803D)
                                 )
-                            }
-                            Column {
-                                Text("Sales / Paid", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(
-                                    "${BusinessCalculations.formatCurrency(summary.totalSales, cur)} / ${BusinessCalculations.formatCurrency(summary.totalPayments, cur)}",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily),
-                                    color = StatusSuccess
-                                )
-                            }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text("Outstanding", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(
-                                    BusinessCalculations.formatCurrency(summary.outstandingBalance, cur),
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
-                                    color = if (summary.outstandingBalance > 0) StatusDanger else StatusSuccess
-                                )
-                            }
-                        }
-
-                        HorizontalDivider()
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                IconButton(
-                                    onClick = { DocumentAndExportManager.dialPhoneNumber(context, d.mobile) },
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(Icons.Default.Call, contentDescription = "Call Dealer", tint = MaterialTheme.colorScheme.primary)
-                                }
-                                IconButton(
-                                    onClick = {
-                                        DocumentAndExportManager.openWhatsAppChat(
-                                            context,
-                                            d.whatsapp.ifBlank { d.mobile },
-                                            "Assalam-o-Alaikum ${d.name} (${d.businessName}), current balance is ${BusinessCalculations.formatCurrency(summary.outstandingBalance, cur)}."
-                                        )
-                                    },
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(Icons.Default.Chat, contentDescription = "WhatsApp Dealer", tint = StatusSuccess)
-                                }
-                                IconButton(
-                                    onClick = { DocumentAndExportManager.openMapLocation(context, "${d.address}, ${d.city}") },
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(Icons.Default.LocationOn, contentDescription = "View Map Location", tint = StatusInfo)
-                                }
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                OutlinedButton(
-                                    onClick = { onEditDealer(d) },
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-                                ) {
-                                    Text("Edit")
-                                }
-                                Button(
-                                    onClick = { viewModel.openDealerDetail(d.id) },
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-                                ) {
-                                    Text("Ledger & Profile")
-                                }
                             }
                         }
                     }
                 }
             }
         }
+
+        // Floating Bottom "+ Add Dealer" Pill Button
+        Button(
+            onClick = onAddDealer,
+            shape = RoundedCornerShape(50),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233)),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 20.dp)
+                .height(48.dp)
+                .testTag("add_dealer_fab")
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Add Dealer",
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                color = Color.White
+            )
+        }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DealerProfileDetailView(
     summary: DealerFinancialSummary,
@@ -407,16 +456,15 @@ private fun DealerProfileDetailView(
     val context = LocalContext.current
     val d = summary.dealer
     val cur = uiState.config.currencySymbol
-    var activeSection by remember { mutableStateOf("LEDGER") }
+    var activeTab by remember { mutableStateOf("Overview") }
     var showArchiveConfirm by remember { mutableStateOf(false) }
     var showQuickPaymentDialog by remember { mutableStateOf(false) }
 
-    val customFields = remember(d.customFieldsJson) { BusinessCalculations.parseCustomFields(d.customFieldsJson) }
     val dealerOrders = remember(uiState.ordersWithItems, d.id) {
-        uiState.ordersWithItems.filter { it.order.dealerId == d.id }
+        uiState.ordersWithItems.filter { it.order.dealerId == d.id }.sortedByDescending { it.order.date }
     }
     val dealerPayments = remember(uiState.payments, d.id) {
-        uiState.payments.filter { it.dealerId == d.id }
+        uiState.payments.filter { it.dealerId == d.id }.sortedByDescending { it.date }
     }
     val dealerTrials = remember(uiState.trialsWithMilk, d.id) {
         uiState.trialsWithMilk.filter { it.trial.dealerId == d.id }
@@ -425,331 +473,565 @@ private fun DealerProfileDetailView(
         uiState.complaints.filter { it.partnerType == "Dealer" && it.partnerId == d.id }
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .testTag("dealer_profile_view"),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextButton(onClick = { viewModel.openDealerDetail(null) }) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Back to Dealers")
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onEdit) {
-                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Edit")
-                    }
-                    OutlinedButton(
-                        onClick = { showArchiveConfirm = true },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = StatusDanger)
-                    ) {
-                        Icon(Icons.Default.Archive, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Archive")
-                    }
-                }
-            }
-        }
-
-        // Dealer Header Card
-        item {
-            ElevatedCard(
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(d.businessName, style = MaterialTheme.typography.headlineSmall)
-                            Text("${d.name} • ${d.code} • ${d.dealerType}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("Phone: ${d.mobile} • WhatsApp: ${d.whatsapp.ifBlank { d.mobile }}", style = MaterialTheme.typography.bodySmall)
-                        }
-                        StatusBadge(status = if (d.isArchived) "Archived" else d.status)
-                    }
-                    Text("Address: ${d.address}, ${d.village}, ${d.city} (${d.area})", style = MaterialTheme.typography.bodySmall)
-                    Text("Sales Officer: ${d.assignedSalesPerson} • Added: ${d.dateAdded}", style = MaterialTheme.typography.bodySmall)
-                    Text("Products Purchased: ${summary.productsPurchasedSummary}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-                    if (customFields.isNotEmpty()) {
-                        Text(
-                            text = customFields.entries.joinToString(" • ") { "${it.key}: ${it.value}" },
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.secondary
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "Dealer Profile",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { viewModel.openDealerDetail(null) }) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
                         )
                     }
-                    if (d.notes.isNotBlank()) {
-                        Text("Notes: ${d.notes}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                },
+                actions = {
+                    IconButton(onClick = onEdit) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit Dealer",
+                            tint = Color.White
+                        )
                     }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color(0xFF0F5233)
+                )
+            )
+        }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFF8FAF9))
+                .padding(innerPadding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // 1. Dealer Header Card (Matching Concept Screen 5)
+            item {
+                ElevatedCard(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Button(
-                            onClick = { DocumentAndExportManager.dialPhoneNumber(context, d.mobile) },
-                            modifier = Modifier.weight(1f)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Call")
-                        }
-                        Button(
-                            onClick = {
-                                DocumentAndExportManager.openWhatsAppChat(
-                                    context,
-                                    d.whatsapp.ifBlank { d.mobile },
-                                    "Ledger Statement for ${d.businessName}: Total Sales ${BusinessCalculations.formatCurrency(summary.totalSales, cur)}, Paid ${BusinessCalculations.formatCurrency(summary.totalPayments, cur)}, Balance Due ${BusinessCalculations.formatCurrency(summary.outstandingBalance, cur)}."
+                            // Circular Store Emblem
+                            Box(
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .androidx.compose.ui.draw.clip(CircleShape)
+                                    .background(Color(0xFFF0FDF4))
+                                    .androidx.compose.foundation.border(1.dp, Color(0xFFBBF7D0), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Storefront,
+                                    contentDescription = null,
+                                    tint = Color(0xFF15803D),
+                                    modifier = Modifier.size(28.dp)
                                 )
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = StatusSuccess),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("WhatsApp")
-                        }
-                        OutlinedButton(
-                            onClick = { showQuickPaymentDialog = true },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(Icons.Default.Payments, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("+ Payment")
+                            }
+
+                            // Agency Name & Details
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = d.businessName,
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    ),
+                                    color = Color(0xFF0F172A)
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocationOn,
+                                        contentDescription = null,
+                                        tint = Color(0xFF94A3B8),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "${d.address.ifBlank { d.city }}, ${d.city}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFF64748B)
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Phone,
+                                            contentDescription = null,
+                                            tint = Color(0xFF94A3B8),
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Text(
+                                            text = d.mobile,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color(0xFF64748B)
+                                        )
+                                    }
+
+                                    // Quick Call & WhatsApp circular buttons
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(34.dp)
+                                                .androidx.compose.ui.draw.clip(CircleShape)
+                                                .background(Color(0xFF0F5233))
+                                                .clickable { DocumentAndExportManager.dialPhoneNumber(context, d.mobile) },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Call,
+                                                contentDescription = "Call",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+
+                                        Box(
+                                            modifier = Modifier
+                                                .size(34.dp)
+                                                .androidx.compose.ui.draw.clip(CircleShape)
+                                                .background(Color(0xFF25D366))
+                                                .clickable {
+                                                    DocumentAndExportManager.openWhatsAppChat(
+                                                        context,
+                                                        d.whatsapp.ifBlank { d.mobile },
+                                                        "Assalam-o-Alaikum ${d.name} (${d.businessName}), WandaBook statement update: Current Balance is ${BusinessCalculations.formatCurrency(summary.outstandingBalance, cur)}."
+                                                    )
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Chat,
+                                                contentDescription = "WhatsApp",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
-        }
 
-        // KPI Grid
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    MetricStatCard(
-                        title = "Total Orders / Volume",
-                        value = "${summary.totalOrders} (${summary.totalBags} Bags)",
-                        subtitle = "${BusinessCalculations.formatDecimal(summary.totalMt)} MT • Last: ${summary.lastOrderDate}",
-                        icon = Icons.Default.ShoppingBag,
-                        modifier = Modifier.weight(1f)
-                    )
-                    MetricStatCard(
-                        title = "Outstanding Balance",
-                        value = BusinessCalculations.formatCurrency(summary.outstandingBalance, cur),
-                        subtitle = "Limit: ${BusinessCalculations.formatCurrency(d.creditLimit, cur)}",
-                        icon = Icons.Default.AccountBalanceWallet,
-                        accentColor = if (summary.outstandingBalance > 0) StatusDanger else StatusSuccess,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    MetricStatCard(
-                        title = "Total Sales (Debit)",
-                        value = BusinessCalculations.formatCurrency(summary.totalSales, cur),
-                        subtitle = "Opening: ${BusinessCalculations.formatCurrency(d.openingBalance, cur)}",
-                        icon = Icons.Default.TrendingUp,
-                        accentColor = StatusInfo,
-                        modifier = Modifier.weight(1f)
-                    )
-                    MetricStatCard(
-                        title = "Total Payments (Credit)",
-                        value = BusinessCalculations.formatCurrency(summary.totalPayments, cur),
-                        subtitle = "Last Payment: ${summary.lastPaymentDate}",
-                        icon = Icons.Default.DoneAll,
-                        accentColor = StatusSuccess,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-        }
-
-        // Section Tabs
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                listOf(
-                    "LEDGER" to "Complete Ledger (${summary.ledgerEntries.size})",
-                    "ORDERS" to "Order History (${dealerOrders.size})",
-                    "PAYMENTS" to "Payment History (${dealerPayments.size})",
-                    "FIELD" to "Trials & Complaints"
-                ).forEach { (key, title) ->
-                    FilterChip(
-                        selected = activeSection == key,
-                        onClick = { activeSection = key },
-                        label = { Text(title) }
-                    )
-                }
-            }
-        }
-
-        if (activeSection == "LEDGER") {
+            // 2. Capsule Tab Bar (Overview, Orders, Payments, Visits)
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Chronological Dealer Ledger", style = MaterialTheme.typography.titleMedium)
-                    OutlinedButton(
-                        onClick = {
-                            val csv = DocumentAndExportManager.exportCsvReport(
-                                context = context,
-                                fileNamePrefix = "Ledger_${d.code}",
-                                headers = listOf("Date", "Ref", "Description", "Debit", "Credit", "Balance"),
-                                rows = summary.ledgerEntries.map {
-                                    listOf(it.date, it.referenceCode, it.description, "${it.debit}", "${it.credit}", "${it.runningBalance}")
-                                }
+                    val tabs = listOf("Overview", "Orders", "Payments", "Visits")
+                    tabs.forEach { tab ->
+                        val isSelected = activeTab == tab
+                        Surface(
+                            color = if (isSelected) Color(0xFF0F5233) else Color.White,
+                            shape = RoundedCornerShape(50),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isSelected) Color(0xFF0F5233) else Color(0xFFE2E8F0)
+                            ),
+                            modifier = Modifier.clickable { activeTab = tab }
+                        ) {
+                            Text(
+                                text = tab,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                ),
+                                color = if (isSelected) Color.White else Color(0xFF334155),
+                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
                             )
-                            DocumentAndExportManager.shareFile(context, csv, "text/csv", "Share Dealer Ledger CSV")
                         }
-                    ) {
-                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Export CSV")
                     }
                 }
             }
 
-            items(summary.ledgerEntries, key = { it.id }) { row ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("${row.date} • ${row.referenceCode}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(row.description, style = MaterialTheme.typography.bodyMedium)
+            // 3. Tab Contents
+            when (activeTab) {
+                "Overview" -> {
+                    // 2x2 Stats Grid
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                // 1. Total Orders
+                                ProfileStatCard(
+                                    title = "Total Orders",
+                                    value = "${summary.totalOrders}",
+                                    icon = Icons.Default.ReceiptLong,
+                                    iconBgColor = Color(0xFFF1F5F9),
+                                    iconColor = Color(0xFF475569),
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                // 2. Total Purchase
+                                ProfileStatCard(
+                                    title = "Total Purchase",
+                                    value = "${summary.totalBags} Bags",
+                                    subtitle = "(${BusinessCalculations.formatDecimal(summary.totalMt)} MT)",
+                                    icon = Icons.Default.ShoppingBag,
+                                    iconBgColor = Color(0xFFF0FDF4),
+                                    iconColor = Color(0xFF15803D),
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                // 3. Total Value
+                                ProfileStatCard(
+                                    title = "Total Value",
+                                    value = BusinessCalculations.formatCurrency(summary.totalSales, cur),
+                                    icon = Icons.Default.AccountBalanceWallet,
+                                    iconBgColor = Color(0xFFEFF6FF),
+                                    iconColor = Color(0xFF2563EB),
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                // 4. Outstanding
+                                ProfileStatCard(
+                                    title = "Outstanding",
+                                    value = BusinessCalculations.formatCurrency(summary.outstandingBalance, cur),
+                                    valueColor = if (summary.outstandingBalance > 0) Color(0xFFDC2626) else Color(0xFF15803D),
+                                    icon = Icons.Default.WarningAmber,
+                                    iconBgColor = if (summary.outstandingBalance > 0) Color(0xFFFEE2E2) else Color(0xFFF0FDF4),
+                                    iconColor = if (summary.outstandingBalance > 0) Color(0xFFDC2626) else Color(0xFF15803D),
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
-                        Column(horizontalAlignment = Alignment.End) {
-                            if (row.debit > 0) {
-                                Text(
-                                    "Dr +${BusinessCalculations.formatCurrency(row.debit, cur)}",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = JetBrainsMonoFamily),
-                                    color = StatusDanger
-                                )
+                    }
+
+                    // Recent Orders Card (Matching Screen 5)
+                    item {
+                        ElevatedCard(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Recent Orders",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = Color(0xFF0F172A)
+                                    )
+                                    Text(
+                                        text = "View All →",
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = Color(0xFF0F5233),
+                                        modifier = Modifier.clickable { activeTab = "Orders" }
+                                    )
+                                }
+
+                                if (dealerOrders.isEmpty()) {
+                                    Text(
+                                        text = "No orders recorded for this dealer yet.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFF94A3B8),
+                                        modifier = Modifier.padding(vertical = 8.dp)
+                                    )
+                                } else {
+                                    dealerOrders.take(5).forEachIndexed { index, owi ->
+                                        val o = owi.order
+                                        val payStatus = BusinessCalculations.getOrderPaymentStatus(o.paidAmount, o.netAmount, o.outstandingAmount)
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable { viewModel.openInvoicePreview(o.id) }
+                                                .padding(vertical = 6.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = o.orderNumber,
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 13.5.sp
+                                                ),
+                                                color = Color(0xFF0F172A)
+                                            )
+                                            Text(
+                                                text = "${o.totalBags} Bags",
+                                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                                color = Color(0xFF64748B)
+                                            )
+                                            CleanStatusBadge(status = o.status)
+                                        }
+                                        if (index < dealerOrders.take(5).size - 1) {
+                                            HorizontalDivider(color = Color(0xFFF1F5F9))
+                                        }
+                                    }
+                                }
                             }
-                            if (row.credit > 0) {
-                                Text(
-                                    "Cr -${BusinessCalculations.formatCurrency(row.credit, cur)}",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = JetBrainsMonoFamily),
-                                    color = StatusSuccess
-                                )
+                        }
+                    }
+
+                    // Action Buttons (Record Payment, Archive)
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = { showQuickPaymentDialog = true },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233)),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(44.dp)
+                            ) {
+                                Icon(Icons.Default.AddCard, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Record Payment", fontWeight = FontWeight.Bold)
                             }
-                            Text(
-                                "Bal: ${BusinessCalculations.formatCurrency(row.runningBalance, cur)}",
-                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold)
-                            )
+                            OutlinedButton(
+                                onClick = { showArchiveConfirm = true },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFECACA)),
+                                modifier = Modifier.height(44.dp)
+                            ) {
+                                Icon(Icons.Default.Archive, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Archive", fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
-            }
-        } else if (activeSection == "ORDERS") {
-            items(dealerOrders, key = { it.order.id }) { owi ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { viewModel.openInvoicePreview(owi.order.id) },
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("${owi.order.orderNumber} (${owi.order.date})", style = MaterialTheme.typography.titleSmall)
-                            Text(
-                                owi.items.joinToString(", ") { "${it.quantityBags}x ${it.productCode} @ ${it.pricePerBag.toInt()}" },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+
+                "Orders" -> {
+                    if (dealerOrders.isEmpty()) {
+                        item {
+                            EmptyStateCard(
+                                title = "No Orders",
+                                message = "There are no orders recorded for this dealer yet."
                             )
                         }
-                        Column(horizontalAlignment = Alignment.End) {
-                            StatusBadge(owi.order.status)
-                            Text(
-                                BusinessCalculations.formatCurrency(owi.order.netAmount, cur),
-                                style = MaterialTheme.typography.titleSmall.copy(fontFamily = JetBrainsMonoFamily)
-                            )
+                    } else {
+                        items(dealerOrders, key = { it.order.id }) { owi ->
+                            val o = owi.order
+                            ElevatedCard(
+                                shape = RoundedCornerShape(14.dp),
+                                colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { viewModel.openInvoicePreview(o.id) }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text(o.orderNumber, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                                        Text("${o.date} • ${o.totalBags} Bags (${BusinessCalculations.formatDecimal(o.totalMt)} MT)", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+                                    }
+                                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text(
+                                            text = BusinessCalculations.formatCurrency(o.netAmount, cur),
+                                            style = MaterialTheme.typography.titleSmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
+                                            color = Color(0xFF0F172A)
+                                        )
+                                        CleanStatusBadge(status = o.status)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
-            }
-        } else if (activeSection == "PAYMENTS") {
-            items(dealerPayments, key = { "dpay-${it.id}" }) { pay ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("${pay.paymentNumber} (${pay.date})", style = MaterialTheme.typography.titleSmall)
-                            Text(
-                                "${pay.paymentMethod} ${if (pay.referenceNumber.isNotBlank()) "• Ref: ${pay.referenceNumber}" else ""}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            if (pay.remarks.isNotBlank()) {
-                                Text(pay.remarks, style = MaterialTheme.typography.bodySmall)
+
+                "Payments" -> {
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Ledger History", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                            OutlinedButton(
+                                onClick = {
+                                    val csv = DocumentAndExportManager.exportCsvReport(
+                                        context = context,
+                                        fileNamePrefix = "Ledger_${d.code}",
+                                        headers = listOf("Date", "Ref", "Description", "Debit", "Credit", "Balance"),
+                                        rows = summary.ledgerEntries.map {
+                                            listOf(it.date, it.referenceCode, it.description, "${it.debit}", "${it.credit}", "${it.runningBalance}")
+                                        }
+                                    )
+                                    DocumentAndExportManager.shareFile(context, csv, "text/csv", "Share Dealer Ledger CSV")
+                                },
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Export CSV")
                             }
                         }
+                    }
+
+                    if (summary.ledgerEntries.isEmpty()) {
+                        item {
+                            EmptyStateCard(
+                                title = "No Transactions",
+                                message = "No debit or credit ledger records found for this dealer."
+                            )
+                        }
+                    } else {
+                        items(summary.ledgerEntries, key = { it.id }) { row ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0))
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text("${row.date} • ${row.referenceCode}", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
+                                        Text(row.description, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold), color = Color(0xFF0F172A))
+                                    }
+                                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        if (row.debit > 0) {
+                                            Text(
+                                                "Dr +${BusinessCalculations.formatCurrency(row.debit, cur)}",
+                                                style = MaterialTheme.typography.labelMedium.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
+                                                color = Color(0xFFDC2626)
+                                            )
+                                        }
+                                        if (row.credit > 0) {
+                                            Text(
+                                                "Cr -${BusinessCalculations.formatCurrency(row.credit, cur)}",
+                                                style = MaterialTheme.typography.labelMedium.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
+                                                color = Color(0xFF15803D)
+                                            )
+                                        }
+                                        Text(
+                                            "Bal: ${BusinessCalculations.formatCurrency(row.runningBalance, cur)}",
+                                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
+                                            color = Color(0xFF334155)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                "Visits" -> {
+                    item {
                         Text(
-                            BusinessCalculations.formatCurrency(pay.amount, cur),
-                            style = MaterialTheme.typography.titleSmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
-                            color = StatusSuccess
+                            text = "Field Operations & Trials",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = Color(0xFF0F172A)
                         )
                     }
-                }
-            }
-        } else {
-            item {
-                Text("Feed Trials (${dealerTrials.size}) • Complaints (${dealerComplaints.size})", style = MaterialTheme.typography.titleSmall)
-            }
-            items(dealerTrials, key = { "trl-${it.trial.id}" }) { t ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("Trial ${t.trial.trialCode}: ${t.trial.trialFeedCode} at ${t.trial.farmName}", style = MaterialTheme.typography.titleSmall)
-                        Text("Status: ${t.trial.status} • ${t.trial.remarks}", style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
-            items(dealerComplaints, key = { "cmp-${it.id}" }) { c ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("Complaint ${c.complaintCode}: ${c.complaintType} (${c.productName})", style = MaterialTheme.typography.titleSmall)
-                        Text("Status: ${c.status} • ${c.description}", style = MaterialTheme.typography.bodySmall)
+
+                    if (dealerTrials.isEmpty() && dealerComplaints.isEmpty()) {
+                        item {
+                            EmptyStateCard(
+                                title = "No Field Operations",
+                                message = "No feed trials or feedback complaints registered for this dealer."
+                            )
+                        }
+                    } else {
+                        items(dealerTrials, key = { "trl-${it.trial.id}" }) { t ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0))
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Trial: ${t.trial.trialFeedCode}", fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                                        CleanStatusBadge(status = t.trial.status)
+                                    }
+                                    Text("Farm: ${t.trial.farmName} • Date: ${t.trial.startDate}", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+                                    if (t.trial.remarks.isNotBlank()) {
+                                        Text(t.trial.remarks, style = MaterialTheme.typography.bodySmall, color = Color(0xFF334155))
+                                    }
+                                }
+                            }
+                        }
+
+                        items(dealerComplaints, key = { "cmp-${it.id}" }) { c ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0))
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Complaint: ${c.complaintCode}", fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                                        CleanStatusBadge(status = c.status)
+                                    }
+                                    Text("${c.complaintType} • ${c.productName}", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+                                    Text(c.description, style = MaterialTheme.typography.bodySmall, color = Color(0xFF334155))
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -761,7 +1043,11 @@ private fun DealerProfileDetailView(
             title = "Archive Dealer ${d.businessName}?",
             message = "Archiving preserves all historical orders, payments, and ledger entries while hiding this dealer from active order selection.",
             confirmText = "Archive Dealer",
-            onConfirm = { viewModel.archiveOrDeleteDealer(d, archiveOnly = true) },
+            onConfirm = {
+                viewModel.archiveOrDeleteDealer(d, archiveOnly = true)
+                showArchiveConfirm = false
+                viewModel.openDealerDetail(null)
+            },
             onDismiss = { showArchiveConfirm = false }
         )
     }
@@ -778,7 +1064,7 @@ private fun DealerProfileDetailView(
 
         AlertDialog(
             onDismissRequest = { showQuickPaymentDialog = false },
-            title = { Text("Record Payment — ${d.businessName}") },
+            title = { Text("Record Payment — ${d.businessName}", fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
@@ -830,7 +1116,8 @@ private fun DealerProfileDetailView(
                             )
                             showQuickPaymentDialog = false
                         }
-                    }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233))
                 ) {
                     Text("Save Payment")
                 }
@@ -838,6 +1125,130 @@ private fun DealerProfileDetailView(
             dismissButton = {
                 OutlinedButton(onClick = { showQuickPaymentDialog = false }) { Text("Cancel") }
             }
+        )
+    }
+}
+
+@Composable
+private fun ProfileStatCard(
+    title: String,
+    value: String,
+    subtitle: String? = null,
+    valueColor: Color = Color(0xFF0F172A),
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconBgColor: Color,
+    iconColor: Color,
+    modifier: Modifier = Modifier
+) {
+    ElevatedCard(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF64748B)
+                )
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .androidx.compose.ui.draw.clip(CircleShape)
+                        .background(iconBgColor),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = iconColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 17.sp
+                ),
+                color = valueColor
+            )
+
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF94A3B8)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyStateCard(title: String, message: String) {
+    ElevatedCard(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = Color(0xFF1E293B)
+            )
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF64748B)
+            )
+        }
+    }
+}
+
+@Composable
+private fun CleanStatusBadge(status: String) {
+    val (bgColor, fgColor) = when (status.lowercase()) {
+        "delivered", "paid", "active", "completed" -> Pair(Color(0xFFDCFCE7), Color(0xFF15803D))
+        "partial", "partially delivered" -> Pair(Color(0xFFFFEDD5), Color(0xFFC2410C))
+        "pending", "in transit", "planned" -> Pair(Color(0xFFFEF3C7), Color(0xFFB45309))
+        else -> Pair(Color(0xFFFEE2E2), Color(0xFFB91C1C))
+    }
+
+    Surface(
+        color = bgColor,
+        shape = RoundedCornerShape(50)
+    ) {
+        Text(
+            text = status,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 10.sp
+            ),
+            color = fgColor,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
         )
     }
 }
