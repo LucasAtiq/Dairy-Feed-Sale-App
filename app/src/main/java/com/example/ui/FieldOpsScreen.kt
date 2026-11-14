@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -26,6 +27,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.data.*
 import com.example.ui.theme.JetBrainsMonoFamily
 import com.example.ui.theme.StatusDanger
@@ -50,6 +52,7 @@ fun FieldOpsScreen(
 
     var showExpenseDialog by remember { mutableStateOf(false) }
     var showTravelDialog by remember { mutableStateOf(false) }
+    var showVisitDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(triggerNewTrial, triggerNewExpense) {
         if (triggerNewTrial) {
@@ -78,6 +81,7 @@ fun FieldOpsScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             SubModulePillBar(
                 modules = listOf(
+                    SubModule.VISITS,
                     SubModule.TRIALS,
                     SubModule.COMPLAINTS,
                     SubModule.EXPENSES_TRAVEL
@@ -105,7 +109,7 @@ fun FieldOpsScreen(
                     onNewExpense = { showExpenseDialog = true },
                     onNewTravel = { showTravelDialog = true }
                 )
-                else -> FeedTrialsListSection(
+                SubModule.TRIALS -> FeedTrialsListSection(
                     uiState = uiState,
                     viewModel = viewModel,
                     onNewTrial = {
@@ -116,6 +120,11 @@ fun FieldOpsScreen(
                         editingTrial = it
                         showTrialDialog = true
                     }
+                )
+                else -> FieldVisitsListSection(
+                    uiState = uiState,
+                    viewModel = viewModel,
+                    onAddVisit = { showVisitDialog = true }
                 )
             }
         }
@@ -177,6 +186,436 @@ fun FieldOpsScreen(
             }
         )
     }
+
+    if (showVisitDialog) {
+        AddVisitDialog(
+            dealers = uiState.dealers.filter { !it.isArchived },
+            farmers = uiState.farmers.filter { !it.isArchived },
+            onDismiss = { showVisitDialog = false },
+            onSave = { saved ->
+                viewModel.saveTravelLog(saved)
+                showVisitDialog = false
+            }
+        )
+    }
+}
+
+private data class FieldVisitData(
+    val id: Long,
+    val title: String,
+    val date: String,
+    val remarks: String,
+    val status: String,
+    val area: String,
+    val partnerName: String
+)
+
+@Composable
+private fun FieldVisitsListSection(
+    uiState: AppUiState,
+    viewModel: DairyViewModel,
+    onAddVisit: () -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedFilterPill by remember { mutableStateOf("All Visits") }
+
+    // Combine travel logs and trials into unified field visit representations
+    val visitsList = remember(uiState.travelLogs, uiState.trialsWithMilk) {
+        val travelVisits = uiState.travelLogs.map { t ->
+            val isPlanned = t.totalKm <= 0.0 && t.remarks.contains("Planned", ignoreCase = true)
+            FieldVisitData(
+                id = t.id,
+                title = if (t.purpose.isNotBlank()) "${t.destination} – ${t.purpose}" else "${t.destination} – Field Visit",
+                date = t.date,
+                remarks = t.remarks.ifBlank { "Travel odometer: ${t.startingOdometer.toInt()} → ${t.endingOdometer.toInt()} KM" },
+                status = if (isPlanned) "Planned" else "Completed",
+                area = t.destination,
+                partnerName = t.destination
+            )
+        }
+        val trialVisits = uiState.trialsWithMilk.map { twm ->
+            val tr = twm.trial
+            FieldVisitData(
+                id = 100000L + tr.id,
+                title = "${tr.area.ifBlank { "Farm" }} – Farm Visit",
+                date = tr.startDate,
+                remarks = "Farm visit, feed trial follow-up (${tr.trialFeedCode}). ${tr.remarks}",
+                status = if (tr.status.equals("Active", true) || tr.status.equals("Completed", true)) "Completed" else "Planned",
+                area = tr.area,
+                partnerName = tr.farmName
+            )
+        }
+        (travelVisits + trialVisits).sortedByDescending { it.date }
+    }
+
+    val filteredVisits = remember(visitsList, searchQuery, selectedFilterPill) {
+        visitsList.filter { v ->
+            val matchFilter = when (selectedFilterPill) {
+                "Planned" -> v.status.equals("Planned", true)
+                "Completed" -> v.status.equals("Completed", true)
+                else -> true
+            }
+            val q = searchQuery.trim().lowercase()
+            val matchSearch = q.isEmpty() ||
+                v.title.lowercase().contains(q) ||
+                v.area.lowercase().contains(q) ||
+                v.partnerName.lowercase().contains(q) ||
+                v.remarks.lowercase().contains(q) ||
+                v.date.contains(q)
+            matchFilter && matchSearch
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFF8FAF9)),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // 1. Search Bar with Filter Icon (Matching Screen 6)
+            item {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = {
+                        Text(
+                            "Search by Farmer, Dealer or Area",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xFF94A3B8)
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = Color(0xFF64748B)
+                        )
+                    },
+                    trailingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.FilterList,
+                            contentDescription = "Filter",
+                            tint = Color(0xFF15803D),
+                            modifier = Modifier.clickable { /* Filter */ }
+                        )
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        focusedBorderColor = Color(0xFF0F5233),
+                        unfocusedBorderColor = Color(0xFFE2E8F0)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("visits_search_input")
+                )
+            }
+
+            // 2. Filter Pills (All Visits, Planned, Completed)
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val pills = listOf("All Visits", "Planned", "Completed")
+                    pills.forEach { pill ->
+                        val isSelected = selectedFilterPill == pill
+                        Surface(
+                            color = if (isSelected) Color(0xFF0F5233) else Color.White,
+                            shape = RoundedCornerShape(50),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                if (isSelected) Color(0xFF0F5233) else Color(0xFFE2E8F0)
+                            ),
+                            modifier = Modifier.clickable { selectedFilterPill = pill }
+                        ) {
+                            Text(
+                                text = pill,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                ),
+                                color = if (isSelected) Color.White else Color(0xFF334155),
+                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 3. Visit Cards (Timeline Style)
+            if (filteredVisits.isEmpty()) {
+                item {
+                    ElevatedCard(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.DirectionsCar,
+                                contentDescription = null,
+                                tint = Color(0xFF0F5233),
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Text(
+                                "No field visits recorded",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = Color(0xFF1E293B)
+                            )
+                            Text(
+                                "Tap '+ Add Visit' below to record or schedule a farm/dealer visit.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+                    }
+                }
+            } else {
+                items(filteredVisits, key = { it.id }) { visit ->
+                    ElevatedCard(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Circular Location Pin Emblem
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .androidx.compose.ui.draw.clip(CircleShape)
+                                    .background(Color(0xFFF0FDF4))
+                                    .androidx.compose.foundation.border(1.dp, Color(0xFFBBF7D0), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    tint = Color(0xFF15803D),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+
+                            // Middle Info Column
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = visit.title,
+                                        style = MaterialTheme.typography.titleSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp
+                                        ),
+                                        color = Color(0xFF0F172A),
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    // Status Badge (Completed: soft green, Planned: soft amber)
+                                    val (badgeBg, badgeFg) = if (visit.status.equals("Completed", true)) {
+                                        Pair(Color(0xFFDCFCE7), Color(0xFF15803D))
+                                    } else {
+                                        Pair(Color(0xFFFEF3C7), Color(0xFFB45309))
+                                    }
+                                    Surface(
+                                        color = badgeBg,
+                                        shape = RoundedCornerShape(50)
+                                    ) {
+                                        Text(
+                                            text = visit.status,
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 10.sp
+                                            ),
+                                            color = badgeFg,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CalendarToday,
+                                        contentDescription = null,
+                                        tint = Color(0xFF94A3B8),
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Text(
+                                        text = visit.date,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color(0xFF64748B)
+                                    )
+                                }
+
+                                if (visit.remarks.isNotBlank()) {
+                                    Text(
+                                        text = visit.remarks,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFF475569),
+                                        maxLines = 2,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Floating Bottom "+ Add Visit" Pill Button
+        Button(
+            onClick = onAddVisit,
+            shape = RoundedCornerShape(50),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233)),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 20.dp)
+                .height(48.dp)
+                .testTag("add_field_visit_fab")
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Add Visit",
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                color = Color.White
+            )
+        }
+    }
+}
+
+@Composable
+private fun AddVisitDialog(
+    dealers: List<DealerEntity>,
+    farmers: List<FarmerEntity>,
+    onDismiss: () -> Unit,
+    onSave: (TravelLogEntity) -> Unit
+) {
+    var area by remember { mutableStateOf("Gojra") }
+    var visitType by remember { mutableStateOf("Dealer Visit") }
+    var selectedPartner by remember { mutableStateOf(dealers.firstOrNull()?.businessName ?: "Mustafa Zarai & Wanda Agency") }
+    var date by remember { mutableStateOf(SampleDataSeeder.todayDate()) }
+    var status by remember { mutableStateOf("Completed") }
+    var remarks by remember { mutableStateOf("Met dealer, discussed monthly sales targets.") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Schedule / Record Field Visit", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = area,
+                    onValueChange = { area = it },
+                    label = { Text("Area / Territory (e.g. Gojra, Kamalia)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                DropdownSelectorField(
+                    label = "Visit Type",
+                    options = listOf("Dealer Visit", "Farm Visit", "Follow-up", "Feed Trial Check"),
+                    selectedOption = visitType,
+                    onOptionSelected = { visitType = it }
+                )
+
+                OutlinedTextField(
+                    value = selectedPartner,
+                    onValueChange = { selectedPartner = it },
+                    label = { Text("Dealer / Farm Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = date,
+                    onValueChange = { date = it },
+                    label = { Text("Visit Date (YYYY-MM-DD)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                DropdownSelectorField(
+                    label = "Status",
+                    options = listOf("Completed", "Planned"),
+                    selectedOption = status,
+                    onOptionSelected = { status = it }
+                )
+
+                OutlinedTextField(
+                    value = remarks,
+                    onValueChange = { remarks = it },
+                    label = { Text("Discussion / Trial / Order Notes") },
+                    minLines = 3,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val log = TravelLogEntity(
+                        date = date.trim(),
+                        startingOdometer = 0.0,
+                        endingOdometer = if (status == "Completed") 25.0 else 0.0,
+                        startingLocation = "Base",
+                        destination = area.trim(),
+                        totalKm = if (status == "Completed") 25.0 else 0.0,
+                        workingKm = if (status == "Completed") 25.0 else 0.0,
+                        personalKm = 0.0,
+                        purpose = visitType,
+                        remarks = "$selectedPartner: $remarks (Status: $status)"
+                    )
+                    onSave(log)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233))
+            ) {
+                Text("Save Visit")
+            }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable

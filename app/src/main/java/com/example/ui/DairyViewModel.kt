@@ -32,6 +32,7 @@ enum class SubModule(val title: String) {
     FARMERS("Farmers"),
 
     // Under Field Ops
+    VISITS("Field Visits"),
     TRIALS("Feed Trials & Milk"),
     COMPLAINTS("Complaints"),
     EXPENSES_TRAVEL("Expenses & Odometer"),
@@ -489,11 +490,12 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
             ) _activeSubModule.value else SubModule.ORDERS
             PrimaryTab.PARTNERS -> if (_activeSubModule.value in listOf(SubModule.DEALERS, SubModule.FARMERS)) _activeSubModule.value else SubModule.DEALERS
             PrimaryTab.FIELD -> if (_activeSubModule.value in listOf(
+                    SubModule.VISITS,
                     SubModule.TRIALS,
                     SubModule.COMPLAINTS,
                     SubModule.EXPENSES_TRAVEL
                 )
-            ) _activeSubModule.value else SubModule.TRIALS
+            ) _activeSubModule.value else SubModule.VISITS
             PrimaryTab.HUB -> if (_activeSubModule.value in listOf(
                     SubModule.REPORTS,
                     SubModule.TARGETS,
@@ -523,7 +525,7 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
         val targetTab = when (subModule) {
             SubModule.ORDERS, SubModule.CONSOLIDATED, SubModule.STOCK, SubModule.PAYMENTS, SubModule.INVOICES, SubModule.PRODUCTS -> PrimaryTab.SALES
             SubModule.DEALERS, SubModule.FARMERS -> PrimaryTab.PARTNERS
-            SubModule.TRIALS, SubModule.COMPLAINTS, SubModule.EXPENSES_TRAVEL -> PrimaryTab.FIELD
+            SubModule.VISITS, SubModule.TRIALS, SubModule.COMPLAINTS, SubModule.EXPENSES_TRAVEL -> PrimaryTab.FIELD
             SubModule.REPORTS, SubModule.TARGETS, SubModule.REMINDERS, SubModule.SETTINGS, SubModule.BACKUP, SubModule.SEARCH, SubModule.ABOUT -> PrimaryTab.HUB
         }
         _activeTab.value = targetTab
