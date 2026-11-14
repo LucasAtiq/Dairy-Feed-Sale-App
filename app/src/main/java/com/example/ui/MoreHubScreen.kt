@@ -160,8 +160,8 @@ fun MoreHubScreen(
 
     if (showEditProfileDialog) {
         var salesPersonName by remember { mutableStateOf(uiState.config.companyName.ifBlank { "Attique ur Rehman" }) }
-        var phoneStr by remember { mutableStateOf(uiState.config.companyPhone.ifBlank { "0301-7654321" }) }
-        var emailStr by remember { mutableStateOf(uiState.config.companyEmail.ifBlank { "attique@cp-pakistan.com" }) }
+        var phoneStr by remember { mutableStateOf(uiState.config.contactPhone.ifBlank { "0301-7654321" }) }
+        var emailStr by remember { mutableStateOf(uiState.config.contactEmail.ifBlank { "attique@cp-pakistan.com" }) }
         var addressStr by remember { mutableStateOf(uiState.config.companyAddress.ifBlank { "CP Pakistan - Dairy Feed Business, Region Sahiwal/Faisalabad" }) }
 
         AlertDialog(
@@ -218,8 +218,8 @@ fun MoreHubScreen(
                         viewModel.saveBusinessConfig(
                             uiState.config.copy(
                                 companyName = salesPersonName.trim(),
-                                companyPhone = phoneStr.trim(),
-                                companyEmail = emailStr.trim(),
+                                contactPhone = phoneStr.trim(),
+                                contactEmail = emailStr.trim(),
                                 companyAddress = addressStr.trim()
                             )
                         )
