@@ -240,11 +240,11 @@ private fun FieldVisitsListSection(
             val tr = twm.trial
             FieldVisitData(
                 id = 100000L + tr.id,
-                title = "${tr.area.ifBlank { "Farm" }} – Farm Visit",
+                title = "${tr.location.ifBlank { "Farm" }} – Farm Visit",
                 date = tr.startDate,
                 remarks = "Farm visit, feed trial follow-up (${tr.trialFeedCode}). ${tr.remarks}",
                 status = if (tr.status.equals("Active", true) || tr.status.equals("Completed", true)) "Completed" else "Planned",
-                area = tr.area,
+                area = tr.location,
                 partnerName = tr.farmName
             )
         }

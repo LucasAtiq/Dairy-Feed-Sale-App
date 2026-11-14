@@ -802,8 +802,8 @@ private fun ComprehensiveReportsSection(uiState: AppUiState) {
     val totalPayments = uiState.payments.sumOf { it.amount }.let { if (it > 0) it else 859300.0 }
     val totalOutstanding = uiState.dealerSummaries.sumOf { it.outstandingBalance.coerceAtLeast(0.0) }.let { if (it > 0) it else 292000.0 }
 
-    val targetEntity = uiState.salesTargets.firstOrNull()
-    val targetBags = targetEntity?.targetBags ?: 1000
+    val targetEntity = uiState.targets.firstOrNull()
+    val targetBags = targetEntity?.targetBags ?: (if (uiState.dashboard.monthlyTargetBags > 0) uiState.dashboard.monthlyTargetBags else 1000)
     val achievedBags = totalSalesBags
     val remainingBags = (targetBags - achievedBags).coerceAtLeast(0)
     val targetPct = if (targetBags > 0) ((achievedBags.toFloat() / targetBags.toFloat()) * 100f).coerceIn(0f, 100f) else 24f
