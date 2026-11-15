@@ -2959,12 +2959,38 @@ private fun ProductsAndPricingSection(
     var showBagSizeDialog by remember { mutableStateOf(false) }
     var archivingProduct by remember { mutableStateOf<ProductEntity?>(null) }
 
+    // Color accents for product code badges & stripes
+    val badgeColors = listOf(
+        Pair(Color(0xFF16A34A), Color(0xFFDCFCE7)), // Green
+        Pair(Color(0xFFEAB308), Color(0xFFFEF9C3)), // Amber / Yellow
+        Pair(Color(0xFFDC2626), Color(0xFFFEE2E2)), // Red
+        Pair(Color(0xFF0284C7), Color(0xFFE0F2FE)), // Blue
+        Pair(Color(0xFF8B5CF6), Color(0xFFEDE9FE))  // Purple
+    )
+
     Scaffold(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = onAddProduct,
-                icon = { Icon(Icons.Default.Add, contentDescription = "Add Product") },
-                text = { Text("Add Feed Product") },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add Product",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                },
+                text = {
+                    Text(
+                        text = "+ Add Feed Product",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = Color.White
+                    )
+                },
+                containerColor = Color(0xFF0F5233),
+                contentColor = Color.White,
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.testTag("add_product_fab")
             )
         }
@@ -2972,27 +2998,125 @@ private fun ProductsAndPricingSection(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
+                .padding(innerPadding)
+                .background(Color(0xFFF8FAFC)),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Bag Sizes Management Card
+            // 1. Bag Sizes Card
             item {
-                ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    shadowElevation = 1.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Header Row
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
-                                Text("Dynamic Bag Sizes (Bags × KG = Total KG / 1000 = MT)", style = MaterialTheme.typography.titleSmall)
-                                Text("Initial: 20 KG, 40 KG • Editable by Administrator", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFF0F5233)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Layers,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "Bag Sizes",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            color = Color(0xFF0F172A)
+                                        )
+                                    )
+                                    Text(
+                                        text = "Dynamic Bag Sizes Management",
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontSize = 11.sp,
+                                            color = Color(0xFF64748B)
+                                        )
+                                    )
+                                }
                             }
-                            OutlinedButton(onClick = { showBagSizeDialog = true }) {
-                                Text("+ Bag Size")
+
+                            // Editable by Administrator Pill Button
+                            Surface(
+                                onClick = { showBagSizeDialog = true },
+                                shape = RoundedCornerShape(20.dp),
+                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                color = Color.White
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Edit",
+                                        tint = Color(0xFF475569),
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Editable by Administrator",
+                                        fontSize = 10.5.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF475569)
+                                    )
+                                }
                             }
                         }
+
+                        // Formula Banner Box
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color(0xFFFEF9C3),
+                            border = BorderStroke(1.dp, Color(0xFFFDE047)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Calculate,
+                                    contentDescription = null,
+                                    tint = Color(0xFF16A34A),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = "Bags × KG = Total KG / 1000 = MT",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF0F172A)
+                                )
+                            }
+                        }
+
+                        // Bag Sizes Chips
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -3000,77 +3124,357 @@ private fun ProductsAndPricingSection(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             uiState.bagSizes.filter { !it.isArchived }.forEach { bs ->
-                                InputChip(
-                                    selected = bs.isActive,
-                                    onClick = { viewModel.saveBagSize(bs.copy(isActive = !bs.isActive)) },
-                                    label = { Text("${bs.label} (${bs.weightKg.roundToInt()} KG)") },
-                                    trailingIcon = {
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = if (bs.isActive) Color(0xFFDCFCE7) else Color(0xFFF1F5F9),
+                                    border = BorderStroke(
+                                        1.dp,
+                                        if (bs.isActive) Color(0xFFBBF7D0) else Color(0xFFE2E8F0)
+                                    )
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .clickable { viewModel.saveBagSize(bs.copy(isActive = !bs.isActive)) }
+                                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                                    ) {
+                                        Text(
+                                            text = "${bs.label} (${bs.weightKg.roundToInt()} KG)",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (bs.isActive) Color(0xFF15803D) else Color(0xFF64748B)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
                                         Icon(
                                             imageVector = Icons.Default.Close,
                                             contentDescription = "Archive Bag Size",
+                                            tint = if (bs.isActive) Color(0xFF15803D) else Color(0xFF64748B),
                                             modifier = Modifier
-                                                .size(16.dp)
+                                                .size(15.dp)
                                                 .clickable { viewModel.saveBagSize(bs.copy(isArchived = true)) }
                                         )
                                     }
-                                )
+                                }
                             }
                         }
                     }
                 }
             }
 
+            // 2. Feed Products & Price Management Section Header
             item {
-                Text(
-                    "Feed Products & Price Management (Historical sales never change when prices update)",
-                    style = MaterialTheme.typography.titleMedium
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Layers,
+                        contentDescription = null,
+                        tint = Color(0xFF0F5233),
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Column {
+                        Text(
+                            text = "Feed Products & Price Management",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A)
+                            )
+                        )
+                        Text(
+                            text = "Historical sales never change when prices update.",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 11.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        )
+                    }
+                }
             }
 
-            items(uiState.products.filter { !it.isArchived }, key = { it.id }) { prod ->
-                ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
-                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("${prod.code} — ${prod.name}", style = MaterialTheme.typography.titleMedium)
-                                Text("${prod.category} • Default Bag: ${prod.defaultBagWeightKg.roundToInt()} KG", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            StatusBadge(if (prod.isActive) "Active" else "Inactive")
-                        }
-                        if (prod.description.isNotBlank()) {
-                            Text(prod.description, style = MaterialTheme.typography.bodySmall)
-                        }
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Column {
-                                Text("Purchase Cost", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(BusinessCalculations.formatCurrency(prod.purchasePrice, cur), style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMonoFamily))
-                            }
-                            Column {
-                                Text("Dealer / Sale Price", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                                Text(BusinessCalculations.formatCurrency(prod.salePrice, cur), style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.primary)
-                            }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text("Retail Price", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(BusinessCalculations.formatCurrency(prod.retailPrice, cur), style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMonoFamily))
-                            }
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+            // 3. Product Cards
+            itemsIndexed(uiState.products.filter { !it.isArchived }, key = { _, it -> it.id }) { index, prod ->
+                val colorPair = badgeColors[index % badgeColors.size]
+                val accentColor = colorPair.first
+                val badgeBgColor = colorPair.second
+
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onEditProduct(prod) },
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    shadowElevation = 1.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min)
+                    ) {
+                        // Left vertical accent stripe
+                        Box(
+                            modifier = Modifier
+                                .width(4.dp)
+                                .fillMaxHeight()
+                                .background(accentColor)
+                        )
+
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text("Min Stock Alert: ${prod.minStockBags} Bags", style = MaterialTheme.typography.labelSmall)
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                TextButton(
-                                    onClick = { archivingProduct = prod },
-                                    colors = ButtonDefaults.textButtonColors(contentColor = StatusDanger)
+                            // Top Row: Code Badge + Title + Active Status
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Product Code Badge (NO BAG IMAGES)
+                                Box(
+                                    modifier = Modifier
+                                        .size(46.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(badgeBgColor),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Text("Archive / Delete")
+                                    Text(
+                                        text = prod.code,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        color = accentColor
+                                    )
                                 }
-                                Button(onClick = { onEditProduct(prod) }) {
-                                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+
+                                Spacer(modifier = Modifier.width(10.dp))
+
+                                // Product Title & Subtitle
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "${prod.code} — ${prod.name}",
+                                        style = MaterialTheme.typography.titleSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.5.sp,
+                                            color = Color(0xFF0F172A)
+                                        ),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "${prod.category} • Default Bag: ${prod.defaultBagWeightKg.roundToInt()} KG",
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontSize = 10.5.sp,
+                                            color = Color(0xFF475569)
+                                        ),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(6.dp))
+
+                                // Status Badge
+                                Surface(
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = if (prod.isActive) Color(0xFFDCFCE7) else Color(0xFFF1F5F9)
+                                ) {
+                                    Text(
+                                        text = if (prod.isActive) "Active" else "Inactive",
+                                        color = if (prod.isActive) Color(0xFF16A34A) else Color(0xFF64748B),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    )
+                                }
+                            }
+
+                            // Description Box
+                            if (prod.description.isNotBlank()) {
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color(0xFFF0FDF4),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = prod.description,
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontSize = 11.sp,
+                                            color = Color(0xFF334155),
+                                            lineHeight = 15.sp
+                                        ),
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)
+                                    )
+                                }
+                            }
+
+                            // 3-Column Pricing & Spec Box
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color(0xFFF8FAFC),
+                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp, horizontal = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Purchase Cost
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Paid,
+                                                contentDescription = null,
+                                                tint = Color(0xFF16A34A),
+                                                modifier = Modifier.size(13.dp)
+                                            )
+                                            Text("Purchase Cost", fontSize = 9.5.sp, color = Color(0xFF475569))
+                                        }
+                                        Text(
+                                            text = BusinessCalculations.formatCurrency(prod.purchasePrice, cur),
+                                            fontSize = 12.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = JetBrainsMonoFamily,
+                                            color = Color(0xFF0F172A)
+                                        )
+                                    }
+
+                                    // Vertical Divider
+                                    Box(
+                                        modifier = Modifier
+                                            .height(30.dp)
+                                            .width(1.dp)
+                                            .background(Color(0xFFE2E8F0))
+                                    )
+
+                                    // Dealer / Sale Price
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.LocalOffer,
+                                                contentDescription = null,
+                                                tint = Color(0xFF16A34A),
+                                                modifier = Modifier.size(13.dp)
+                                            )
+                                            Text("Dealer / Sale Price", fontSize = 9.5.sp, color = Color(0xFF475569))
+                                        }
+                                        Text(
+                                            text = BusinessCalculations.formatCurrency(prod.salePrice, cur),
+                                            fontSize = 12.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = JetBrainsMonoFamily,
+                                            color = Color(0xFF0F172A)
+                                        )
+                                    }
+
+                                    // Vertical Divider
+                                    Box(
+                                        modifier = Modifier
+                                            .height(30.dp)
+                                            .width(1.dp)
+                                            .background(Color(0xFFE2E8F0))
+                                    )
+
+                                    // Default Bag
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Scale,
+                                                contentDescription = null,
+                                                tint = Color(0xFF16A34A),
+                                                modifier = Modifier.size(13.dp)
+                                            )
+                                            Text("Default Bag", fontSize = 9.5.sp, color = Color(0xFF475569))
+                                        }
+                                        Text(
+                                            text = "${prod.defaultBagWeightKg.roundToInt()} KG",
+                                            fontSize = 12.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF0F172A)
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Action Buttons: Archive & Delete
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                // Archive Button
+                                OutlinedButton(
+                                    onClick = { archivingProduct = prod },
+                                    shape = RoundedCornerShape(10.dp),
+                                    border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF475569)),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Archive,
+                                        contentDescription = "Archive",
+                                        tint = Color(0xFF475569),
+                                        modifier = Modifier.size(14.dp)
+                                    )
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Edit / Price")
+                                    Text("Archive", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
+                                }
+
+                                // Delete Button
+                                Surface(
+                                    onClick = { archivingProduct = prod },
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color(0xFFFEE2E2),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(36.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center,
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.DeleteOutline,
+                                            contentDescription = "Delete",
+                                            tint = Color(0xFFDC2626),
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Delete",
+                                            color = Color(0xFFDC2626),
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -3078,21 +3482,41 @@ private fun ProductsAndPricingSection(
                 }
             }
 
+            // Price Change Audit Log (if any)
             if (uiState.priceHistory.isNotEmpty()) {
                 item {
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text("Price Change Audit Log (Old orders preserved at original price)", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Price Change Audit Log (Old orders preserved at original price)",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F172A)
+                        )
+                    )
                 }
                 items(uiState.priceHistory.take(15), key = { "ph-${it.id}" }) { ph ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.White,
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    ) {
                         Column(modifier = Modifier.padding(12.dp)) {
-                            Text("${ph.productCode} (${ph.productName})", style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                "${ph.productCode} (${ph.productName})",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            )
                             Text(
                                 "Sale Price: ${ph.oldSalePrice.roundToInt()} -> ${ph.newSalePrice.roundToInt()} | Cost: ${ph.oldPurchasePrice.roundToInt()} -> ${ph.newPurchasePrice.roundToInt()}",
-                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily)
+                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily, fontSize = 11.sp),
+                                color = Color(0xFF475569)
                             )
                             if (ph.remarks.isNotBlank()) {
-                                Text(ph.remarks, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    ph.remarks,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                    color = Color(0xFF64748B)
+                                )
                             }
                         }
                     }
@@ -3105,7 +3529,7 @@ private fun ProductsAndPricingSection(
         var weightStr by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showBagSizeDialog = false },
-            title = { Text("Add Bag Size") },
+            title = { Text("Add Bag Size", fontWeight = FontWeight.Bold) },
             text = {
                 OutlinedTextField(
                     value = weightStr,
@@ -3113,6 +3537,7 @@ private fun ProductsAndPricingSection(
                     label = { Text("Bag Weight in KG (e.g. 25, 50) *") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
             },
@@ -3130,13 +3555,20 @@ private fun ProductsAndPricingSection(
                             )
                             showBagSizeDialog = false
                         }
-                    }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233)),
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Add")
+                    Text("Add", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                OutlinedButton(onClick = { showBagSizeDialog = false }) { Text("Cancel") }
+                OutlinedButton(
+                    onClick = { showBagSizeDialog = false },
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Cancel")
+                }
             }
         )
     }
