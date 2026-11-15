@@ -1134,16 +1134,13 @@ object DocumentAndExportManager {
         canvas.drawRoundRect(tableRect, 10f, 10f, strokePaint)
 
         // ==========================================
-        // 5. MIDDLE SECTION: Pastoral Art (Left) & Financial Summary Card (Right)
+        // 5. MIDDLE SECTION: Financial Summary Card (Full Width)
         // ==========================================
         val middleY = maxOf(tableTop + tableH + 16f, 360f)
         val cardH = 178f
 
-        // --- Left Side: Pastoral Dairy Art Illustration ---
-        drawVectorDairyIllustration(canvas, 20f, middleY, 225f, middleY + cardH)
-
-        // --- Right Side: Financial Breakdown Card ---
-        val sumRect = RectF(238f, middleY, 575f, middleY + cardH)
+        // --- Financial Breakdown Card ---
+        val sumRect = RectF(20f, middleY, 575f, middleY + cardH)
         fillPaint.color = AndroidColor.WHITE
         canvas.drawRoundRect(sumRect, 14f, 14f, fillPaint)
         strokePaint.apply {
@@ -1154,115 +1151,115 @@ object DocumentAndExportManager {
 
         // Row 1: Gross Amount
         var rY = middleY + 20f
-        drawVectorCoins(canvas, 252f, rY - 11f, AndroidColor.rgb(22, 163, 74), 13f)
+        drawVectorCoins(canvas, 34f, rY - 11f, AndroidColor.rgb(22, 163, 74), 13f)
         textPaint.apply {
             color = AndroidColor.rgb(51, 65, 85)
             textSize = 10.5f
             typeface = Typeface.DEFAULT
             textAlign = Paint.Align.LEFT
         }
-        canvas.drawText("Gross Amount:", 272f, rY, textPaint)
+        canvas.drawText("Gross Amount:", 56f, rY, textPaint)
         textPaint.apply {
             color = AndroidColor.rgb(15, 23, 42)
             textSize = 11.5f
             typeface = Typeface.DEFAULT_BOLD
             textAlign = Paint.Align.RIGHT
         }
-        canvas.drawText("$cur ${BusinessCalculations.formatNumber(order.grossAmount)}", 562f, rY, textPaint)
+        canvas.drawText("$cur ${BusinessCalculations.formatNumber(order.grossAmount)}", 560f, rY, textPaint)
 
         // Row 2: Discount
         rY += 23f
-        drawVectorTag(canvas, 252f, rY - 11f, AndroidColor.rgb(100, 116, 139), 13f)
+        drawVectorTag(canvas, 34f, rY - 11f, AndroidColor.rgb(100, 116, 139), 13f)
         textPaint.apply {
             color = AndroidColor.rgb(51, 65, 85)
             textSize = 10.5f
             typeface = Typeface.DEFAULT
             textAlign = Paint.Align.LEFT
         }
-        canvas.drawText("Discount:", 272f, rY, textPaint)
+        canvas.drawText("Discount:", 56f, rY, textPaint)
         textPaint.apply {
             color = AndroidColor.rgb(15, 23, 42)
             textSize = 11.5f
             typeface = Typeface.DEFAULT_BOLD
             textAlign = Paint.Align.RIGHT
         }
-        canvas.drawText("$cur ${BusinessCalculations.formatNumber(order.discountAmount)}", 562f, rY, textPaint)
+        canvas.drawText("$cur ${BusinessCalculations.formatNumber(order.discountAmount)}", 560f, rY, textPaint)
 
         // Row 3: Delivery Cost (User Requested Addition!)
         rY += 23f
-        drawVectorTruck(canvas, 252f, rY - 11f, AndroidColor.rgb(2, 132, 199), 13f)
+        drawVectorTruck(canvas, 34f, rY - 11f, AndroidColor.rgb(2, 132, 199), 13f)
         textPaint.apply {
             color = AndroidColor.rgb(51, 65, 85)
             textSize = 10.5f
             typeface = Typeface.DEFAULT
             textAlign = Paint.Align.LEFT
         }
-        canvas.drawText("Delivery Cost:", 272f, rY, textPaint)
+        canvas.drawText("Delivery Cost:", 56f, rY, textPaint)
         textPaint.apply {
             color = AndroidColor.rgb(15, 23, 42)
             textSize = 11.5f
             typeface = Typeface.DEFAULT_BOLD
             textAlign = Paint.Align.RIGHT
         }
-        canvas.drawText("$cur ${BusinessCalculations.formatNumber(order.deliveryCost)}", 562f, rY, textPaint)
+        canvas.drawText("$cur ${BusinessCalculations.formatNumber(order.deliveryCost)}", 560f, rY, textPaint)
 
         // Row 4: Net Payable (Highlight Emerald Green Banner!)
         rY += 27f
-        val netBanner = RectF(244f, rY - 14f, 569f, rY + 14f)
+        val netBanner = RectF(26f, rY - 14f, 569f, rY + 14f)
         fillPaint.color = AndroidColor.rgb(15, 82, 51)
         canvas.drawRoundRect(netBanner, 8f, 8f, fillPaint)
 
-        drawVectorCalc(canvas, 254f, rY - 7f, AndroidColor.WHITE, 14f)
+        drawVectorCalc(canvas, 36f, rY - 7f, AndroidColor.WHITE, 14f)
         textPaint.apply {
             color = AndroidColor.WHITE
             textSize = 11.5f
             typeface = Typeface.DEFAULT_BOLD
             textAlign = Paint.Align.LEFT
         }
-        canvas.drawText("Net Payable:", 276f, rY + 4f, textPaint)
+        canvas.drawText("Net Payable:", 58f, rY + 4f, textPaint)
         textPaint.apply {
             color = AndroidColor.WHITE
             textSize = 13.5f
             typeface = Typeface.DEFAULT_BOLD
             textAlign = Paint.Align.RIGHT
         }
-        canvas.drawText("$cur ${BusinessCalculations.formatNumber(order.netAmount)}", 560f, rY + 4f, textPaint)
+        canvas.drawText("$cur ${BusinessCalculations.formatNumber(order.netAmount)}", 558f, rY + 4f, textPaint)
 
         // Row 5: Amount Received
         rY += 30f
-        drawVectorWallet(canvas, 252f, rY - 11f, AndroidColor.rgb(22, 163, 74), 13f)
+        drawVectorWallet(canvas, 34f, rY - 11f, AndroidColor.rgb(22, 163, 74), 13f)
         textPaint.apply {
             color = AndroidColor.rgb(51, 65, 85)
             textSize = 10.5f
             typeface = Typeface.DEFAULT
             textAlign = Paint.Align.LEFT
         }
-        canvas.drawText("Amount Received:", 272f, rY, textPaint)
+        canvas.drawText("Amount Received:", 56f, rY, textPaint)
         textPaint.apply {
             color = AndroidColor.rgb(21, 128, 61)
             textSize = 12f
             typeface = Typeface.DEFAULT_BOLD
             textAlign = Paint.Align.RIGHT
         }
-        canvas.drawText("$cur ${BusinessCalculations.formatNumber(order.paidAmount)}", 562f, rY, textPaint)
+        canvas.drawText("$cur ${BusinessCalculations.formatNumber(order.paidAmount)}", 560f, rY, textPaint)
 
         // Row 6: Balance Outstanding
         rY += 24f
-        drawVectorScales(canvas, 252f, rY - 11f, AndroidColor.rgb(220, 38, 38), 13f)
+        drawVectorScales(canvas, 34f, rY - 11f, AndroidColor.rgb(220, 38, 38), 13f)
         textPaint.apply {
             color = AndroidColor.rgb(220, 38, 38)
             textSize = 11f
             typeface = Typeface.DEFAULT_BOLD
             textAlign = Paint.Align.LEFT
         }
-        canvas.drawText("Balance Outstanding:", 272f, rY, textPaint)
+        canvas.drawText("Balance Outstanding:", 56f, rY, textPaint)
         textPaint.apply {
             color = AndroidColor.rgb(220, 38, 38)
             textSize = 13.5f
             typeface = Typeface.DEFAULT_BOLD
             textAlign = Paint.Align.RIGHT
         }
-        canvas.drawText("$cur ${BusinessCalculations.formatNumber(order.outstandingAmount)}", 562f, rY, textPaint)
+        canvas.drawText("$cur ${BusinessCalculations.formatNumber(order.outstandingAmount)}", 560f, rY, textPaint)
 
         // ==========================================
         // 6. VOLUME & WEIGHT BANNER (y ~ 610f)
