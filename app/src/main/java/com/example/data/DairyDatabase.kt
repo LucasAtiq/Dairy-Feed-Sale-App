@@ -31,7 +31,7 @@ import java.util.Locale
         AuditLogEntity::class,
         BusinessConfigEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class DairyDatabase : RoomDatabase() {
@@ -89,6 +89,25 @@ abstract class DairyDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_8_9 = object : androidx.room.migration.Migration(8, 9) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                // Clear all transactional and sample mock records so app workspace is completely clean
+                db.execSQL("DELETE FROM order_items")
+                db.execSQL("DELETE FROM sale_orders")
+                db.execSQL("DELETE FROM stock_movements")
+                db.execSQL("DELETE FROM payments")
+                db.execSQL("DELETE FROM milk_records")
+                db.execSQL("DELETE FROM feed_trials")
+                db.execSQL("DELETE FROM complaints")
+                db.execSQL("DELETE FROM expenses")
+                db.execSQL("DELETE FROM travel_logs")
+                db.execSQL("DELETE FROM dealers")
+                db.execSQL("DELETE FROM farmers")
+                db.execSQL("DELETE FROM sales_targets")
+                db.execSQL("UPDATE business_config SET isSampleDataLoaded = 0")
+            }
+        }
+
         fun getInstance(context: Context): DairyDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -96,7 +115,7 @@ abstract class DairyDatabase : RoomDatabase() {
                     DairyDatabase::class.java,
                     "dairy_feed_business.db"
                 )
-                    .addMigrations(MIGRATION_2_3, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                    .addMigrations(MIGRATION_2_3, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                     .fallbackToDestructiveMigration(true)
                     .build()
                 INSTANCE = instance
