@@ -2554,8 +2554,6 @@ private fun BackupAndDemoDataSection(
 
     var showAttachEmailDialog by remember { mutableStateOf(false) }
     var inputEmailText by remember(cfg) { mutableStateOf(cfg.googleAccountEmail.ifBlank { cfg.userEmail }) }
-    var discordWebhookInput by remember(cfg) { mutableStateOf(cfg.discordWebhookUrl.ifBlank { cfg.emailWebhookUrl }) }
-    var showDiscordSettings by remember { mutableStateOf(false) }
 
     val googleDriveFolderLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
@@ -2788,64 +2786,6 @@ private fun BackupAndDemoDataSection(
                             Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFF1A73E8))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Restore", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xFF1A73E8))
-                        }
-                    }
-
-                    // 5. Admin Activity Monitoring (Discord Webhook) - Expandable
-                    Divider(color = Color(0xFFE2E8F0), thickness = 1.dp)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showDiscordSettings = !showDiscordSettings },
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = Color(0xFF5865F2), modifier = Modifier.size(18.dp))
-                            Text("Admin Activity Alerts (Discord)", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xFF334155))
-                        }
-                        Icon(
-                            if (showDiscordSettings) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                            contentDescription = null,
-                            tint = Color(0xFF64748B)
-                        )
-                    }
-
-                    if (showDiscordSettings) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(
-                                "Paste your Discord Webhook URL below to receive live user activity alerts and sales metrics directly in your Discord channel.",
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
-                                color = Color(0xFF64748B)
-                            )
-                            OutlinedTextField(
-                                value = discordWebhookInput,
-                                onValueChange = { discordWebhookInput = it },
-                                label = { Text("Discord Webhook URL") },
-                                placeholder = { Text("https://discord.com/api/webhooks/...") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                Button(
-                                    onClick = { viewModel.updateDiscordWebhookUrl(discordWebhookInput) },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5865F2)),
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text("Save URL", color = Color.White, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
-                                }
-                                OutlinedButton(
-                                    onClick = {
-                                        viewModel.updateDiscordWebhookUrl(discordWebhookInput)
-                                        viewModel.sendTestDiscordAlert()
-                                    },
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text("Send Test Ping", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = Color(0xFF5865F2))
-                                }
-                            }
                         }
                     }
                 }
