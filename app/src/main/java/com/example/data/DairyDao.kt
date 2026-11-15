@@ -197,6 +197,9 @@ interface DairyDao {
     @Query("SELECT * FROM payments")
     suspend fun getAllPaymentsOnce(): List<PaymentEntity>
 
+    @Query("SELECT * FROM payments WHERE referenceNumber = :referenceNumber OR paymentNumber = :paymentNumber LIMIT 1")
+    suspend fun getPaymentByRefOrNumber(referenceNumber: String, paymentNumber: String): PaymentEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPayment(payment: PaymentEntity): Long
 
@@ -440,20 +443,32 @@ interface DairyDao {
             insertStockMovements(stockOutMovements)
         }
 
-        // If this is a brand new order with an initial payment received > 0, record payment in ledger
-        if (!isExisting && createPaymentRecord && order.paidAmount > 0.0 && order.status != "Cancelled" && order.status != "Draft") {
-            insertPayment(
-                PaymentEntity(
-                    paymentNumber = "PAY-${order.orderNumber.removePrefix("ORD-")}",
-                    date = order.date,
-                    dealerId = order.dealerId,
-                    dealerName = order.dealerName,
-                    amount = order.paidAmount,
-                    paymentMethod = paymentMethodForInitialPaid,
-                    referenceNumber = order.invoiceNumber,
-                    remarks = "Advance/Spot payment against Order ${order.orderNumber}"
+        // If this order has an initial payment received > 0, record/update payment in ledger without duplicating
+        if (createPaymentRecord && order.paidAmount > 0.0 && order.status != "Cancelled" && order.status != "Draft") {
+            val payNum = "PAY-${order.orderNumber.removePrefix("ORD-")}"
+            val existingPayment = getPaymentByRefOrNumber(order.invoiceNumber, payNum)
+            if (existingPayment == null) {
+                insertPayment(
+                    PaymentEntity(
+                        paymentNumber = payNum,
+                        date = order.date,
+                        dealerId = order.dealerId,
+                        dealerName = order.dealerName,
+                        amount = order.paidAmount,
+                        paymentMethod = paymentMethodForInitialPaid,
+                        referenceNumber = order.invoiceNumber,
+                        remarks = "Advance/Spot payment against Order ${order.orderNumber}"
+                    )
                 )
-            )
+            } else if (existingPayment.amount != order.paidAmount || existingPayment.date != order.date) {
+                updatePayment(
+                    existingPayment.copy(
+                        amount = order.paidAmount,
+                        date = order.date,
+                        paymentMethod = paymentMethodForInitialPaid
+                    )
+                )
+            }
         }
 
         insertAuditLog(

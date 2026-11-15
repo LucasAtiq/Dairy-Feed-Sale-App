@@ -202,7 +202,9 @@ object BusinessCalculations {
                 it.order.status != "Cancelled" &&
                 it.order.status != "Draft"
         }
-        val dealerPayments = allPayments.filter { it.dealerId == dealer.id }
+        val dealerPayments = allPayments
+            .filter { it.dealerId == dealer.id }
+            .distinctBy { it.paymentNumber.ifBlank { "${it.id}" } }
 
         val totalOrders = activeOrders.size
         val totalBags = activeOrders.sumOf { it.order.totalBags }
@@ -363,6 +365,9 @@ object BusinessCalculations {
             }
         }
 
+        // Deduplicate payments to prevent duplicate transaction entries
+        val distinctPayments = activePayments.distinctBy { it.paymentNumber.ifBlank { "${it.id}" } }
+
         data class RawEvent(
             val date: String,
             val timestamp: Long,
@@ -378,6 +383,18 @@ object BusinessCalculations {
             } else {
                 owi.items.joinToString(", ") { "${it.quantityBags}x ${it.productCode} (${it.bagSizeLabel})" }
             }
+
+            // Check if there is a separate payment record in distinctPayments that already accounts for this order's payment
+            val hasSeparatePaymentRecord = distinctPayments.any { p ->
+                (p.referenceNumber.isNotBlank() && p.referenceNumber.equals(o.invoiceNumber, true)) ||
+                (p.paymentNumber.isNotBlank() && p.paymentNumber.equals("PAY-${o.orderNumber.removePrefix("ORD-")}", true)) ||
+                (p.remarks.contains(o.orderNumber, true))
+            }
+
+            // If a separate payment record exists in distinctPayments, it will appear as its own PAYMENT row.
+            // So on this PURCHASE row, amountReceived is 0.0 to prevent double-deducting and duplicate presentation!
+            val orderAmountReceived = if (hasSeparatePaymentRecord) 0.0 else o.paidAmount
+
             events.add(
                 RawEvent(
                     date = o.date,
@@ -393,16 +410,16 @@ object BusinessCalculations {
                         feedSendDate = o.expectedDeliveryDate.ifBlank { o.date },
                         dispatchStatus = o.status,
                         billAmount = o.netAmount,
-                        amountReceived = o.paidAmount,
-                        paymentReceivedDate = if (o.paidAmount > 0) o.date else "-",
-                        paymentMethod = if (o.paidAmount > 0) "At Order" else "-",
+                        amountReceived = orderAmountReceived,
+                        paymentReceivedDate = if (orderAmountReceived > 0) o.date else "-",
+                        paymentMethod = if (orderAmountReceived > 0) "At Order" else "-",
                         runningBalance = 0.0
                     )
                 )
             )
         }
 
-        activePayments.forEach { p ->
+        distinctPayments.forEach { p ->
             events.add(
                 RawEvent(
                     date = p.date,

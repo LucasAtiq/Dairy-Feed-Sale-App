@@ -468,7 +468,9 @@ private fun DealerProfileDetailView(
         uiState.ordersWithItems.filter { it.order.dealerId == d.id }.sortedByDescending { it.order.date }
     }
     val dealerPayments = remember(uiState.payments, d.id) {
-        uiState.payments.filter { it.dealerId == d.id }.sortedByDescending { it.date }
+        uiState.payments.filter { it.dealerId == d.id }
+            .distinctBy { it.paymentNumber.ifBlank { "${it.id}" } }
+            .sortedByDescending { it.date }
     }
     val dealerTrials = remember(uiState.trialsWithMilk, d.id) {
         uiState.trialsWithMilk.filter { it.trial.dealerId == d.id }
