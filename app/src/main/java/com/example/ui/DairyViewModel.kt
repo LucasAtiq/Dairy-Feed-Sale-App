@@ -47,7 +47,7 @@ enum class SubModule(val title: String) {
     SETTINGS("Settings & Admin"),
     BACKUP("Backup & Restore"),
     SEARCH("Global Search"),
-    ABOUT("About WandaBook Pro")
+    ABOUT("About TradeBook Pro")
 }
 
 data class DashboardMetrics(

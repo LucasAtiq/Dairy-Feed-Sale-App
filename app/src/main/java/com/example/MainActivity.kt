@@ -117,7 +117,7 @@ fun DairyFeedAppRoot(
         modifier = Modifier.fillMaxSize(),
         topBar = {
             if (uiState.selectedDealerForDetail == null) {
-                val isSubModuleInMore = uiState.activeTab == PrimaryTab.MORE && uiState.activeSubModule != SubModule.MORE
+                val isSubModuleInMore = uiState.activeTab == PrimaryTab.HUB && uiState.activeSubModule != SubModule.MORE
                 TopAppBar(
                     title = {
                         if (isSubModuleInMore) {
