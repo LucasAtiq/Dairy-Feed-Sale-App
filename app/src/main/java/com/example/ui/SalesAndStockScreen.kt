@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -22,8 +23,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -584,6 +587,106 @@ private fun CleanStatusBadge(status: String) {
 }
 
 @Composable
+private fun FilterDropdown(
+    label: String,
+    leadingIcon: ImageVector,
+    options: List<String>,
+    selected: String,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier = modifier) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = true },
+            shape = RoundedCornerShape(10.dp),
+            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            color = Color(0xFFF8FAFC)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(leadingIcon, contentDescription = null, tint = Color(0xFF16A34A), modifier = Modifier.size(18.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(label, style = TextStyle(fontSize = 10.sp, color = Color(0xFF64748B), fontWeight = FontWeight.SemiBold))
+                    Text(
+                        selected,
+                        style = TextStyle(fontSize = 13.sp, color = Color(0xFF0F172A), fontWeight = FontWeight.Medium),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(18.dp))
+            }
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option, fontSize = 13.sp) },
+                    onClick = {
+                        onSelect(option)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FilterDateField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String = "YYYY-MM-DD",
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        color = Color(0xFFF8FAFC)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(Icons.Default.DateRange, contentDescription = null, tint = Color(0xFF16A34A), modifier = Modifier.size(18.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(label, style = TextStyle(fontSize = 10.sp, color = Color(0xFF64748B), fontWeight = FontWeight.SemiBold))
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    singleLine = true,
+                    textStyle = TextStyle(fontSize = 13.sp, color = Color(0xFF0F172A), fontWeight = FontWeight.Medium),
+                    decorationBox = { innerTextField ->
+                        if (value.isEmpty()) {
+                            Text(placeholder, style = TextStyle(fontSize = 12.sp, color = Color(0xFF94A3B8)))
+                        }
+                        innerTextField()
+                    }
+                )
+            }
+        }
+    }
+}
+
+private fun getConsolidatedBadgeColors(code: String): Pair<Color, Color> {
+    return when {
+        code.startsWith("26M", ignoreCase = true) -> Pair(Color(0xFFDCFCE7), Color(0xFF15803D))
+        code.startsWith("26P", ignoreCase = true) -> Pair(Color(0xFFFEF9C3), Color(0xFFA16207))
+        code.startsWith("28P", ignoreCase = true) -> Pair(Color(0xFFFEE2E2), Color(0xFFB91C1C))
+        code.startsWith("55M", ignoreCase = true) -> Pair(Color(0xFFDBEAFE), Color(0xFF1D4ED8))
+        else -> Pair(Color(0xFFF1F5F9), Color(0xFF334155))
+    }
+}
+
+@Composable
 private fun ConsolidatedOrdersSection(uiState: AppUiState) {
     val context = LocalContext.current
     val cur = uiState.config.currencySymbol
@@ -606,103 +709,271 @@ private fun ConsolidatedOrdersSection(uiState: AppUiState) {
         )
     }
 
+    // Dynamic consolidated display rows - includes active catalog products with 0 counts when no orders match
+    val displayRows = remember(summary.lines, uiState.products) {
+        val activeProducts = uiState.products.filter { !it.isArchived }
+        if (summary.lines.isNotEmpty()) {
+            val existingCodes = summary.lines.map { it.productCode }.toSet()
+            val emptyLinesForRemaining = activeProducts
+                .filter { it.code !in existingCodes }
+                .map { p ->
+                    ConsolidatedOrderLine(
+                        productId = p.id,
+                        productCode = p.code,
+                        productName = p.name,
+                        bagSizeLabel = "${p.defaultBagWeightKg.toInt()} KG",
+                        bagWeightKg = p.defaultBagWeightKg,
+                        totalBags = 0,
+                        totalKg = 0.0,
+                        totalMt = 0.0,
+                        totalValue = 0.0,
+                        orderCount = 0
+                    )
+                }
+            summary.lines + emptyLinesForRemaining
+        } else {
+            activeProducts.map { p ->
+                ConsolidatedOrderLine(
+                    productId = p.id,
+                    productCode = p.code,
+                    productName = p.name,
+                    bagSizeLabel = "${p.defaultBagWeightKg.toInt()} KG",
+                    bagWeightKg = p.defaultBagWeightKg,
+                    totalBags = 0,
+                    totalKg = 0.0,
+                    totalMt = 0.0,
+                    totalValue = 0.0,
+                    orderCount = 0
+                )
+            }
+        }
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .testTag("consolidated_orders_section"),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        // CARD 1: Consolidated Dispatch & Loading Sheet
         item {
-            ElevatedCard(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Consolidated Dispatch & Loading Sheet", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "Automatically consolidates orders from multiple dealers and locations by Product and Bag Size.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    // Decorative green arc in top right corner
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .size(80.dp)
+                            .clip(RoundedCornerShape(bottomStart = 80.dp))
+                            .background(Color(0xFFDCFCE7).copy(alpha = 0.5f))
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        DropdownSelectorField(
-                            label = "Area Territory",
-                            options = areas,
-                            selectedOption = areaFilter,
-                            onOptionSelected = { areaFilter = it },
-                            modifier = Modifier.weight(1f)
-                        )
-                        DropdownSelectorField(
-                            label = "Order Status",
-                            options = listOf("All", "Pending", "Confirmed", "In Transit", "Delivered"),
-                            selectedOption = statusFilter,
-                            onOptionSelected = { statusFilter = it },
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = startDate,
-                            onValueChange = { startDate = it },
-                            label = { Text("From (YYYY-MM-DD)") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = endDate,
-                            onValueChange = { endDate = it },
-                            label = { Text("To (YYYY-MM-DD)") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                        )
+
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // Header Row
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color(0xFF0F3E22)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LocalShipping,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Consolidated Dispatch & Loading Sheet",
+                                    style = TextStyle(
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF0F172A)
+                                    )
+                                )
+                                Text(
+                                    "Automatically consolidates orders from multiple dealers and locations by Product and Bag Size.",
+                                    style = TextStyle(
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF64748B),
+                                        lineHeight = 15.sp
+                                    )
+                                )
+                            }
+                        }
+
+                        // Filters Row 1: Area Territory & Order Status
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FilterDropdown(
+                                label = "Area Territory",
+                                leadingIcon = Icons.Default.Place,
+                                options = areas,
+                                selected = areaFilter,
+                                onSelect = { areaFilter = it },
+                                modifier = Modifier.weight(1f)
+                            )
+                            FilterDropdown(
+                                label = "Order Status",
+                                leadingIcon = Icons.Default.Layers,
+                                options = listOf("All", "Pending", "Confirmed", "In Transit", "Delivered"),
+                                selected = statusFilter,
+                                onSelect = { statusFilter = it },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        // Filters Row 2: From Date & To Date
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FilterDateField(
+                                label = "From Date",
+                                value = startDate,
+                                onValueChange = { startDate = it },
+                                modifier = Modifier.weight(1f)
+                            )
+                            FilterDateField(
+                                label = "To Date",
+                                value = endDate,
+                                onValueChange = { endDate = it },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        // Filters Row 3: Action Buttons (Apply Filter & Clear)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(
+                                onClick = { /* Values already dynamically reactive */ },
+                                modifier = Modifier
+                                    .weight(1.3f)
+                                    .height(42.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F3E22)),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FilterList,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    "Apply Filter",
+                                    style = TextStyle(
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White
+                                    )
+                                )
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    areaFilter = "All"
+                                    statusFilter = "All"
+                                    startDate = ""
+                                    endDate = ""
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(42.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = null,
+                                    tint = Color(0xFF334155),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    "Clear",
+                                    style = TextStyle(
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF334155)
+                                    )
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
 
-        // Grand Totals Card
+        // CARD 2: Consolidated Totals Summary
         item {
-            ElevatedCard(
+            Card(
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                modifier = Modifier.fillMaxWidth()
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        "Consolidated Totals (${summary.matchingOrdersCount} Orders)",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Column {
-                            Text("Total Bags", style = MaterialTheme.typography.labelSmall)
-                            Text("${summary.totalBags} Bags", style = MaterialTheme.typography.titleLarge.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold))
-                        }
-                        Column {
-                            Text("Total KG", style = MaterialTheme.typography.labelSmall)
-                            Text("${summary.totalKg.roundToInt()} KG", style = MaterialTheme.typography.titleLarge.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold))
-                        }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("Total MT", style = MaterialTheme.typography.labelSmall)
-                            Text("${BusinessCalculations.formatDecimal(summary.totalMt)} MT", style = MaterialTheme.typography.titleLarge.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold))
-                        }
-                    }
-                    HorizontalDivider()
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Header with CSV download button
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            "Total Value: ${BusinessCalculations.formatCurrency(summary.totalValue, cur)}",
-                            style = MaterialTheme.typography.titleMedium.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold)
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Layers,
+                                contentDescription = null,
+                                tint = Color(0xFF16A34A),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                "Consolidated Totals (${summary.matchingOrdersCount} Orders)",
+                                style = TextStyle(
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0F172A)
+                                )
+                            )
+                        }
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Surface(
                                 onClick = {
                                     val csv = DocumentAndExportManager.exportCsvReport(
                                         context = context,
                                         fileNamePrefix = "Consolidated_Order",
                                         headers = listOf("Product", "Bag Size", "Total Bags", "Total KG", "Total MT", "Total Value"),
-                                        rows = summary.lines.map {
+                                        rows = displayRows.map {
                                             listOf(
                                                 "${it.productCode} - ${it.productName}",
                                                 it.bagSizeLabel,
@@ -714,40 +985,201 @@ private fun ConsolidatedOrdersSection(uiState: AppUiState) {
                                         }
                                     )
                                     DocumentAndExportManager.shareFile(context, csv, "text/csv", "Share Consolidated Order CSV")
-                                }
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, Color(0xFF86EFAC)),
+                                color = Color(0xFFF0FDF4)
                             ) {
-                                Text("CSV")
-                            }
-                            Button(
-                                onClick = {
-                                    val pdf = DocumentAndExportManager.generateSummaryReportPdf(
-                                        context = context,
-                                        config = uiState.config,
-                                        reportTitle = "Consolidated Mill Dispatch Order",
-                                        periodSubtitle = "Area: $areaFilter | Status: $statusFilter | Orders: ${summary.matchingOrdersCount}",
-                                        summaryMetrics = listOf(
-                                            "Total Bags" to "${summary.totalBags} Bags",
-                                            "Total Weight (KG)" to "${summary.totalKg.roundToInt()} KG",
-                                            "Total Metric Tons" to "${BusinessCalculations.formatDecimal(summary.totalMt)} MT",
-                                            "Total Order Value" to BusinessCalculations.formatCurrency(summary.totalValue, cur)
-                                        ),
-                                        tableHeaders = listOf("Product", "Bag Size", "Total Bags", "Total Weight", "Value"),
-                                        tableRows = summary.lines.map {
-                                            listOf(
-                                                it.productCode,
-                                                it.bagSizeLabel,
-                                                "${it.totalBags} Bags",
-                                                "${it.totalKg.roundToInt()} KG (${BusinessCalculations.formatDecimal(it.totalMt)} MT)",
-                                                BusinessCalculations.formatCurrency(it.totalValue, cur)
-                                            )
-                                        }
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Download,
+                                        contentDescription = null,
+                                        tint = Color(0xFF15803D),
+                                        modifier = Modifier.size(15.dp)
                                     )
-                                    DocumentAndExportManager.shareFile(context, pdf, "application/pdf", "Share Consolidated Order PDF")
+                                    Text(
+                                        "CSV",
+                                        style = TextStyle(
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF15803D)
+                                        )
+                                    )
                                 }
+                            }
+                        }
+                    }
+
+                    // 3 Metric Cards: Total Bags | Total KG | Total MT
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Total Bags Card
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFECFDF5),
+                            border = BorderStroke(1.dp, Color(0xFFA7F3D0))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Share PDF")
+                                Icon(
+                                    imageVector = Icons.Default.ShoppingBag,
+                                    contentDescription = null,
+                                    tint = Color(0xFF059669),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    "Total Bags",
+                                    style = TextStyle(fontSize = 10.sp, color = Color(0xFF065F46), fontWeight = FontWeight.Medium)
+                                )
+                                Text(
+                                    "${summary.totalBags} Bags",
+                                    style = TextStyle(
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = JetBrainsMonoFamily,
+                                        color = Color(0xFF065F46)
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        // Total KG Card
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFFEF9C3),
+                            border = BorderStroke(1.dp, Color(0xFFFDE047))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Category,
+                                    contentDescription = null,
+                                    tint = Color(0xFFD97706),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    "Total KG",
+                                    style = TextStyle(fontSize = 10.sp, color = Color(0xFF854D0E), fontWeight = FontWeight.Medium)
+                                )
+                                Text(
+                                    "${summary.totalKg.roundToInt()} KG",
+                                    style = TextStyle(
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = JetBrainsMonoFamily,
+                                        color = Color(0xFF854D0E)
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        // Total MT Card
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFEFF6FF),
+                            border = BorderStroke(1.dp, Color(0xFFBFDBFE))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(vertical = 10.dp, horizontal = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Scale,
+                                    contentDescription = null,
+                                    tint = Color(0xFF2563EB),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    "Total MT",
+                                    style = TextStyle(fontSize = 10.sp, color = Color(0xFF1E40AF), fontWeight = FontWeight.Medium)
+                                )
+                                Text(
+                                    "${BusinessCalculations.formatDecimal(summary.totalMt)} MT",
+                                    style = TextStyle(
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = JetBrainsMonoFamily,
+                                        color = Color(0xFF1E40AF)
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+
+                    // Total Value Dark Green Bar
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFF0F3E22)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Payments,
+                                    contentDescription = null,
+                                    tint = Color(0xFFFACC15),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Text(
+                                    "Total Value",
+                                    style = TextStyle(
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                )
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(1.dp)
+                                        .height(18.dp)
+                                        .background(Color(0xFF2E6343))
+                                )
+                                Text(
+                                    BusinessCalculations.formatCurrency(summary.totalValue, cur),
+                                    style = TextStyle(
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = JetBrainsMonoFamily,
+                                        color = Color.White
+                                    )
+                                )
                             }
                         }
                     }
@@ -755,35 +1187,187 @@ private fun ConsolidatedOrdersSection(uiState: AppUiState) {
             }
         }
 
-        // Table Rows: Product | Bag Size | Total Bags | Total Weight
-        items(summary.lines, key = { "${it.productId}-${it.bagSizeLabel}" }) { line ->
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+        // CARD 3: Product-wise Consolidated Orders Table
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("${line.productCode} — ${line.productName}", style = MaterialTheme.typography.titleSmall)
-                        Text("Bag Size: ${line.bagSizeLabel} • Across ${line.orderCount} orders", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    // Title Header
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Inventory2,
+                            contentDescription = null,
+                            tint = Color(0xFF16A34A),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            "Product-wise Consolidated Orders",
+                            style = TextStyle(
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A)
+                            )
+                        )
                     }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            "${line.totalBags} Bags",
-                            style = MaterialTheme.typography.titleMedium.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            "${line.totalKg.roundToInt()} KG (${BusinessCalculations.formatDecimal(line.totalMt)} MT)",
-                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily)
-                        )
-                        Text(
-                            BusinessCalculations.formatCurrency(line.totalValue, cur),
-                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = JetBrainsMonoFamily),
-                            color = StatusSuccess
-                        )
+
+                    // Table with dark green header row and styled data rows
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        color = Color.White
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            // Dark Green Table Header Row
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xFF0F3E22))
+                                    .padding(horizontal = 8.dp, vertical = 9.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "Product",
+                                    modifier = Modifier.weight(1.1f),
+                                    style = TextStyle(fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Color.White, textAlign = TextAlign.Start)
+                                )
+                                Text(
+                                    "Bag Size",
+                                    modifier = Modifier.weight(1.0f),
+                                    style = TextStyle(fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Color.White, textAlign = TextAlign.Center)
+                                )
+                                Text(
+                                    "Total Bags",
+                                    modifier = Modifier.weight(1.0f),
+                                    style = TextStyle(fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Color.White, textAlign = TextAlign.Center)
+                                )
+                                Text(
+                                    "Total KG",
+                                    modifier = Modifier.weight(1.0f),
+                                    style = TextStyle(fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Color.White, textAlign = TextAlign.Center)
+                                )
+                                Text(
+                                    "Total MT",
+                                    modifier = Modifier.weight(1.0f),
+                                    style = TextStyle(fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Color.White, textAlign = TextAlign.Center)
+                                )
+                                Text(
+                                    "Total Value",
+                                    modifier = Modifier.weight(1.3f),
+                                    style = TextStyle(fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Color.White, textAlign = TextAlign.End)
+                                )
+                            }
+
+                            // Table Data Rows
+                            displayRows.forEachIndexed { index, line ->
+                                val (badgeBg, badgeText) = getConsolidatedBadgeColors(line.productCode)
+                                val rowBg = if (index % 2 == 0) Color.White else Color(0xFFF8FAFC)
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(rowBg)
+                                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Product Code Badge
+                                    Box(
+                                        modifier = Modifier.weight(1.1f),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = badgeBg
+                                        ) {
+                                            Text(
+                                                text = line.productCode,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                style = TextStyle(
+                                                    fontSize = 10.5.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontFamily = JetBrainsMonoFamily,
+                                                    color = badgeText
+                                                )
+                                            )
+                                        }
+                                    }
+
+                                    // Bag Size
+                                    Text(
+                                        text = line.bagSizeLabel,
+                                        modifier = Modifier.weight(1.0f),
+                                        style = TextStyle(fontSize = 10.5.sp, color = Color(0xFF334155), textAlign = TextAlign.Center)
+                                    )
+
+                                    // Total Bags
+                                    Text(
+                                        text = "${line.totalBags}",
+                                        modifier = Modifier.weight(1.0f),
+                                        style = TextStyle(
+                                            fontSize = 11.sp,
+                                            fontFamily = JetBrainsMonoFamily,
+                                            fontWeight = if (line.totalBags > 0) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (line.totalBags > 0) Color(0xFF0F3E22) else Color(0xFF334155),
+                                            textAlign = TextAlign.Center
+                                        )
+                                    )
+
+                                    // Total KG
+                                    Text(
+                                        text = "${line.totalKg.roundToInt()}",
+                                        modifier = Modifier.weight(1.0f),
+                                        style = TextStyle(
+                                            fontSize = 10.5.sp,
+                                            fontFamily = JetBrainsMonoFamily,
+                                            color = Color(0xFF334155),
+                                            textAlign = TextAlign.Center
+                                        )
+                                    )
+
+                                    // Total MT
+                                    Text(
+                                        text = BusinessCalculations.formatDecimal(line.totalMt),
+                                        modifier = Modifier.weight(1.0f),
+                                        style = TextStyle(
+                                            fontSize = 10.5.sp,
+                                            fontFamily = JetBrainsMonoFamily,
+                                            color = Color(0xFF334155),
+                                            textAlign = TextAlign.Center
+                                        )
+                                    )
+
+                                    // Total Value
+                                    Text(
+                                        text = "$cur ${line.totalValue.roundToInt()}",
+                                        modifier = Modifier.weight(1.3f),
+                                        style = TextStyle(
+                                            fontSize = 11.sp,
+                                            fontFamily = JetBrainsMonoFamily,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (line.totalValue > 0) StatusSuccess else Color(0xFF0F172A),
+                                            textAlign = TextAlign.End
+                                        ),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                if (index < displayRows.size - 1) {
+                                    HorizontalDivider(color = Color(0xFFF1F5F9))
+                                }
+                            }
+                        }
                     }
                 }
             }
