@@ -96,7 +96,6 @@ fun SalesAndStockScreen(
                 modules = listOf(
                     SubModule.ORDERS,
                     SubModule.CONSOLIDATED,
-                    SubModule.STOCK,
                     SubModule.PAYMENTS,
                     SubModule.INVOICES,
                     SubModule.PRODUCTS
@@ -107,15 +106,6 @@ fun SalesAndStockScreen(
 
             when (uiState.activeSubModule) {
                 SubModule.CONSOLIDATED -> ConsolidatedOrdersSection(uiState)
-                SubModule.STOCK -> StockInventorySection(
-                    uiState = uiState,
-                    viewModel = viewModel,
-                    onOpenStockIn = { showStockInDialog = true },
-                    onEditProduct = {
-                        editingProduct = it
-                        showProductDialog = true
-                    }
-                )
                 SubModule.PAYMENTS -> PaymentsAndLedgerSection(
                     uiState = uiState,
                     viewModel = viewModel,

@@ -483,7 +483,6 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
             PrimaryTab.SALES -> if (_activeSubModule.value in listOf(
                     SubModule.ORDERS,
                     SubModule.CONSOLIDATED,
-                    SubModule.STOCK,
                     SubModule.PAYMENTS,
                     SubModule.INVOICES,
                     SubModule.PRODUCTS
