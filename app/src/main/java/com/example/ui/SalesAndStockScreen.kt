@@ -3200,13 +3200,23 @@ private fun InvoicePreviewDetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Product / Description",
+                            text = "Tag No",
                             style = MaterialTheme.typography.labelMedium.copy(
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 11.5.sp
                             ),
-                            modifier = Modifier.weight(2f)
+                            modifier = Modifier.weight(1.2f)
+                        )
+                        Text(
+                            text = "Bag (Qty)",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.5.sp,
+                                textAlign = TextAlign.Center
+                            ),
+                            modifier = Modifier.weight(1.2f)
                         )
                         Text(
                             text = "Rate",
@@ -3230,7 +3240,7 @@ private fun InvoicePreviewDetailScreen(
                         )
                     }
 
-                    // Product Item Rows
+                    // Product Item Rows (Tag No ONLY)
                     orderWithItems.items.forEachIndexed { idx, item ->
                         if (idx > 0) {
                             HorizontalDivider(color = Color(0xFFF1F5F9))
@@ -3241,49 +3251,40 @@ private fun InvoicePreviewDetailScreen(
                                 .padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Column 1: Badge + Name & Bag Spec
-                            Row(
-                                modifier = Modifier.weight(2f),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            // Column 1: Tag No ONLY
+                            Box(
+                                modifier = Modifier
+                                    .weight(1.2f)
+                                    .padding(vertical = 2.dp)
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(Color(0xFFDCFCE7)),
-                                    contentAlignment = Alignment.Center
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFFDCFCE7),
+                                    border = BorderStroke(1.dp, Color(0xFF86EFAC))
                                 ) {
                                     Text(
                                         text = item.productCode,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 12.5.sp,
-                                        color = Color(0xFF15803D)
-                                    )
-                                }
-                                Column {
-                                    Text(
-                                        text = "${item.productCode} ${item.productName}",
-                                        style = MaterialTheme.typography.titleSmall.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.5.sp,
-                                            color = Color(0xFF0F172A)
-                                        ),
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        text = "${item.quantityBags} Bags × ${item.bagSizeLabel}\n(${item.totalKg.roundToInt()} KG = ${BusinessCalculations.formatDecimal(item.totalMt)} MT)",
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            fontSize = 10.sp,
-                                            color = Color(0xFF64748B),
-                                            lineHeight = 13.sp
-                                        )
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF15803D),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                     )
                                 }
                             }
 
-                            // Column 2: Rate with Vertical Divider
+                            // Column 2: Bag (Qty)
+                            Text(
+                                text = "${item.quantityBags} × ${item.bagSizeLabel}",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF334155),
+                                    textAlign = TextAlign.Center
+                                ),
+                                modifier = Modifier.weight(1.2f)
+                            )
+
+                            // Column 3: Rate with Vertical Divider
                             Row(
                                 modifier = Modifier.weight(1f),
                                 verticalAlignment = Alignment.CenterVertically
@@ -3425,6 +3426,26 @@ private fun InvoicePreviewDetailScreen(
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontFamily = JetBrainsMonoFamily,
                                 color = Color(0xFF64748B)
+                            )
+                        )
+                    }
+
+                    // Delivery Cost
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.LocalShipping, contentDescription = null, tint = Color(0xFF0284C7), modifier = Modifier.size(16.dp))
+                            Text("Delivery Cost:", fontSize = 12.sp, color = Color(0xFF334155))
+                        }
+                        Text(
+                            text = BusinessCalculations.formatCurrency(o.deliveryCost, cur),
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = JetBrainsMonoFamily,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF0F172A)
                             )
                         )
                     }
@@ -4721,6 +4742,9 @@ private fun MultiProductOrderDialog(
     var location by remember { mutableStateOf(existing?.location ?: (dealers.firstOrNull()?.city ?: "Sahiwal")) }
     var status by remember { mutableStateOf(existing?.status ?: "Confirmed") }
     var expectedDeliveryDate by remember { mutableStateOf(existing?.expectedDeliveryDate ?: SampleDataSeeder.todayDate()) }
+    var deliveryCostStr by remember(existing) {
+        mutableStateOf(if (existing != null && existing.deliveryCost > 0) BusinessCalculations.formatDecimal(existing.deliveryCost, 0) else "")
+    }
     var paidAmountStr by remember { mutableStateOf(existing?.paidAmount?.roundToInt()?.toString() ?: "0") }
     var paymentMethod by remember { mutableStateOf(paymentMethods.firstOrNull() ?: "Cash") }
     var remarks by remember { mutableStateOf(existing?.remarks ?: "") }
@@ -4762,7 +4786,8 @@ private fun MultiProductOrderDialog(
     val totalMt = totalKg / 1000.0
     val grossAmount = lineItems.sumOf { it.grossAmount }
     val discountAmount = lineItems.sumOf { it.discountTotal }
-    val netAmount = lineItems.sumOf { it.netAmount }
+    val deliveryCost = deliveryCostStr.toDoubleOrNull() ?: 0.0
+    val netAmount = lineItems.sumOf { it.netAmount } + deliveryCost
     val paidAmount = paidAmountStr.toDoubleOrNull() ?: 0.0
     val outstandingAmount = (netAmount - paidAmount).coerceAtLeast(0.0)
 
@@ -4858,6 +4883,7 @@ private fun MultiProductOrderDialog(
                                             totalMt = totalMt,
                                             grossAmount = grossAmount,
                                             discountAmount = discountAmount,
+                                            deliveryCost = deliveryCost,
                                             netAmount = netAmount,
                                             paidAmount = paidAmount.coerceAtLeast(0.0),
                                             outstandingAmount = outstandingAmount,
@@ -5226,6 +5252,41 @@ private fun MultiProductOrderDialog(
                             ) {
                                 Text("Total Volume", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF64748B))
                                 Text("$totalBags Bags (${BusinessCalculations.formatDecimal(totalMt)} MT)", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xFF0F172A))
+                            }
+
+                            // Delivery Cost (Freight / Transport) Field
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        "Delivery Cost",
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = Color(0xFF1E293B)
+                                    )
+                                    Text(
+                                        "Added to Total Bill",
+                                        style = TextStyle(fontSize = 11.sp, color = Color(0xFF0284C7), fontWeight = FontWeight.SemiBold)
+                                    )
+                                }
+                                OutlinedTextField(
+                                    value = deliveryCostStr,
+                                    onValueChange = { deliveryCostStr = it },
+                                    placeholder = { Text("0") },
+                                    prefix = { Text("$currencySymbol ", fontWeight = FontWeight.Bold, color = Color(0xFF0284C7)) },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = Color(0xFFF0F9FF),
+                                        unfocusedContainerColor = Color.White,
+                                        focusedBorderColor = Color(0xFF0284C7),
+                                        unfocusedBorderColor = Color(0xFFE2E8F0)
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             }
 
                             Row(

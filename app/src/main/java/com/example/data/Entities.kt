@@ -177,6 +177,7 @@ data class SaleOrderEntity(
     val totalMt: Double,
     val grossAmount: Double,
     val discountAmount: Double,
+    val deliveryCost: Double = 0.0,
     val netAmount: Double,
     val paidAmount: Double,
     val outstandingAmount: Double,
