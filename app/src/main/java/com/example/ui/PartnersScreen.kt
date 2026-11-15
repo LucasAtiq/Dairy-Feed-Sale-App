@@ -462,6 +462,7 @@ private fun DealerProfileDetailView(
     var activeTab by remember { mutableStateOf("Overview") }
     var showArchiveConfirm by remember { mutableStateOf(false) }
     var showQuickPaymentDialog by remember { mutableStateOf(false) }
+    var showFullReportExportDialog by remember { mutableStateOf(false) }
 
     val dealerOrders = remember(uiState.ordersWithItems, d.id) {
         uiState.ordersWithItems.filter { it.order.dealerId == d.id }.sortedByDescending { it.order.date }
@@ -496,6 +497,13 @@ private fun DealerProfileDetailView(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showFullReportExportDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = "Download Report",
+                            tint = Color.White
+                        )
+                    }
                     IconButton(onClick = onEdit) {
                         Icon(
                             imageVector = Icons.Default.Edit,
@@ -653,7 +661,7 @@ private fun DealerProfileDetailView(
                 }
             }
 
-            // 2. Capsule Tab Bar (Overview, Orders, Payments, Visits)
+            // 2. Capsule Tab Bar (Overview, Statement & Report, Orders, Payments, Visits)
             item {
                 Row(
                     modifier = Modifier
@@ -661,7 +669,7 @@ private fun DealerProfileDetailView(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    val tabs = listOf("Overview", "Orders", "Payments", "Visits")
+                    val tabs = listOf("Overview", "Statement & Report", "Orders", "Payments", "Visits")
                     tabs.forEach { tab ->
                         val isSelected = activeTab == tab
                         Surface(
@@ -822,11 +830,11 @@ private fun DealerProfileDetailView(
                         }
                     }
 
-                    // Action Buttons (Record Payment, Archive)
+                    // Action Buttons (Record Payment, Download Report, Archive)
                     item {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Button(
                                 onClick = { showQuickPaymentDialog = true },
@@ -837,8 +845,19 @@ private fun DealerProfileDetailView(
                                     .height(44.dp)
                             ) {
                                 Icon(Icons.Default.AddCard, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Record Payment", fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Record Payment", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+                            OutlinedButton(
+                                onClick = { showFullReportExportDialog = true },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0F5233)),
+                                border = BorderStroke(1.dp, Color(0xFF0F5233)),
+                                modifier = Modifier.height(44.dp)
+                            ) {
+                                Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Report", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
                             OutlinedButton(
                                 onClick = { showArchiveConfirm = true },
@@ -849,9 +868,26 @@ private fun DealerProfileDetailView(
                             ) {
                                 Icon(Icons.Default.Archive, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Archive", fontWeight = FontWeight.Bold)
+                                Text("Archive", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
                         }
+                    }
+                }
+
+                "Statement & Report" -> {
+                    item {
+                        PartnerStatementReportContent(
+                            partnerName = d.businessName,
+                            partnerCode = d.code,
+                            partnerType = "Dealer",
+                            partnerPhone = d.mobile,
+                            partnerArea = d.area,
+                            openingBalance = d.openingBalance,
+                            orders = dealerOrders,
+                            payments = dealerPayments,
+                            config = uiState.config,
+                            onOpenInvoice = { viewModel.openInvoicePreview(it) }
+                        )
                     }
                 }
 
@@ -1130,6 +1166,21 @@ private fun DealerProfileDetailView(
             }
         )
     }
+
+    if (showFullReportExportDialog) {
+        PartnerReportExportDialog(
+            partnerName = d.businessName,
+            partnerCode = d.code,
+            partnerType = "Dealer",
+            partnerPhone = d.mobile,
+            partnerArea = d.area,
+            openingBalance = d.openingBalance,
+            orders = dealerOrders,
+            payments = dealerPayments,
+            config = uiState.config,
+            onDismiss = { showFullReportExportDialog = false }
+        )
+    }
 }
 
 @Composable
@@ -1383,8 +1434,9 @@ private fun FarmerProfileDetailView(
         uiState.trialsWithMilk.filter { it.trial.farmerId == farmer.id }
     }
     val farmerOrders = remember(uiState.ordersWithItems, farmer.id) {
-        uiState.ordersWithItems.filter { it.order.farmerId == farmer.id }
+        uiState.ordersWithItems.filter { it.order.farmerId == farmer.id || it.order.farmerName.equals(farmer.name, true) }
     }
+    var showFarmerReportDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -1402,10 +1454,21 @@ private fun FarmerProfileDetailView(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("Back to Farmers")
                 }
-                OutlinedButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Edit Farmer")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { showFarmerReportDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Download Report", fontWeight = FontWeight.Bold)
+                    }
+                    OutlinedButton(onClick = onEdit) {
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Edit Farmer")
+                    }
                 }
             }
         }
@@ -1435,6 +1498,29 @@ private fun FarmerProfileDetailView(
             }
         }
 
+        // --- FULL DOWNLOADABLE STATEMENT & REPORT ---
+        item {
+            Text(
+                "Full Statement & Downloadable Report",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = Color(0xFF0F172A)
+            )
+        }
+        item {
+            PartnerStatementReportContent(
+                partnerName = "${farmer.name} (${farmer.farmName})",
+                partnerCode = farmer.code,
+                partnerType = "Farmer",
+                partnerPhone = farmer.mobile,
+                partnerArea = farmer.area,
+                openingBalance = 0.0,
+                orders = farmerOrders,
+                payments = emptyList(),
+                config = uiState.config,
+                onOpenInvoice = { viewModel.openInvoicePreview(it) }
+            )
+        }
+
         item {
             Text("Feed Trials & Milk Production Records (${farmerTrials.size})", style = MaterialTheme.typography.titleMedium)
         }
@@ -1462,18 +1548,21 @@ private fun FarmerProfileDetailView(
                 }
             }
         }
+    }
 
-        item {
-            Text("Direct Orders (${farmerOrders.size})", style = MaterialTheme.typography.titleMedium)
-        }
-        items(farmerOrders, key = { "fo-${it.order.id}" }) { owi ->
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text("${owi.order.orderNumber} (${owi.order.date}) • ${owi.order.totalBags} Bags", style = MaterialTheme.typography.titleSmall)
-                    Text("Status: ${owi.order.status}", style = MaterialTheme.typography.bodySmall)
-                }
-            }
-        }
+    if (showFarmerReportDialog) {
+        PartnerReportExportDialog(
+            partnerName = "${farmer.name} (${farmer.farmName})",
+            partnerCode = farmer.code,
+            partnerType = "Farmer",
+            partnerPhone = farmer.mobile,
+            partnerArea = farmer.area,
+            openingBalance = 0.0,
+            orders = farmerOrders,
+            payments = emptyList(),
+            config = uiState.config,
+            onDismiss = { showFarmerReportDialog = false }
+        )
     }
 }
 
@@ -2013,6 +2102,575 @@ private fun FarmerFormDialog(
         },
         dismissButton = {
             OutlinedButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
+private fun PartnerStatementReportContent(
+    partnerName: String,
+    partnerCode: String,
+    partnerType: String,
+    partnerPhone: String,
+    partnerArea: String,
+    openingBalance: Double,
+    orders: List<OrderWithItems>,
+    payments: List<PaymentEntity>,
+    config: BusinessConfigEntity,
+    onOpenInvoice: (Long) -> Unit
+) {
+    val context = LocalContext.current
+    var selectedPeriod by remember { mutableStateOf("Overall") }
+
+    val statementRows = remember(selectedPeriod, orders, payments, openingBalance) {
+        BusinessCalculations.buildPartnerStatementRows(
+            orders = orders,
+            payments = payments,
+            openingBalance = openingBalance,
+            period = selectedPeriod
+        )
+    }
+
+    val totalPurchased = remember(statementRows) {
+        statementRows.filter { it.type == "PURCHASE" }.sumOf { it.billAmount }
+    }
+    val totalReceived = remember(statementRows) {
+        statementRows.sumOf { it.amountReceived }
+    }
+    val totalBags = remember(statementRows) {
+        statementRows.filter { it.type == "PURCHASE" }.sumOf { it.bags }
+    }
+    val totalMt = remember(statementRows) {
+        statementRows.filter { it.type == "PURCHASE" }.sumOf { it.totalMt }
+    }
+    val netBalance = statementRows.lastOrNull()?.runningBalance ?: openingBalance
+    val cur = config.currencySymbol
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // 1. Period Selector Chips (Overall, Monthly, Weekly)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            listOf(
+                Pair("Overall", "Overall (All-Time)"),
+                Pair("Monthly", "Monthly (This Month)"),
+                Pair("Weekly", "Weekly (Last 7 Days)")
+            ).forEach { (key, label) ->
+                val isSelected = selectedPeriod == key
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { selectedPeriod = key },
+                    label = { Text(label, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFF0F5233),
+                        selectedLabelColor = Color.White
+                    )
+                )
+            }
+        }
+
+        // 2. Action Buttons (Download PDF, Export CSV, WhatsApp, Print)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = {
+                    val pdfFile = DocumentAndExportManager.generatePartnerStatementPdfFile(
+                        context = context,
+                        config = config,
+                        partnerName = partnerName,
+                        partnerCode = partnerCode,
+                        partnerType = partnerType,
+                        partnerPhone = partnerPhone,
+                        partnerArea = partnerArea,
+                        periodLabel = when (selectedPeriod) {
+                            "Monthly" -> "Monthly Statement"
+                            "Weekly" -> "Weekly Statement"
+                            else -> "Overall Complete Statement"
+                        },
+                        totalPurchasedAmount = totalPurchased,
+                        totalPaidAmount = totalReceived,
+                        netBalance = netBalance,
+                        totalBags = totalBags,
+                        totalMt = totalMt,
+                        rows = statementRows
+                    )
+                    DocumentAndExportManager.shareFile(context, pdfFile, "application/pdf", "Share $partnerType Statement PDF")
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233)),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Download PDF", fontWeight = FontWeight.Bold)
+            }
+
+            OutlinedButton(
+                onClick = {
+                    val csvFile = DocumentAndExportManager.exportPartnerStatementCsv(
+                        context = context,
+                        partnerType = partnerType,
+                        partnerCode = partnerCode,
+                        partnerName = partnerName,
+                        periodLabel = selectedPeriod,
+                        rows = statementRows
+                    )
+                    DocumentAndExportManager.shareFile(context, csvFile, "text/csv", "Share $partnerType Statement CSV")
+                },
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(Icons.Default.TableView, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Export CSV")
+            }
+
+            OutlinedButton(
+                onClick = {
+                    val msg = buildString {
+                        appendLine("Assalam-o-Alaikum $partnerName ($partnerCode),")
+                        appendLine("WandaBook Pro Statement Summary (${if (selectedPeriod == "Monthly") "Monthly" else if (selectedPeriod == "Weekly") "Weekly" else "Overall"}):")
+                        appendLine("• Total Feed Purchased: $totalBags Bags (${BusinessCalculations.formatDecimal(totalMt)} MT) = $cur ${BusinessCalculations.formatCurrency(totalPurchased, "")}")
+                        appendLine("• Total Amount Received: $cur ${BusinessCalculations.formatCurrency(totalReceived, "")}")
+                        appendLine("• Outstanding Net Balance: $cur ${BusinessCalculations.formatCurrency(netBalance, "")}")
+                    }
+                    DocumentAndExportManager.openWhatsAppChat(context, partnerPhone, msg)
+                },
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(Icons.Default.Chat, contentDescription = null, tint = Color(0xFF25D366), modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("WhatsApp")
+            }
+
+            OutlinedButton(
+                onClick = {
+                    val pdfFile = DocumentAndExportManager.generatePartnerStatementPdfFile(
+                        context = context,
+                        config = config,
+                        partnerName = partnerName,
+                        partnerCode = partnerCode,
+                        partnerType = partnerType,
+                        partnerPhone = partnerPhone,
+                        partnerArea = partnerArea,
+                        periodLabel = "$selectedPeriod Statement",
+                        totalPurchasedAmount = totalPurchased,
+                        totalPaidAmount = totalReceived,
+                        netBalance = netBalance,
+                        totalBags = totalBags,
+                        totalMt = totalMt,
+                        rows = statementRows
+                    )
+                    DocumentAndExportManager.printPdfFile(context, pdfFile, "$partnerType Statement $partnerCode")
+                },
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(Icons.Default.Print, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Print")
+            }
+        }
+
+        // 3. Summary Metric Cards (2x2 Grid)
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0xFFBBF7D0))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text("Total Purchased", style = MaterialTheme.typography.labelSmall, color = Color(0xFF15803D))
+                        Text(
+                            BusinessCalculations.formatCurrency(totalPurchased, cur),
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontFamily = JetBrainsMonoFamily),
+                            color = Color(0xFF0F172A)
+                        )
+                        Text("$totalBags Bags (${BusinessCalculations.formatDecimal(totalMt)} MT)", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+                    }
+                }
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0xFFBFDBFE))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text("Amount Received", style = MaterialTheme.typography.labelSmall, color = Color(0xFF1D4ED8))
+                        Text(
+                            BusinessCalculations.formatCurrency(totalReceived, cur),
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontFamily = JetBrainsMonoFamily),
+                            color = Color(0xFF0F172A)
+                        )
+                        Text("Collections & Receipts", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+                    }
+                }
+            }
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = if (netBalance > 0) Color(0xFFFEF2F2) else Color(0xFFF0FDF4)),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, if (netBalance > 0) Color(0xFFFECACA) else Color(0xFFBBF7D0))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text("Net Balance", style = MaterialTheme.typography.labelSmall, color = if (netBalance > 0) Color(0xFFDC2626) else Color(0xFF15803D))
+                        Text(
+                            BusinessCalculations.formatCurrency(netBalance, cur),
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontFamily = JetBrainsMonoFamily),
+                            color = if (netBalance > 0) Color(0xFFDC2626) else Color(0xFF15803D)
+                        )
+                        Text(if (netBalance > 0) "Payable to Mill" else "Account Settled", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+                    }
+                }
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text("Transactions", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
+                        Text(
+                            "${statementRows.size} Entries",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = Color(0xFF0F172A)
+                        )
+                        Text("Full ledger audit trail", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+                    }
+                }
+            }
+        }
+
+        // 4. Itemized Records List
+        Text(
+            text = "Detailed Transaction Records (${statementRows.size})",
+            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+            color = Color(0xFF0F172A)
+        )
+
+        if (statementRows.isEmpty()) {
+            EmptyStateCard(
+                title = "No Transactions Found",
+                message = "There are no purchases or payments in this $selectedPeriod period."
+            )
+        } else {
+            statementRows.forEach { row ->
+                PartnerReportItemCard(
+                    row = row,
+                    cur = cur,
+                    onOpenInvoice = onOpenInvoice
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PartnerReportItemCard(
+    row: PartnerStatementRow,
+    cur: String,
+    onOpenInvoice: (Long) -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            // Header: WHEN (Date) • Ref Code • Type
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "📅 ${row.date}",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Color(0xFF0F172A)
+                    )
+                    Text(
+                        text = "• ${row.refCode}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF64748B)
+                    )
+                }
+                CleanStatusBadge(status = if (row.type == "PURCHASE") "Order: " + row.dispatchStatus else row.type)
+            }
+
+            // Middle: WHAT PURCHASED (or Payment info)
+            if (row.type == "PURCHASE") {
+                Text(
+                    text = "📦 What Purchased: ${row.productsSummary}",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = Color(0xFF0F5233)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "🚚 Feed Send: ${row.feedSendDate} (${row.dispatchStatus})",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF475569)
+                    )
+                    Text(
+                        text = "${row.bags} Bags (${BusinessCalculations.formatDecimal(row.totalMt)} MT)",
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                        color = Color(0xFF334155)
+                    )
+                }
+            } else {
+                Text(
+                    text = "💳 ${row.productsSummary}",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = Color(0xFF1D4ED8)
+                )
+                Text(
+                    text = "When Received: ${row.paymentReceivedDate} • Mode: ${row.paymentMethod}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF475569)
+                )
+            }
+
+            HorizontalDivider(color = Color(0xFFF1F5F9))
+
+            // Bottom: Financial figures
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (row.billAmount > 0) {
+                    Column {
+                        Text("Bill Amount", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
+                        Text(
+                            BusinessCalculations.formatCurrency(row.billAmount, cur),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, fontFamily = JetBrainsMonoFamily),
+                            color = Color(0xFFDC2626)
+                        )
+                    }
+                }
+                if (row.amountReceived > 0) {
+                    Column {
+                        Text("Amount Received", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
+                        Text(
+                            BusinessCalculations.formatCurrency(row.amountReceived, cur),
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, fontFamily = JetBrainsMonoFamily),
+                            color = Color(0xFF15803D)
+                        )
+                    }
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("Balance", style = MaterialTheme.typography.labelSmall, color = Color(0xFF64748B))
+                    Text(
+                        BusinessCalculations.formatCurrency(row.runningBalance, cur),
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, fontFamily = JetBrainsMonoFamily),
+                        color = Color(0xFF0F172A)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PartnerReportExportDialog(
+    partnerName: String,
+    partnerCode: String,
+    partnerType: String,
+    partnerPhone: String,
+    partnerArea: String,
+    openingBalance: Double,
+    orders: List<OrderWithItems>,
+    payments: List<PaymentEntity>,
+    config: BusinessConfigEntity,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    var selectedPeriod by remember { mutableStateOf("Overall") }
+
+    val rows = remember(selectedPeriod, orders, payments, openingBalance) {
+        BusinessCalculations.buildPartnerStatementRows(
+            orders = orders,
+            payments = payments,
+            openingBalance = openingBalance,
+            period = selectedPeriod
+        )
+    }
+
+    val totalPurchased = remember(rows) { rows.filter { it.type == "PURCHASE" }.sumOf { it.billAmount } }
+    val totalReceived = remember(rows) { rows.sumOf { it.amountReceived } }
+    val totalBags = remember(rows) { rows.filter { it.type == "PURCHASE" }.sumOf { it.bags } }
+    val totalMt = remember(rows) { rows.filter { it.type == "PURCHASE" }.sumOf { it.totalMt } }
+    val netBalance = rows.lastOrNull()?.runningBalance ?: openingBalance
+    val cur = config.currencySymbol
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Default.Download, contentDescription = null, tint = Color(0xFF0F5233))
+                Text("Download $partnerType Report", fontWeight = FontWeight.Bold)
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Select period to generate and download comprehensive statement with purchase, dispatch, payment & balance records for $partnerName ($partnerCode):",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF64748B)
+                )
+
+                // Period pills
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(
+                        Pair("Overall", "Overall"),
+                        Pair("Monthly", "Monthly"),
+                        Pair("Weekly", "Weekly")
+                    ).forEach { (key, label) ->
+                        FilterChip(
+                            selected = selectedPeriod == key,
+                            onClick = { selectedPeriod = key },
+                            label = { Text(label, fontSize = 11.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF0F5233),
+                                selectedLabelColor = Color.White
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                // Summary card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAF9)),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Total Feed:", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+                            Text("$totalBags Bags (${BusinessCalculations.formatDecimal(totalMt)} MT)", fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Purchased Value:", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+                            Text(BusinessCalculations.formatCurrency(totalPurchased, cur), fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Amount Received:", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+                            Text(BusinessCalculations.formatCurrency(totalReceived, cur), fontWeight = FontWeight.Bold, color = Color(0xFF15803D))
+                        }
+                        HorizontalDivider(color = Color(0xFFE2E8F0))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Net Balance:", fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                            Text(BusinessCalculations.formatCurrency(netBalance, cur), fontWeight = FontWeight.Bold, color = if (netBalance > 0) Color(0xFFDC2626) else Color(0xFF15803D))
+                        }
+                    }
+                }
+
+                // Export Options
+                Button(
+                    onClick = {
+                        val pdfFile = DocumentAndExportManager.generatePartnerStatementPdfFile(
+                            context = context,
+                            config = config,
+                            partnerName = partnerName,
+                            partnerCode = partnerCode,
+                            partnerType = partnerType,
+                            partnerPhone = partnerPhone,
+                            partnerArea = partnerArea,
+                            periodLabel = "$selectedPeriod Statement",
+                            totalPurchasedAmount = totalPurchased,
+                            totalPaidAmount = totalReceived,
+                            netBalance = netBalance,
+                            totalBags = totalBags,
+                            totalMt = totalMt,
+                            rows = rows
+                        )
+                        onDismiss()
+                        DocumentAndExportManager.shareFile(context, pdfFile, "application/pdf", "Share $partnerType Statement PDF")
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233)),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Download PDF Statement")
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        val csvFile = DocumentAndExportManager.exportPartnerStatementCsv(
+                            context = context,
+                            partnerType = partnerType,
+                            partnerCode = partnerCode,
+                            partnerName = partnerName,
+                            periodLabel = selectedPeriod,
+                            rows = rows
+                        )
+                        onDismiss()
+                        DocumentAndExportManager.shareFile(context, csvFile, "text/csv", "Share $partnerType Statement CSV")
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.TableView, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Export CSV Spreadsheet")
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        val msg = buildString {
+                            appendLine("Assalam-o-Alaikum $partnerName ($partnerCode),")
+                            appendLine("WandaBook Pro Statement Summary (${if (selectedPeriod == "Monthly") "Monthly" else if (selectedPeriod == "Weekly") "Weekly" else "Overall"}):")
+                            appendLine("• Total Feed Purchased: $totalBags Bags (${BusinessCalculations.formatDecimal(totalMt)} MT) = $cur ${BusinessCalculations.formatCurrency(totalPurchased, "")}")
+                            appendLine("• Total Amount Received: $cur ${BusinessCalculations.formatCurrency(totalReceived, "")}")
+                            appendLine("• Outstanding Net Balance: $cur ${BusinessCalculations.formatCurrency(netBalance, "")}")
+                        }
+                        onDismiss()
+                        DocumentAndExportManager.openWhatsAppChat(context, partnerPhone, msg)
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Chat, contentDescription = null, tint = Color(0xFF25D366), modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Share on WhatsApp")
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) { Text("Close") }
         }
     )
 }

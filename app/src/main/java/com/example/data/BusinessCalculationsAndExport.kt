@@ -46,6 +46,23 @@ data class LedgerEntryRow(
     val sourceId: Long = 0
 )
 
+data class PartnerStatementRow(
+    val id: String,
+    val date: String,                    // WHEN (Purchase date or payment date)
+    val refCode: String,                 // Order # / Invoice # / Payment #
+    val type: String,                    // "PURCHASE", "PAYMENT", "OPENING"
+    val productsSummary: String,         // WHAT PURCHASED
+    val bags: Int,                       // Total bags
+    val totalMt: Double,                 // Total MT
+    val feedSendDate: String,            // WHEN FEED SEND (Expected delivery / dispatch date)
+    val dispatchStatus: String,          // Delivery & Dispatch status
+    val billAmount: Double,              // Debit billed amount
+    val amountReceived: Double,          // HOW MUCH AMOUNT RECEIVED
+    val paymentReceivedDate: String,     // WHEN RECEIVED
+    val paymentMethod: String,           // Cash, Bank Transfer, Online, etc.
+    val runningBalance: Double           // Running Balance
+)
+
 data class DealerFinancialSummary(
     val dealer: DealerEntity,
     val totalOrders: Int,
@@ -307,6 +324,141 @@ object BusinessCalculations {
             productsPurchasedSummary = productsSummary,
             ledgerEntries = ledgerRows
         )
+    }
+
+    /**
+     * Builds comprehensive chronological Partner (Dealer or Farmer) Statement & Report rows.
+     * Contains answers to:
+     * - WHEN: date
+     * - WHAT PURCHASED: productsSummary, bags, totalMt
+     * - WHEN FEED SEND: feedSendDate, dispatchStatus
+     * - HOW MUCH AMOUNT RECEIVED & WHEN: amountReceived, paymentReceivedDate, paymentMethod
+     * - RUNNING BALANCE: runningBalance
+     */
+    fun buildPartnerStatementRows(
+        orders: List<OrderWithItems>,
+        payments: List<PaymentEntity>,
+        openingBalance: Double,
+        openingDate: String = "",
+        period: String = "Overall" // "Overall", "Monthly", "Weekly"
+    ): List<PartnerStatementRow> {
+        val sevenDaysAgo = SampleDataSeeder.daysOffset(-7)
+        val monthPrefix = SampleDataSeeder.currentMonthPrefix()
+
+        val activeOrders = orders.filter { owi ->
+            val o = owi.order
+            if (o.status == "Cancelled" || o.status == "Draft") return@filter false
+            when (period) {
+                "Weekly" -> o.date >= sevenDaysAgo
+                "Monthly" -> o.date.startsWith(monthPrefix)
+                else -> true
+            }
+        }
+
+        val activePayments = payments.filter { p ->
+            when (period) {
+                "Weekly" -> p.date >= sevenDaysAgo
+                "Monthly" -> p.date.startsWith(monthPrefix)
+                else -> true
+            }
+        }
+
+        data class RawEvent(
+            val date: String,
+            val timestamp: Long,
+            val row: PartnerStatementRow
+        )
+
+        val events = mutableListOf<RawEvent>()
+
+        activeOrders.forEach { owi ->
+            val o = owi.order
+            val productsList = if (owi.items.isEmpty()) {
+                "${o.totalBags} Bags Feed"
+            } else {
+                owi.items.joinToString(", ") { "${it.quantityBags}x ${it.productCode} (${it.bagSizeLabel})" }
+            }
+            events.add(
+                RawEvent(
+                    date = o.date,
+                    timestamp = o.createdAt,
+                    row = PartnerStatementRow(
+                        id = "ORD-${o.id}",
+                        date = o.date,
+                        refCode = o.orderNumber,
+                        type = "PURCHASE",
+                        productsSummary = productsList,
+                        bags = o.totalBags,
+                        totalMt = o.totalMt,
+                        feedSendDate = o.expectedDeliveryDate.ifBlank { o.date },
+                        dispatchStatus = o.status,
+                        billAmount = o.netAmount,
+                        amountReceived = o.paidAmount,
+                        paymentReceivedDate = if (o.paidAmount > 0) o.date else "-",
+                        paymentMethod = if (o.paidAmount > 0) "At Order" else "-",
+                        runningBalance = 0.0
+                    )
+                )
+            )
+        }
+
+        activePayments.forEach { p ->
+            events.add(
+                RawEvent(
+                    date = p.date,
+                    timestamp = p.createdAt,
+                    row = PartnerStatementRow(
+                        id = "PAY-${p.id}",
+                        date = p.date,
+                        refCode = p.paymentNumber,
+                        type = "PAYMENT",
+                        productsSummary = "Payment Collection: ${p.paymentMethod} ${if (p.referenceNumber.isNotBlank()) "Ref: " + p.referenceNumber else ""}".trim(),
+                        bags = 0,
+                        totalMt = 0.0,
+                        feedSendDate = "-",
+                        dispatchStatus = "Received",
+                        billAmount = 0.0,
+                        amountReceived = p.amount,
+                        paymentReceivedDate = p.date,
+                        paymentMethod = p.paymentMethod,
+                        runningBalance = 0.0
+                    )
+                )
+            )
+        }
+
+        events.sortWith(compareBy<RawEvent> { it.date }.thenBy { it.timestamp })
+
+        val result = mutableListOf<PartnerStatementRow>()
+        var running = openingBalance
+        if (period == "Overall" && openingBalance != 0.0) {
+            result.add(
+                PartnerStatementRow(
+                    id = "OPENING",
+                    date = openingDate.ifBlank { "Initial" },
+                    refCode = "OPEN-BAL",
+                    type = "OPENING",
+                    productsSummary = "Opening Balance Carried Forward",
+                    bags = 0,
+                    totalMt = 0.0,
+                    feedSendDate = "-",
+                    dispatchStatus = "Carried Forward",
+                    billAmount = if (openingBalance > 0) openingBalance else 0.0,
+                    amountReceived = if (openingBalance < 0) -openingBalance else 0.0,
+                    paymentReceivedDate = "-",
+                    paymentMethod = "-",
+                    runningBalance = running
+                )
+            )
+        }
+
+        events.forEach { ev ->
+            val netDelta = ev.row.billAmount - ev.row.amountReceived
+            running += netDelta
+            result.add(ev.row.copy(runningBalance = running))
+        }
+
+        return result
     }
 
     fun computeProductStockStatuses(
@@ -843,6 +995,206 @@ object DocumentAndExportManager {
         FileOutputStream(file).use { pdfDocument.writeTo(it) }
         pdfDocument.close()
         return file
+    }
+
+    /**
+     * Generates a downloadable, high-resolution printable PDF Statement of Account for a Dealer or Farmer.
+     * Includes:
+     * - Official Mill/Company Letterhead
+     * - Partner Info & Period (Overall / Monthly / Weekly)
+     * - Key summary metrics: Total Bags, Total MT, Total Purchased, Total Received, Net Balance
+     * - Itemized Transaction Table with When, What Purchased, When Feed Send, Amount Received, Balance
+     */
+    fun generatePartnerStatementPdfFile(
+        context: Context,
+        config: BusinessConfigEntity,
+        partnerName: String,
+        partnerCode: String,
+        partnerType: String, // "Dealer" or "Farmer"
+        partnerPhone: String,
+        partnerArea: String,
+        periodLabel: String,
+        totalPurchasedAmount: Double,
+        totalPaidAmount: Double,
+        netBalance: Double,
+        totalBags: Int,
+        totalMt: Double,
+        rows: List<PartnerStatementRow>
+    ): File {
+        val pdfDocument = PdfDocument()
+        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
+        val page = pdfDocument.startPage(pageInfo)
+        val canvas = page.canvas
+
+        val primaryGreen = AndroidColor.rgb(15, 82, 51)
+        val darkText = AndroidColor.rgb(17, 28, 22)
+        val mutedText = AndroidColor.rgb(100, 116, 139)
+        val lightBorder = AndroidColor.rgb(226, 232, 240)
+        val headerBg = AndroidColor.rgb(240, 253, 244)
+
+        val titlePaint = Paint().apply {
+            color = primaryGreen
+            textSize = 15f
+            isFakeBoldText = true
+        }
+        val subTitlePaint = Paint().apply {
+            color = mutedText
+            textSize = 9.5f
+        }
+        val boldPaint = Paint().apply {
+            color = darkText
+            textSize = 9.5f
+            isFakeBoldText = true
+        }
+        val bodyPaint = Paint().apply {
+            color = darkText
+            textSize = 8.5f
+        }
+        val smallMutedPaint = Paint().apply {
+            color = mutedText
+            textSize = 7.5f
+        }
+        val linePaint = Paint().apply {
+            color = lightBorder
+            strokeWidth = 1f
+        }
+        val cardBgPaint = Paint().apply {
+            color = headerBg
+        }
+        val cardBorderPaint = Paint().apply {
+            color = primaryGreen
+            strokeWidth = 1f
+            style = Paint.Style.STROKE
+        }
+
+        var y = 35f
+        // 1. Company Letterhead
+        canvas.drawText(config.companyName, 35f, y, titlePaint)
+        canvas.drawText("STATEMENT OF ACCOUNT", 400f, y, titlePaint)
+        y += 14f
+        canvas.drawText("${config.businessTitle} • Contact: ${config.contactPhone} • ${config.companyAddress}", 35f, y, subTitlePaint)
+        canvas.drawText("NTN: ${config.taxRegistrationNumber}", 400f, y, subTitlePaint)
+        y += 12f
+        canvas.drawLine(35f, y, 560f, y, linePaint)
+        y += 18f
+
+        // 2. Partner Info Box
+        canvas.drawText("ACCOUNT: $partnerName ($partnerCode)", 35f, y, boldPaint)
+        canvas.drawText("PERIOD: $periodLabel", 400f, y, boldPaint)
+        y += 13f
+        canvas.drawText("Type: $partnerType • Area: $partnerArea • Phone: $partnerPhone", 35f, y, subTitlePaint)
+        val dateGenerated = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date())
+        canvas.drawText("Generated: $dateGenerated", 400f, y, subTitlePaint)
+        y += 14f
+
+        // 3. Summary Metric Cards
+        val cardWidth = 125f
+        val cardHeight = 38f
+        val cardSpacing = 6f
+        val startX = 35f
+
+        val metrics = listOf(
+            Pair("Total Bags / MT", "$totalBags Bags (${String.format(Locale.US, "%.2f", totalMt)} MT)"),
+            Pair("Total Purchased", "${config.currencySymbol} ${String.format(Locale.US, "%,.0f", totalPurchasedAmount)}"),
+            Pair("Total Received", "${config.currencySymbol} ${String.format(Locale.US, "%,.0f", totalPaidAmount)}"),
+            Pair("Net Outstanding", "${config.currencySymbol} ${String.format(Locale.US, "%,.0f", netBalance)}")
+        )
+
+        metrics.forEachIndexed { i, m ->
+            val cx = startX + i * (cardWidth + cardSpacing)
+            canvas.drawRect(cx, y, cx + cardWidth, y + cardHeight, cardBgPaint)
+            canvas.drawRect(cx, y, cx + cardWidth, y + cardHeight, cardBorderPaint)
+            canvas.drawText(m.first, cx + 8f, y + 14f, smallMutedPaint)
+            canvas.drawText(m.second, cx + 8f, y + 28f, boldPaint)
+        }
+        y += cardHeight + 16f
+
+        // 4. Table Header (7 Columns)
+        canvas.drawRect(35f, y - 11f, 560f, y + 8f, cardBgPaint)
+        canvas.drawText("When (Date)", 38f, y, boldPaint)
+        canvas.drawText("Order / Ref", 98f, y, boldPaint)
+        canvas.drawText("What Purchased (Feed Details)", 155f, y, boldPaint)
+        canvas.drawText("Feed Send", 310f, y, boldPaint)
+        canvas.drawText("Bill Amount", 370f, y, boldPaint)
+        canvas.drawText("Amount Recvd", 440f, y, boldPaint)
+        canvas.drawText("Balance", 510f, y, boldPaint)
+        y += 14f
+        canvas.drawLine(35f, y - 4f, 560f, y - 4f, linePaint)
+
+        // 5. Table Rows
+        rows.take(28).forEach { r ->
+            canvas.drawText(r.date.take(10), 38f, y, bodyPaint)
+            canvas.drawText(r.refCode.take(11), 98f, y, bodyPaint)
+            canvas.drawText(r.productsSummary.take(28), 155f, y, bodyPaint)
+            canvas.drawText("${r.feedSendDate.take(8)} ${r.dispatchStatus.take(4)}", 310f, y, bodyPaint)
+            canvas.drawText(if (r.billAmount > 0) String.format(Locale.US, "%,.0f", r.billAmount) else "-", 370f, y, bodyPaint)
+            canvas.drawText(if (r.amountReceived > 0) String.format(Locale.US, "%,.0f", r.amountReceived) else "-", 440f, y, bodyPaint)
+            canvas.drawText(String.format(Locale.US, "%,.0f", r.runningBalance), 510f, y, boldPaint)
+            y += 16f
+            canvas.drawLine(35f, y - 4f, 560f, y - 4f, linePaint)
+        }
+
+        // Footer
+        canvas.drawLine(35f, 790f, 560f, 790f, linePaint)
+        canvas.drawText("Official WandaBook Pro Statement • System-verified ledger records • Authorized Signature: __________________", 35f, 805f, subTitlePaint)
+
+        pdfDocument.finishPage(page)
+        val safeName = "Statement_${partnerType}_${partnerCode.replace("[^a-zA-Z0-9_-]".toRegex(), "_")}"
+        val file = File(getExportsDir(context), "${safeName}.pdf")
+        FileOutputStream(file).use { pdfDocument.writeTo(it) }
+        pdfDocument.close()
+        return file
+    }
+
+    /**
+     * Exports a structured CSV spreadsheet of partner statement records.
+     */
+    fun exportPartnerStatementCsv(
+        context: Context,
+        partnerType: String,
+        partnerCode: String,
+        partnerName: String,
+        periodLabel: String,
+        rows: List<PartnerStatementRow>
+    ): File {
+        val headers = listOf(
+            "When (Date)",
+            "Order / Ref #",
+            "Transaction Type",
+            "What Purchased",
+            "Bags Qty",
+            "Weight MT",
+            "Feed Send Date",
+            "Dispatch Status",
+            "Bill Amount (Rs)",
+            "Amount Received (Rs)",
+            "When Received",
+            "Payment Method",
+            "Running Balance (Rs)"
+        )
+        val dataRows = rows.map { r ->
+            listOf(
+                r.date,
+                r.refCode,
+                r.type,
+                r.productsSummary,
+                "${r.bags}",
+                String.format(Locale.US, "%.2f", r.totalMt),
+                r.feedSendDate,
+                r.dispatchStatus,
+                String.format(Locale.US, "%.2f", r.billAmount),
+                String.format(Locale.US, "%.2f", r.amountReceived),
+                r.paymentReceivedDate,
+                r.paymentMethod,
+                String.format(Locale.US, "%.2f", r.runningBalance)
+            )
+        }
+        return exportCsvReport(
+            context = context,
+            fileNamePrefix = "Statement_${partnerType}_${partnerCode}",
+            headers = headers,
+            rows = dataRows
+        )
     }
 
     fun isInternetAvailable(context: Context): Boolean {
