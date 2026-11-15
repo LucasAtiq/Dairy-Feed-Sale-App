@@ -366,56 +366,95 @@ private fun OrdersListSection(
                         border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                .padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // Circular Store Emblem
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFF0FDF4))
-                                    .border(
-                                        1.dp,
-                                        Color(0xFFBBF7D0),
-                                        CircleShape
-                                    ),
-                                contentAlignment = Alignment.Center
+                            // Top Row: Store Icon + Order Number (Left) vs Amount + Chevron (Right)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Storefront,
-                                    contentDescription = null,
-                                    tint = Color(0xFF15803D),
-                                    modifier = Modifier.size(22.dp)
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    modifier = Modifier.weight(1f, fill = false)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFFF0FDF4))
+                                            .border(
+                                                1.dp,
+                                                Color(0xFFBBF7D0),
+                                                CircleShape
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Storefront,
+                                            contentDescription = null,
+                                            tint = Color(0xFF15803D),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Text(
+                                        text = o.orderNumber,
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 15.sp
+                                        ),
+                                        color = Color(0xFF0F172A),
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = BusinessCalculations.formatCurrency(o.netAmount, cur),
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontFamily = JetBrainsMonoFamily,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 15.sp
+                                        ),
+                                        color = Color(0xFF0F172A),
+                                        maxLines = 1
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.ChevronRight,
+                                        contentDescription = "View Details",
+                                        tint = Color(0xFF94A3B8),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             }
 
-                            // Middle Info Column
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            // Middle Row: Dealer Name
+                            Text(
+                                text = o.dealerName.ifBlank { "Direct Order" },
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.5.sp
+                                ),
+                                color = Color(0xFF334155),
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+
+                            // Bottom Row: Date & Bags on left, Badges on right
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = o.orderNumber,
-                                    style = MaterialTheme.typography.titleSmall.copy(
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 14.sp
-                                    ),
-                                    color = Color(0xFF0F172A)
-                                )
-                                Text(
-                                    text = o.dealerName,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontWeight = FontWeight.SemiBold
-                                    ),
-                                    color = Color(0xFF334155),
-                                    maxLines = 1,
-                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                                )
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -428,7 +467,7 @@ private fun OrdersListSection(
                                             imageVector = Icons.Default.CalendarToday,
                                             contentDescription = null,
                                             tint = Color(0xFF94A3B8),
-                                            modifier = Modifier.size(13.dp)
+                                            modifier = Modifier.size(12.dp)
                                         )
                                         Text(
                                             text = o.date,
@@ -444,7 +483,7 @@ private fun OrdersListSection(
                                             imageVector = Icons.Default.Inventory2,
                                             contentDescription = null,
                                             tint = Color(0xFF94A3B8),
-                                            modifier = Modifier.size(13.dp)
+                                            modifier = Modifier.size(12.dp)
                                         )
                                         Text(
                                             text = "${o.totalBags} Bags",
@@ -453,22 +492,6 @@ private fun OrdersListSection(
                                         )
                                     }
                                 }
-                            }
-
-                            // Right Amount & Badges Column
-                            Column(
-                                horizontalAlignment = Alignment.End,
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(
-                                    text = BusinessCalculations.formatCurrency(o.netAmount, cur),
-                                    style = MaterialTheme.typography.titleSmall.copy(
-                                        fontFamily = JetBrainsMonoFamily,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 14.sp
-                                    ),
-                                    color = Color(0xFF0F172A)
-                                )
 
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -478,14 +501,6 @@ private fun OrdersListSection(
                                     CleanStatusBadge(status = o.status)
                                 }
                             }
-
-                            // Arrow Right
-                            Icon(
-                                imageVector = Icons.Default.ChevronRight,
-                                contentDescription = "View Details",
-                                tint = Color(0xFF94A3B8),
-                                modifier = Modifier.size(18.dp)
-                            )
                         }
                     }
                 }
@@ -787,7 +802,7 @@ private fun StockInventorySection(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
@@ -931,7 +946,7 @@ private fun PaymentsAndLedgerSection(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
@@ -1358,7 +1373,7 @@ private fun ProductsAndPricingSection(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Bag Sizes Management Card

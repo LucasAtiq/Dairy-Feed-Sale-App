@@ -27,24 +27,18 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.data.BusinessCalculations
 import com.example.ui.theme.JetBrainsMonoFamily
-import com.example.ui.theme.ResponsiveDimens
-import com.example.ui.theme.ScreenBucket
 import com.example.ui.theme.StatusDanger
 import com.example.ui.theme.StatusSuccess
 import com.example.ui.theme.StatusWarning
-import com.example.ui.theme.rememberResponsiveDimens
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -72,13 +66,14 @@ fun DashboardScreen(
     }
 
     var showTargetEditDialog by remember { mutableStateOf(false) }
+    var showProfileEditDialog by remember { mutableStateOf(false) }
 
-    val dimens = rememberResponsiveDimens()
+    val currentUserName = uiState.config.companyName.ifBlank { "Attique ur Rehman" }
+    val currentUserDesignation = uiState.config.businessTitle.ifBlank { "Region Sale Manager" }
 
-    // Dynamically generated current device date (never hard-coded, adapts to compact screens)
-    val currentDeviceDateLabel = remember(dimens.bucket) {
-        val pattern = if (dimens.bucket == ScreenBucket.COMPACT) "dd MMM yyyy" else "EEE, dd MMM yyyy"
-        SimpleDateFormat(pattern, Locale.US).format(Date())
+    // Dynamically generated current device date (never hard-coded)
+    val currentDeviceDateLabel = remember {
+        SimpleDateFormat("EEE, dd MMM yyyy", Locale.US).format(Date())
     }
 
     // Latest 3-5 non-cancelled orders
@@ -96,10 +91,10 @@ fun DashboardScreen(
             .fillMaxSize()
             .background(pageBgColor)
             .testTag("dashboard_screen"),
-        contentPadding = PaddingValues(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(dimens.sectionSpacing)
+        contentPadding = PaddingValues(bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 1 & 2. UNIFIED BRAND HEADER + USER PROFILE + DATE BANNER (Matching ChatGPT Screen 1)
+        // 1 & 2. WELCOME SECTION + DYNAMIC DATE BANNER (EDITABLE)
         item {
             Box(
                 modifier = Modifier
@@ -109,150 +104,95 @@ fun DashboardScreen(
                             colors = listOf(DashDarkGreen, DashPrimaryGreen)
                         )
                     )
-                    .statusBarsPadding()
-                    .padding(horizontal = dimens.pageHorizontalPadding, vertical = 12.dp)
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
             ) {
-                Column(
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Row 1: App Title + Subtitle + Notification Bell
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { showProfileEditDialog = true }
                     ) {
-                        Column {
-                            Text(
-                                text = buildAnnotatedString {
-                                    withStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.Black)) {
-                                        append("WandaBook ")
-                                    }
-                                    withStyle(SpanStyle(color = DashGoldHighlight, fontWeight = FontWeight.Black)) {
-                                        append("Pro")
-                                    }
-                                },
-                                style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp),
-                                maxLines = 1
-                            )
-                            Text(
-                                text = "Dairy Feed Sales & Management",
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
-                                color = Color(0xFFD2EFE0),
-                                maxLines = 1
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(Color.White),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "User Profile",
+                                tint = DashDarkGreen,
+                                modifier = Modifier.size(26.dp)
                             )
                         }
-
-                        // Notification Icon with Reminder Badge
-                        BadgedBox(
-                            badge = {
-                                if (uiState.smartReminders.isNotEmpty()) {
-                                    Badge(
-                                        containerColor = Color(0xFFE53935),
-                                        contentColor = Color.White
-                                    ) {
-                                        Text("${uiState.smartReminders.size}")
-                                    }
-                                }
-                            }
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.12f))
-                                    .clickable { viewModel.navigateToSubModule(SubModule.REMINDERS) },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Notifications,
-                                    contentDescription = "Notifications",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    // Row 2: User Profile Info + Dynamic Date Chip (Responsive, no text clipping)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.weight(1f, fill = false)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(if (dimens.bucket == ScreenBucket.COMPACT) 36.dp else 42.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Person,
-                                    contentDescription = "User Profile",
-                                    tint = DashDarkGreen,
-                                    modifier = Modifier.size(if (dimens.bucket == ScreenBucket.COMPACT) 22.dp else 26.dp)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = "Welcome, Attique ur Rehman",
-                                    style = MaterialTheme.typography.titleSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = if (dimens.bucket == ScreenBucket.COMPACT) 12.sp else 13.5.sp
-                                    ),
-                                    color = Color.White,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = "Region Sale Manager",
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        fontSize = if (dimens.bucket == ScreenBucket.COMPACT) 10.sp else 11.sp
-                                    ),
-                                    color = Color(0xFFD2EFE0),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(6.dp))
-
-                        Surface(
-                            color = Color.White.copy(alpha = 0.14f),
-                            shape = RoundedCornerShape(50),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f))
-                        ) {
+                        Column(modifier = Modifier.weight(1f, fill = false)) {
                             Row(
-                                modifier = Modifier.padding(
-                                    horizontal = if (dimens.bucket == ScreenBucket.COMPACT) 8.dp else 10.dp,
-                                    vertical = if (dimens.bucket == ScreenBucket.COMPACT) 4.dp else 6.dp
-                                ),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.CalendarToday,
-                                    contentDescription = "Current Date",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(if (dimens.bucket == ScreenBucket.COMPACT) 11.dp else 13.dp)
-                                )
                                 Text(
-                                    text = currentDeviceDateLabel,
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = if (dimens.bucket == ScreenBucket.COMPACT) 10.sp else 11.5.sp
+                                    text = "Welcome, $currentUserName",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.5.sp
                                     ),
                                     color = Color.White,
-                                    maxLines = 1
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Edit Profile Info",
+                                    tint = Color.White.copy(alpha = 0.85f),
+                                    modifier = Modifier.size(13.dp)
                                 )
                             }
+                            Text(
+                                text = currentUserDesignation,
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                                color = Color(0xFFD2EFE0),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    Surface(
+                        color = Color.White.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(50),
+                        border = BorderStroke(
+                            1.dp,
+                            Color.White.copy(alpha = 0.35f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CalendarToday,
+                                contentDescription = "Current Date",
+                                tint = Color.White,
+                                modifier = Modifier.size(11.dp)
+                            )
+                            Text(
+                                text = currentDeviceDateLabel,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 10.5.sp
+                                ),
+                                color = Color.White
+                            )
                         }
                     }
                 }
@@ -264,35 +204,32 @@ fun DashboardScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = dimens.pageHorizontalPadding),
-                horizontalArrangement = Arrangement.spacedBy(dimens.kpiCardSpacing)
+                    .padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 DashboardMainKpiCard(
-                    title = "This Month Sales",
+                    title = "This Month\nSales",
                     primaryValue = "${dash.monthlyBags} Bags",
                     secondaryValue = "(${BusinessCalculations.formatDecimal(dash.monthlyMt)} MT)",
                     growthBadge = "+12%",
-                    dimens = dimens,
                     isDark = isDark,
                     modifier = Modifier.weight(1f).testTag("kpi_this_month_sales"),
                     onClick = { viewModel.navigateToSubModule(SubModule.REPORTS) }
                 )
                 DashboardMainKpiCard(
-                    title = "This Month Orders",
-                    primaryValue = "${dash.monthlyOrdersCount} Orders",
+                    title = "This Month\nOrders",
+                    primaryValue = if (dash.monthlyOrdersCount == 1) "1 Order" else "${dash.monthlyOrdersCount} Orders",
                     secondaryValue = "(${BusinessCalculations.formatDecimal(dash.monthlyMt)} MT)",
                     growthBadge = "+18%",
-                    dimens = dimens,
                     isDark = isDark,
                     modifier = Modifier.weight(1f).testTag("kpi_this_month_orders"),
                     onClick = { viewModel.navigateToSubModule(SubModule.ORDERS) }
                 )
                 DashboardMainKpiCard(
-                    title = "Payments Received",
+                    title = "Payments\nReceived",
                     primaryValue = BusinessCalculations.formatCurrency(dash.monthlyCollection, cur),
                     secondaryValue = "(${dash.monthlyPaymentsCount} Receipts)",
                     growthBadge = "+10%",
-                    dimens = dimens,
                     isDark = isDark,
                     modifier = Modifier.weight(1f).testTag("kpi_payments_received"),
                     onClick = { viewModel.navigateToSubModule(SubModule.PAYMENTS) }
@@ -306,13 +243,12 @@ fun DashboardScreen(
             val progressPct = dash.achievementPercentBags.coerceIn(0.0, 100.0)
             val progressFraction = (progressPct / 100.0).toFloat().coerceIn(0f, 1f)
 
-            Card(
+            ElevatedCard(
                 shape = RoundedCornerShape(18.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                colors = CardDefaults.cardColors(containerColor = DashDeepGreen),
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = dimens.pageHorizontalPadding)
+                    .padding(horizontal = 14.dp)
                     .clickable { showTargetEditDialog = true }
                     .testTag("monthly_target_card")
             ) {
@@ -336,8 +272,8 @@ fun DashboardScreen(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
-                            .width(dimens.targetHeroImgWidth)
-                            .height(dimens.targetHeroImgHeight)
+                            .width(130.dp)
+                            .height(128.dp)
                             .alpha(0.28f)
                     )
                     // Smooth gradient overlay to guarantee 100% crisp text contrast
@@ -358,112 +294,121 @@ fun DashboardScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(dimens.targetCardPadding),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        // Row 1: Target Icon + "Monthly Target" & "50 / 1,000 Bags"
+                        // 1. Header row: Target title & Edit icon (Left), Remaining badge (Right)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(dimens.targetIconSize)
-                                    .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.14f))
-                                    .border(1.dp, Color.White.copy(alpha = 0.3f), CircleShape),
-                                contentAlignment = Alignment.Center
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.TrackChanges,
-                                    contentDescription = "Monthly Target",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(if (dimens.bucket == ScreenBucket.COMPACT) 20.dp else 24.dp)
-                                )
-                            }
-
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.White.copy(alpha = 0.16f))
+                                        .border(1.dp, Color.White.copy(alpha = 0.35f), CircleShape),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        text = "Monthly Target",
-                                        style = MaterialTheme.typography.labelMedium.copy(
-                                            fontWeight = FontWeight.SemiBold,
-                                            fontSize = if (dimens.bucket == ScreenBucket.COMPACT) 11.sp else 12.sp
-                                        ),
-                                        color = Color(0xFFE2F5EA)
-                                    )
                                     Icon(
-                                        imageVector = Icons.Default.Edit,
-                                        contentDescription = "Edit Monthly Target",
-                                        tint = Color.White.copy(alpha = 0.75f),
-                                        modifier = Modifier.size(13.dp)
+                                        imageVector = Icons.Default.TrackChanges,
+                                        contentDescription = "Monthly Target",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                                 Text(
-                                    text = "${numberFormatter.format(dash.monthlyBags)} / ${numberFormatter.format(dash.monthlyTargetBags)} Bags",
-                                    style = MaterialTheme.typography.titleLarge.copy(
-                                        fontWeight = FontWeight.Black,
-                                        fontSize = dimens.targetBagsFontSize
+                                    text = "Monthly Target",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    ),
+                                    color = Color(0xFFE2F5EA)
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Edit Monthly Target",
+                                    tint = Color.White.copy(alpha = 0.8f),
+                                    modifier = Modifier.size(13.dp)
+                                )
+                            }
+
+                            Surface(
+                                color = Color.White.copy(alpha = 0.16f),
+                                shape = RoundedCornerShape(50),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f))
+                            ) {
+                                Text(
+                                    text = "Remaining: ${numberFormatter.format(dash.remainingTargetBags)} Bags",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.5.sp
                                     ),
                                     color = Color.White,
-                                    maxLines = 1
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
                         }
 
-                        // Row 2: Progress Bar + Remaining Bags
+                        // 2. Headline row: 50 / 1,000 Bags
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            Text(
+                                text = "${numberFormatter.format(dash.monthlyBags)} / ${numberFormatter.format(dash.monthlyTargetBags)} Bags",
+                                style = MaterialTheme.typography.headlineSmall.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 20.sp
+                                ),
+                                color = Color.White
+                            )
+                            Text(
+                                text = "${BusinessCalculations.formatDecimal(dash.monthlyMt)} MT Sold",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                                color = Color(0xFFD2EFE0)
+                            )
+                        }
+
+                        // 3. Gold Progress Bar with Percentage Badge
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(20.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(Color.White.copy(alpha = 0.22f))
+                                .border(1.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(50))
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .weight(1f)
-                                    .height(if (dimens.bucket == ScreenBucket.COMPACT) 18.dp else 20.dp)
+                                    .fillMaxHeight()
+                                    .fillMaxWidth(progressFraction.coerceAtLeast(0.12f))
                                     .clip(RoundedCornerShape(50))
-                                    .background(Color.White.copy(alpha = 0.22f))
-                                    .border(1.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(50))
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxHeight()
-                                        .fillMaxWidth(progressFraction.coerceAtLeast(0.12f))
-                                        .clip(RoundedCornerShape(50))
-                                        .background(
-                                            Brush.horizontalGradient(
-                                                colors = listOf(
-                                                    Color(0xFFF59E0B),
-                                                    DashGoldHighlight
-                                                )
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            colors = listOf(
+                                                Color(0xFFF59E0B),
+                                                DashGoldHighlight
                                             )
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "${progressPct.roundToInt()}%",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontWeight = FontWeight.ExtraBold,
-                                            fontSize = 9.5.sp
-                                        ),
-                                        color = Color(0xFF78350F)
-                                    )
-                                }
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "${progressPct.roundToInt()}%",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 11.sp
+                                    ),
+                                    color = Color(0xFF1B241E)
+                                )
                             }
-
-                            Text(
-                                text = "Remaining: ${numberFormatter.format(dash.remainingTargetBags)} Bags",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = dimens.targetRemainingFontSize
-                                ),
-                                color = Color.White,
-                                maxLines = 1
-                            )
                         }
                     }
                 }
@@ -484,22 +429,22 @@ fun DashboardScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = dimens.pageHorizontalPadding),
-                verticalArrangement = Arrangement.spacedBy(dimens.quickActionGridSpacing)
+                    .padding(horizontal = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 quickActions.chunked(3).forEach { rowItems ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(dimens.quickActionGridSpacing)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         rowItems.forEach { (actionKey, label, icon) ->
                             Card(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(dimens.quickActionHeight)
+                                    .defaultMinSize(minHeight = 78.dp)
                                     .clickable { onQuickAction(actionKey) }
                                     .testTag("quick_action_${actionKey.lowercase()}"),
-                                shape = RoundedCornerShape(14.dp),
+                                shape = RoundedCornerShape(16.dp),
                                 colors = CardDefaults.cardColors(
                                     containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White
                                 ),
@@ -511,8 +456,8 @@ fun DashboardScreen(
                             ) {
                                 Column(
                                     modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 4.dp, vertical = 10.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center
                                 ) {
@@ -520,14 +465,14 @@ fun DashboardScreen(
                                         imageVector = icon,
                                         contentDescription = label,
                                         tint = if (isDark) Color(0xFF4ADE80) else DashPrimaryGreen,
-                                        modifier = Modifier.size(dimens.quickActionIconSize)
+                                        modifier = Modifier.size(24.dp)
                                     )
-                                    Spacer(modifier = Modifier.height(3.dp))
+                                    Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = label,
-                                        style = MaterialTheme.typography.bodySmall.copy(
+                                        style = MaterialTheme.typography.labelSmall.copy(
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = dimens.quickActionFontSize
+                                            fontSize = 11.sp
                                         ),
                                         color = if (isDark) Color(0xFFE2E8F0) else Color(0xFF1E293B),
                                         textAlign = TextAlign.Center,
@@ -548,7 +493,7 @@ fun DashboardScreen(
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = dimens.pageHorizontalPadding),
+                    .padding(horizontal = 16.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = if (isDark) MaterialTheme.colorScheme.surface else Color.White
                 ),
@@ -561,8 +506,8 @@ fun DashboardScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(if (dimens.bucket == ScreenBucket.COMPACT) 12.dp else 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -778,6 +723,73 @@ fun DashboardScreen(
             }
         )
     }
+
+    if (showProfileEditDialog) {
+        var editName by remember(currentUserName) { mutableStateOf(currentUserName) }
+        var editDesignation by remember(currentUserDesignation) { mutableStateOf(currentUserDesignation) }
+
+        AlertDialog(
+            onDismissRequest = { showProfileEditDialog = false },
+            title = {
+                Text(
+                    text = "Edit Profile & Greeting",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        "Update your name and designation shown on the Home Screen header banner.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = editName,
+                        onValueChange = { editName = it },
+                        label = { Text("Your Name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = editDesignation,
+                        onValueChange = { editDesignation = it },
+                        label = { Text("Designation / Title") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val trimmedName = editName.trim()
+                        val trimmedRole = editDesignation.trim()
+                        if (trimmedName.isNotBlank()) {
+                            viewModel.saveBusinessConfig(
+                                uiState.config.copy(
+                                    companyName = trimmedName,
+                                    businessTitle = trimmedRole.ifBlank { "Region Sale Manager" }
+                                )
+                            )
+                        }
+                        showProfileEditDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = DashDarkGreen)
+                ) {
+                    Text("Save Profile")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showProfileEditDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -786,7 +798,6 @@ private fun DashboardMainKpiCard(
     primaryValue: String,
     secondaryValue: String,
     growthBadge: String,
-    dimens: ResponsiveDimens,
     isDark: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
@@ -806,27 +817,26 @@ private fun DashboardMainKpiCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(dimens.kpiCardPadding),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+                .padding(horizontal = 8.dp, vertical = 9.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodySmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = dimens.kpiTitleFontSize,
-                    lineHeight = dimens.kpiTitleLineHeight
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 10.sp,
+                    lineHeight = 12.5.sp
                 ),
                 color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
                 maxLines = 2,
-                minLines = 2,
-                overflow = TextOverflow.Ellipsis
+                minLines = 2
             )
 
             Text(
                 text = primaryValue,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.ExtraBold,
-                    fontSize = dimens.kpiPrimaryValueFontSize
+                    fontSize = 13.5.sp
                 ),
                 color = if (isDark) Color.White else Color(0xFF0F172A),
                 maxLines = 1,
@@ -835,8 +845,8 @@ private fun DashboardMainKpiCard(
 
             Text(
                 text = secondaryValue,
-                style = MaterialTheme.typography.bodySmall.copy(
-                    fontSize = dimens.kpiSecondaryValueFontSize
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontSize = 10.sp
                 ),
                 color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF64748B),
                 maxLines = 1,
@@ -858,11 +868,11 @@ private fun DashboardMainKpiCard(
                         imageVector = Icons.Default.ArrowUpward,
                         contentDescription = null,
                         tint = if (isDark) Color(0xFF4ADE80) else Color(0xFF15803D),
-                        modifier = Modifier.size(9.dp)
+                        modifier = Modifier.size(10.dp)
                     )
                     Text(
                         text = growthBadge,
-                        fontSize = dimens.kpiBadgeFontSize,
+                        fontSize = 9.5.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = if (isDark) Color(0xFF4ADE80) else Color(0xFF15803D)
                     )
