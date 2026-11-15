@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -123,20 +125,18 @@ fun DairyFeedAppRoot(
                             viewModel.navigateToTab(PrimaryTab.DASHBOARD)
                         }
                     ) {
-                        // WandaBook Pro Circular Emblem
+                        // TradeBook Pro App Logo Emblem
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
-                                .clip(CircleShape)
-                                .background(BrandDeepEmblemBg)
-                                .border(1.5.dp, BrandGoldAccent.copy(alpha = 0.85f), CircleShape),
+                                .clip(RoundedCornerShape(10.dp))
+                                .border(1.dp, Color(0xFF10B981).copy(alpha = 0.6f), RoundedCornerShape(10.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Agriculture,
-                                contentDescription = "WandaBook Pro Logo",
-                                tint = BrandGoldAccent,
-                                modifier = Modifier.size(22.dp)
+                            Image(
+                                painter = painterResource(R.drawable.app_logo),
+                                contentDescription = "TradeBook Pro Logo",
+                                modifier = Modifier.fillMaxSize()
                             )
                         }
 
@@ -149,11 +149,11 @@ fun DairyFeedAppRoot(
                                             fontWeight = FontWeight.ExtraBold
                                         )
                                     ) {
-                                        append("WandaBook ")
+                                        append("TradeBook ")
                                     }
                                     withStyle(
                                         SpanStyle(
-                                            color = BrandGoldAccent,
+                                            color = Color(0xFF4ADE80),
                                             fontWeight = FontWeight.ExtraBold
                                         )
                                     ) {
@@ -166,9 +166,9 @@ fun DairyFeedAppRoot(
                             )
                             Text(
                                 text = if (uiState.activeTab == PrimaryTab.DASHBOARD) {
-                                    "Dairy Feed Sales & Management"
+                                    "Sales & Dealer Management"
                                 } else {
-                                    "Dairy Feed Sales & Management • ${uiState.activeSubModule.title}"
+                                    "Sales & Dealer Management • ${uiState.activeSubModule.title}"
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = BrandSubtitleMint,

@@ -1,10 +1,10 @@
 <resources>
-    <string name="app_name">WandaBook Pro</string>
-    <string name="app_subtitle">Dairy Feed Sales &amp; Management</string>
+    <string name="app_name">TradeBook Pro</string>
+    <string name="app_subtitle">Sales &amp; Dealer Management</string>
     <string name="app_developer">Developed by Attique ur Rehman</string>
     <string name="developer_instagram">https://www.instagram.com/mian._attique?psln=MXg4cmxtbWVmYWtyZQ==</string>
     <string name="developer_instagram_handle">@mian._attique</string>
-    <string name="about_description">WandaBook Pro is a professional dairy feed sales and dealer management application designed to simplify daily sales, orders, dealer records, payments, and business reporting.</string>
+    <string name="about_description">TradeBook Pro is a professional sales and dealer management application designed to simplify daily sales, orders, dealer records, payments, and business reporting.</string>
     <string name="nav_dashboard">Dashboard</string>
     <string name="nav_sales">Orders</string>
     <string name="nav_partners">Dealers</string>

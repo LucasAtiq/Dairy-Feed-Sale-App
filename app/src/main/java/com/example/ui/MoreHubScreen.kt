@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -30,12 +31,14 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.*
 import com.example.ui.theme.JetBrainsMonoFamily
 import com.example.ui.theme.StatusDanger
@@ -90,7 +93,7 @@ fun MoreHubScreen(
         }
         SubModule.ABOUT -> {
             Column(modifier = Modifier.fillMaxSize()) {
-                HubSubHeader(title = "About WandaBook Pro", onBack = { viewModel.navigateToSubModule(SubModule.MORE) })
+                HubSubHeader(title = "About TradeBook Pro", onBack = { viewModel.navigateToSubModule(SubModule.MORE) })
                 AboutWandaBookSection(uiState, viewModel)
             }
         }
@@ -691,10 +694,10 @@ private fun MoreHubOverviewSection(
                     onClick = onHelp
                 )
 
-                // Row 8: About WandaBook Pro
+                // Row 8: About TradeBook Pro
                 MoreNavigationRow(
                     icon = Icons.Default.Info,
-                    title = "About WandaBook Pro",
+                    title = "About TradeBook Pro",
                     onClick = { viewModel.navigateToSubModule(SubModule.ABOUT) }
                 )
             }
@@ -2013,7 +2016,7 @@ private fun SettingsAndAdminSection(
                                 ) {
                                     Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("About WandaBook Pro")
+                                    Text("About TradeBook Pro")
                                 }
                                 Button(
                                     onClick = { viewModel.navigateToSubModule(SubModule.BACKUP) },
@@ -3356,27 +3359,24 @@ private fun AboutWandaBookSection(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Surface(
-                        color = MaterialTheme.colorScheme.primary,
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.size(64.dp)
+                        shape = RoundedCornerShape(18.dp),
+                        modifier = Modifier.size(76.dp),
+                        shadowElevation = 4.dp
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.Agriculture,
-                                contentDescription = "WandaBook Pro Icon",
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(36.dp)
-                            )
-                        }
+                        Image(
+                            painter = painterResource(R.drawable.app_logo),
+                            contentDescription = "TradeBook Pro Logo",
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "WandaBook Pro",
+                        text = "TradeBook Pro",
                         style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Text(
-                        text = "Dairy Feed Sales & Management",
+                        text = "Sales & Dealer Management",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
                     )
@@ -3541,18 +3541,18 @@ private fun AboutWandaBookSection(
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                     )
                     Text(
-                        text = "WandaBook Pro is a professional dairy feed sales and dealer management application designed to simplify daily sales, orders, dealer records, payments, and business reporting.",
+                        text = "TradeBook Pro is a professional sales and dealer management application designed to simplify daily sales, orders, dealer records, payments, and business reporting.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     HorizontalDivider(color = Color(0xFFF1F5F9))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Application Name", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("WandaBook Pro", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
+                        Text("TradeBook Pro", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Edition", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("Dairy Feed Sales & Management", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
+                        Text("Professional Sales & Dealer Management", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -3588,8 +3588,8 @@ private fun AboutWandaBookSection(
                         Text("1.0", style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily))
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Supported Feed Lines", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("26P, 26M, 28P, 55M, CP Mamni", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
+                        Text("Application Scope", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Distributors, Commercial Dealers & Field Sales", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
                     }
                 }
             }

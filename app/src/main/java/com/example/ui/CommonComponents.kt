@@ -379,7 +379,7 @@ fun PinLockScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "WandaBook Pro Security Lock",
+                text = "TradeBook Pro Security Lock",
                 style = MaterialTheme.typography.headlineSmall
             )
             Text(
