@@ -1048,7 +1048,7 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
                 val file = repository.createBackupFile(context)
                 val currentCfg = _uiState.value.config
                 val timeStamp = java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
-                repository.saveConfig(currentCfg.copy(googleDriveLastSync = timeStamp, googleDriveSyncStatus = "Active"))
+                repository.saveBusinessConfig(currentCfg.copy(googleDriveLastSync = timeStamp, googleDriveSyncStatus = "Active"))
                 DocumentAndExportManager.shareFileToGoogleDriveApp(context, file, "application/json")
                 sendDiscordAuditAlert(
                     eventType = "Cloud Backup",
@@ -1070,7 +1070,7 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
                 googleDriveSyncStatus = if (cleanEmail.isNotBlank()) "Linked" else "Not Connected",
                 googleDriveBackupEnabled = cleanEmail.isNotBlank()
             )
-            repository.saveConfig(updated)
+            repository.saveBusinessConfig(updated)
             showMessage(if (cleanEmail.isNotBlank()) "Google Account attached: $cleanEmail" else "Google Account detached.")
             if (cleanEmail.isNotBlank()) {
                 sendDiscordAuditAlert(
@@ -1085,7 +1085,7 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val currentCfg = _uiState.value.config
             val updated = currentCfg.copy(discordWebhookUrl = url.trim())
-            repository.saveConfig(updated)
+            repository.saveBusinessConfig(updated)
             showMessage("Discord Webhook saved successfully.")
         }
     }
@@ -1099,14 +1099,14 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
             showMessage("Sending test notification to Discord...")
-            val orders = _uiState.value.saleOrders
-            val totalSales = orders.sumOf { it.netAmount }
+            val orders = _uiState.value.ordersWithItems
+            val totalSales = orders.sumOf { it.order.netAmount }
             val email = currentCfg.googleAccountEmail.ifBlank { currentCfg.userEmail }
             val result = com.example.data.DiscordAuditNotifier.sendActivityNotification(
                 webhookUrl = webhook,
                 eventType = "Test Ping",
                 userEmail = email,
-                businessName = currentCfg.businessName,
+                businessName = currentCfg.companyName,
                 details = "Discord webhook connected successfully with WandaBook Pro!",
                 totalOrders = orders.size,
                 totalSales = totalSales,
@@ -1124,21 +1124,19 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val currentCfg = _uiState.value.config
             val webhook = currentCfg.discordWebhookUrl.ifBlank { currentCfg.emailWebhookUrl }
-            if (webhook.isNotBlank()) {
-                val orders = _uiState.value.saleOrders
-                val totalSales = orders.sumOf { it.netAmount }
-                val email = currentCfg.googleAccountEmail.ifBlank { currentCfg.userEmail }
-                com.example.data.DiscordAuditNotifier.sendActivityNotification(
-                    webhookUrl = webhook,
-                    eventType = eventType,
-                    userEmail = email,
-                    businessName = currentCfg.businessName,
-                    details = detail,
-                    totalOrders = orders.size,
-                    totalSales = totalSales,
-                    currencySymbol = currentCfg.currencySymbol
-                )
-            }
+            val orders = _uiState.value.ordersWithItems
+            val totalSales = orders.sumOf { it.order.netAmount }
+            val email = currentCfg.googleAccountEmail.ifBlank { currentCfg.userEmail }
+            com.example.data.DiscordAuditNotifier.sendActivityNotification(
+                webhookUrl = webhook,
+                eventType = eventType,
+                userEmail = email,
+                businessName = currentCfg.companyName,
+                details = detail,
+                totalOrders = orders.size,
+                totalSales = totalSales,
+                currencySymbol = currentCfg.currencySymbol
+            )
         }
     }
 
