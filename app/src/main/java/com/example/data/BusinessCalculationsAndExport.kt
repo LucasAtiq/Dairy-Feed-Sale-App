@@ -1230,7 +1230,7 @@ object DocumentAndExportManager {
         val root = JSONObject()
         root.put("appName", "WandaBook Pro")
         root.put("subtitle", "Dairy Feed Sales & Management")
-        root.put("developer", "Made by Attique ur Rehman")
+        root.put("developer", "Developed by Attique ur Rehman")
         root.put("backupVersion", 2)
         root.put("createdAt", SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date()))
 

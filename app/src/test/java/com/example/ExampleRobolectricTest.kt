@@ -44,7 +44,7 @@ class ExampleRobolectricTest {
         val developer = context.getString(R.string.app_developer)
         assertEquals("WandaBook Pro", appName)
         assertEquals("Dairy Feed Sales & Management", subtitle)
-        assertEquals("Made by Attique ur Rehman", developer)
+        assertEquals("Developed by Attique ur Rehman", developer)
     }
 
     @Test

@@ -1,5 +1,7 @@
 package com.example.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -396,12 +398,14 @@ private fun MoreHubOverviewSection(
     onLogout: () -> Unit
 ) {
     val cfg = uiState.config
+    val context = LocalContext.current
+    val instagramUrl = "https://www.instagram.com/mian._attique?psln=MXg4cmxtbWVmYWtyZQ=="
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF8FAF9)),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 40.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 100.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         // 1. MY PROFILE CARD (PERSONAL MANAGER PROFILE)
@@ -488,6 +492,32 @@ private fun MoreHubOverviewSection(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier
+                                .clickable {
+                                    try {
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(instagramUrl)))
+                                    } catch (_: Exception) {}
+                                }
+                                .padding(top = 2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Instagram",
+                                tint = Color(0xFFE1306C),
+                                modifier = Modifier.size(11.dp)
+                            )
+                            Text(
+                                text = "Instagram: @mian._attique",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 10.5.sp
+                                ),
+                                color = Color(0xFFE1306C)
+                            )
+                        }
                     }
 
                     // Edit Icon
@@ -1874,12 +1904,14 @@ private fun SettingsAndAdminSection(
 
     // Security state
     var newPinStr by remember(cfg) { mutableStateOf(cfg.securityPin) }
+    val context = LocalContext.current
+    val instagramUrl = "https://www.instagram.com/mian._attique?psln=MXg4cmxtbWVmYWtyZQ=="
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .testTag("settings_admin_section"),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 100.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
@@ -1939,10 +1971,32 @@ private fun SettingsAndAdminSection(
                             HorizontalDivider()
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Developer", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("Made by Attique ur Rehman", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
+                                Column {
+                                    Text("Developer", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Developed by Attique ur Rehman", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = Color(0xFF0F172A))
+                                }
+                                Surface(
+                                    onClick = {
+                                        try {
+                                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(instagramUrl)))
+                                        } catch (_: Exception) {}
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = Color(0xFFFDF2F8),
+                                    border = BorderStroke(1.dp, Color(0xFFF472B6))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(Icons.Default.Share, contentDescription = "Instagram", tint = Color(0xFFE1306C), modifier = Modifier.size(12.dp))
+                                        Text("@mian._attique", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFFE1306C))
+                                    }
+                                }
                             }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -2172,15 +2226,46 @@ private fun SettingsAndAdminSection(
 
                 // Subtle Footer Attribution
                 item {
-                    Text(
-                        text = "WandaBook Pro • Dairy Feed Sales & Management\nMade by Attique ur Rehman",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                    )
+                            .padding(vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "WandaBook Pro • Dairy Feed Sales & Management",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.clickable {
+                                try {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(instagramUrl)))
+                                } catch (_: Exception) {}
+                            }
+                        ) {
+                            Text(
+                                text = "Developed by Attique ur Rehman •",
+                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = Color(0xFF0F5233)
+                            )
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Instagram",
+                                tint = Color(0xFFE1306C),
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Text(
+                                text = "@mian._attique",
+                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                color = Color(0xFFE1306C)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -2970,13 +3055,17 @@ private fun AboutWandaBookSection(
     uiState: AppUiState,
     viewModel: DairyViewModel
 ) {
+    val context = LocalContext.current
+    val instagramUrl = "https://www.instagram.com/mian._attique?psln=MXg4cmxtbWVmYWtyZQ=="
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .testTag("about_wandabook_section"),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 100.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // 1. App Banner
         item {
             ElevatedCard(
                 shape = RoundedCornerShape(20.dp),
@@ -3016,20 +3105,154 @@ private fun AboutWandaBookSection(
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    StatusBadge("Version: 1.0")
+                    StatusBadge("Version: 1.0 (Production)")
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Made by Attique ur Rehman",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                        text = "Developed by Attique ur Rehman",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
         }
 
+        // 2. FEATURED DEVELOPER SECTION WITH INSTAGRAM LINK
+        item {
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF0F5233)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "AR",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.White
+                                )
+                            )
+                        }
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "DEVELOPED BY",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF64748B),
+                                letterSpacing = 0.5.sp
+                            )
+                            Text(
+                                text = "Attique ur Rehman",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 18.sp
+                                ),
+                                color = Color(0xFF0F172A)
+                            )
+                            Text(
+                                text = "Lead Developer & System Architect",
+                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = Color(0xFF0F5233)
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = Color(0xFFF1F5F9))
+
+                    // Instagram Button
+                    Surface(
+                        onClick = {
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(instagramUrl))
+                                context.startActivity(intent)
+                            } catch (_: Exception) {}
+                        },
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color(0xFFFDF2F8),
+                        border = BorderStroke(1.dp, Color(0xFFF472B6)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFE1306C)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Share,
+                                        contentDescription = "Instagram",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "@mian._attique",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF831843)
+                                    )
+                                    Text(
+                                        text = "Connect on Instagram",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFFBE185D)
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = Color(0xFFE1306C)
+                            ) {
+                                Text(
+                                    text = "Follow →",
+                                    color = Color.White,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. About Application Card
         item {
             ElevatedCard(
                 shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -3045,7 +3268,7 @@ private fun AboutWandaBookSection(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    HorizontalDivider()
+                    HorizontalDivider(color = Color(0xFFF1F5F9))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Application Name", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("WandaBook Pro", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
@@ -3054,9 +3277,34 @@ private fun AboutWandaBookSection(
                         Text("Edition", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("Dairy Feed Sales & Management", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold))
                     }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text("Developer / Owner", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("Made by Attique ur Rehman", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.primary)
+                        Text(
+                            text = "Attique ur Rehman",
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                            color = Color(0xFF0F5233)
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Instagram Profile", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            text = "@mian._attique",
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                            color = Color(0xFFE1306C),
+                            modifier = Modifier.clickable {
+                                try {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(instagramUrl)))
+                                } catch (_: Exception) {}
+                            }
+                        )
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Version", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
