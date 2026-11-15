@@ -94,7 +94,7 @@ fun DashboardScreen(
         contentPadding = PaddingValues(bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 1 & 2. WELCOME SECTION + DYNAMIC DATE BANNER (EDITABLE)
+        // 1 & 2. WELCOME SECTION + EDITABLE DESIGNATION BANNER (CALENDAR REMOVED)
         item {
             Box(
                 modifier = Modifier
@@ -132,64 +132,62 @@ fun DashboardScreen(
                                 modifier = Modifier.size(26.dp)
                             )
                         }
-                        Column(modifier = Modifier.weight(1f, fill = false)) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Welcome, $currentUserName",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                ),
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Text(
-                                    text = "Welcome, $currentUserName",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.5.sp
-                                    ),
-                                    color = Color.White,
+                                    text = currentUserDesignation,
+                                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                    color = Color(0xFFD2EFE0),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Icon(
                                     imageVector = Icons.Default.Edit,
-                                    contentDescription = "Edit Profile Info",
+                                    contentDescription = "Edit Designation",
                                     tint = Color.White.copy(alpha = 0.85f),
-                                    modifier = Modifier.size(13.dp)
+                                    modifier = Modifier.size(12.dp)
                                 )
                             }
-                            Text(
-                                text = currentUserDesignation,
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
-                                color = Color(0xFFD2EFE0),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     Surface(
-                        color = Color.White.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(50),
-                        border = BorderStroke(
-                            1.dp,
-                            Color.White.copy(alpha = 0.35f)
-                        )
+                        onClick = { showProfileEditDialog = true },
+                        color = Color.White.copy(alpha = 0.18f),
+                        shape = RoundedCornerShape(20.dp),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f))
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.CalendarToday,
-                                contentDescription = "Current Date",
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit Profile & Designation",
                                 tint = Color.White,
-                                modifier = Modifier.size(11.dp)
+                                modifier = Modifier.size(13.dp)
                             )
                             Text(
-                                text = currentDeviceDateLabel,
+                                text = "Edit",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.SemiBold,
-                                    fontSize = 10.5.sp
+                                    fontSize = 11.5.sp
                                 ),
                                 color = Color.White
                             )
@@ -757,10 +755,34 @@ fun DashboardScreen(
                     OutlinedTextField(
                         value = editDesignation,
                         onValueChange = { editDesignation = it },
-                        label = { Text("Designation / Title") },
+                        label = { Text("Designation / Title (Editable)") },
+                        placeholder = { Text("e.g. Region Sale Manager") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    Text(
+                        "Quick Designation Suggestions:",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(
+                            "Region Sale Manager",
+                            "Area Sales Manager",
+                            "Territory Sales Officer",
+                            "Sales Executive",
+                            "Feed Nutritionist"
+                        ).forEach { suggestion ->
+                            FilterChip(
+                                selected = editDesignation.trim().equals(suggestion, ignoreCase = true),
+                                onClick = { editDesignation = suggestion },
+                                label = { Text(suggestion, fontSize = 11.sp) }
+                            )
+                        }
+                    }
                 }
             },
             confirmButton = {

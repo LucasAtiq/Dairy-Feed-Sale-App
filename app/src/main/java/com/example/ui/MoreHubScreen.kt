@@ -199,11 +199,29 @@ fun MoreHubScreen(
                     OutlinedTextField(
                         value = myDesignation,
                         onValueChange = { myDesignation = it },
-                        label = { Text("Designation / Title *") },
+                        label = { Text("Designation / Title (Editable) *") },
                         placeholder = { Text("e.g. Region Sale Manager") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(
+                            "Region Sale Manager",
+                            "Area Sales Manager",
+                            "Territory Sales Officer",
+                            "Sales Executive",
+                            "Feed Nutritionist"
+                        ).forEach { suggestion ->
+                            FilterChip(
+                                selected = myDesignation.trim().equals(suggestion, ignoreCase = true),
+                                onClick = { myDesignation = suggestion },
+                                label = { Text(suggestion, fontSize = 11.sp) }
+                            )
+                        }
+                    }
                     OutlinedTextField(
                         value = myPhone,
                         onValueChange = { myPhone = it },
