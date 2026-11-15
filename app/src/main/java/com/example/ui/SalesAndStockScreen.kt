@@ -8,6 +8,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,6 +26,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.*
@@ -101,7 +104,11 @@ fun SalesAndStockScreen(
                 SubModule.STOCK -> StockInventorySection(
                     uiState = uiState,
                     viewModel = viewModel,
-                    onOpenStockIn = { showStockInDialog = true }
+                    onOpenStockIn = { showStockInDialog = true },
+                    onEditProduct = {
+                        editingProduct = it
+                        showProductDialog = true
+                    }
                 )
                 SubModule.PAYMENTS -> PaymentsAndLedgerSection(
                     uiState = uiState,
@@ -785,130 +792,675 @@ private fun ConsolidatedOrdersSection(uiState: AppUiState) {
 private fun StockInventorySection(
     uiState: AppUiState,
     viewModel: DairyViewModel,
-    onOpenStockIn: () -> Unit
+    onOpenStockIn: () -> Unit,
+    onEditProduct: (ProductEntity) -> Unit = {}
 ) {
     val cur = uiState.config.currencySymbol
-    Scaffold(
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onOpenStockIn,
-                icon = { Icon(Icons.Default.AddBox, contentDescription = "Stock In") },
-                text = { Text("Record Stock In") },
-                modifier = Modifier.testTag("record_stock_in_fab")
-            )
-        }
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                Text(
-                    "Warehouse Inventory (Opening + Stock In - Stock Out = Current Stock)",
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedFilter by remember { mutableStateOf("ALL") }
+    var showFilterMenu by remember { mutableStateOf(false) }
 
-            items(uiState.productStockStatuses, key = { it.product.id }) { st ->
-                ElevatedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp)
+    // Summary calculations (Dynamic from existing inventory data)
+    val totalProducts = uiState.productStockStatuses.size
+    val totalStockMt = uiState.productStockStatuses.sumOf { it.currentMt }
+    val totalStockValue = uiState.productStockStatuses.sumOf { it.stockValueAtCost }
+    val lowStockCount = uiState.productStockStatuses.count { it.isLowStock || it.currentBags <= it.product.minStockBags }
+
+    // Dynamic filtering
+    val filteredStockStatuses = remember(uiState.productStockStatuses, searchQuery, selectedFilter) {
+        uiState.productStockStatuses.filter { st ->
+            val matchesQuery = searchQuery.isBlank() ||
+                st.product.code.contains(searchQuery, ignoreCase = true) ||
+                st.product.name.contains(searchQuery, ignoreCase = true)
+            val matchesFilter = when (selectedFilter) {
+                "LOW_STOCK" -> st.isLowStock || st.currentBags <= st.product.minStockBags
+                "IN_STOCK" -> st.currentBags > 0
+                "OUT_OF_STOCK" -> st.currentBags <= 0
+                else -> true
+            }
+            matchesQuery && matchesFilter
+        }
+    }
+
+    // Color accents for product code badges & stripes
+    val badgeColors = listOf(
+        Pair(Color(0xFF16A34A), Color(0xFFDCFCE7)), // Green
+        Pair(Color(0xFFEAB308), Color(0xFFFEF9C3)), // Amber / Yellow
+        Pair(Color(0xFFDC2626), Color(0xFFFEE2E2)), // Red
+        Pair(Color(0xFF0284C7), Color(0xFFE0F2FE)), // Blue
+        Pair(Color(0xFF8B5CF6), Color(0xFFEDE9FE))  // Purple
+    )
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF8FAFC)),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 100.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // 1. Stock & Inventory Header + Prominent + Stock In Button
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF0F5233)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Layers,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "Stock & Inventory",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A)
+                            )
+                        )
+                        Text(
+                            text = "Real-time stock, value and availability",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 11.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        )
+                    }
+                }
+
+                Button(
+                    onClick = onOpenStockIn,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233)),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                    modifier = Modifier.testTag("record_stock_in_fab")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Stock In",
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Stock In",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.5.sp
+                    )
+                }
+            }
+        }
+
+        // 2. Summary Cards (4 compact cards: Products, Total Stock, Stock Value, Low Stock)
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // Card 1: Products
+                Surface(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFE8F5E9),
+                    border = BorderStroke(1.dp, Color(0xFFC8E6C9))
                 ) {
                     Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("${st.product.code} — ${st.product.name}", style = MaterialTheme.typography.titleMedium)
-                                Text(
-                                    "Bag Weight: ${st.product.defaultBagWeightKg.roundToInt()} KG • Min Stock Level: ${st.product.minStockBags} Bags",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            if (st.isLowStock) {
-                                StatusBadge("Low Stock")
-                            } else {
-                                StatusBadge("Active")
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column {
-                                Text("Opening", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("${st.openingBags}", style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMonoFamily))
-                            }
-                            Column {
-                                Text("+ Stock In", style = MaterialTheme.typography.labelSmall, color = StatusSuccess)
-                                Text("+${st.stockInBags}", style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMonoFamily), color = StatusSuccess)
-                            }
-                            Column {
-                                Text("- Stock Out", style = MaterialTheme.typography.labelSmall, color = StatusDanger)
-                                Text("-${st.stockOutBags}", style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMonoFamily), color = StatusDanger)
-                            }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text("Current Stock", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                                Text(
-                                    "${st.currentBags} Bags (${BusinessCalculations.formatDecimal(st.currentMt)} MT)",
-                                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
-                                    color = if (st.isLowStock) StatusDanger else MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-
+                        Icon(
+                            imageVector = Icons.Default.Inventory2,
+                            contentDescription = null,
+                            tint = Color(0xFF16A34A),
+                            modifier = Modifier.size(18.dp)
+                        )
                         Text(
-                            "Stock Valuation — Cost: ${BusinessCalculations.formatCurrency(st.stockValueAtCost, cur)} • Sale Value: ${BusinessCalculations.formatCurrency(st.stockValueAtSale, cur)}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "$totalProducts",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = Color(0xFF0F172A),
+                            maxLines = 1
+                        )
+                        Text(
+                            text = "Products",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF475569),
+                            maxLines = 1
+                        )
+                    }
+                }
+
+                // Card 2: Total Stock
+                Surface(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFE0F2FE),
+                    border = BorderStroke(1.dp, Color(0xFFBAE6FD))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Scale,
+                            contentDescription = null,
+                            tint = Color(0xFF0284C7),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = "${BusinessCalculations.formatDecimal(totalStockMt)} MT",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.5.sp,
+                            color = Color(0xFF0369A1),
+                            maxLines = 1
+                        )
+                        Text(
+                            text = "Total Stock",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF475569),
+                            maxLines = 1
+                        )
+                    }
+                }
+
+                // Card 3: Stock Value
+                Surface(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFFEF9C3),
+                    border = BorderStroke(1.dp, Color(0xFFFDE047))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AccountBalanceWallet,
+                            contentDescription = null,
+                            tint = Color(0xFFB45309),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = BusinessCalculations.formatCurrency(totalStockValue, cur),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.5.sp,
+                            color = Color(0xFF0F172A),
+                            maxLines = 1
+                        )
+                        Text(
+                            text = "Stock Value",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF475569),
+                            maxLines = 1
+                        )
+                    }
+                }
+
+                // Card 4: Low Stock
+                Surface(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFFEE2E2),
+                    border = BorderStroke(1.dp, Color(0xFFFECACA))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = Color(0xFFDC2626),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = "$lowStockCount",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = Color(0xFFDC2626),
+                            maxLines = 1
+                        )
+                        Text(
+                            text = "Low Stock",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFDC2626),
+                            maxLines = 1
                         )
                     }
                 }
             }
+        }
 
-            item {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text("Recent Stock Movements (Stock In & Auto Stock Out)", style = MaterialTheme.typography.titleMedium)
+        // 3. Search & Filter Bar
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = {
+                        Text(
+                            "Search product (e.g. 26P, 28P...)",
+                            fontSize = 12.sp,
+                            color = Color(0xFF94A3B8)
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = Color(0xFF0F5233),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Clear",
+                                    tint = Color(0xFF94A3B8),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        focusedBorderColor = Color(0xFF0F5233),
+                        unfocusedBorderColor = Color(0xFFE2E8F0)
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                )
+
+                // Filter Button with Dropdown Menu
+                Box {
+                    Surface(
+                        onClick = { showFilterMenu = true },
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (selectedFilter != "ALL") Color(0xFFE8F5E9) else Color.White,
+                        border = BorderStroke(
+                            1.dp,
+                            if (selectedFilter != "ALL") Color(0xFF16A34A) else Color(0xFFE2E8F0)
+                        ),
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.FilterList,
+                                contentDescription = "Filter",
+                                tint = if (selectedFilter != "ALL") Color(0xFF16A34A) else Color(0xFF0F5233),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    DropdownMenu(
+                        expanded = showFilterMenu,
+                        onDismissRequest = { showFilterMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("All Products", fontWeight = if (selectedFilter == "ALL") FontWeight.Bold else FontWeight.Normal) },
+                            onClick = { selectedFilter = "ALL"; showFilterMenu = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Low Stock Only", fontWeight = if (selectedFilter == "LOW_STOCK") FontWeight.Bold else FontWeight.Normal, color = Color(0xFFDC2626)) },
+                            onClick = { selectedFilter = "LOW_STOCK"; showFilterMenu = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("In Stock Only", fontWeight = if (selectedFilter == "IN_STOCK") FontWeight.Bold else FontWeight.Normal, color = Color(0xFF16A34A)) },
+                            onClick = { selectedFilter = "IN_STOCK"; showFilterMenu = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Out of Stock Only", fontWeight = if (selectedFilter == "OUT_OF_STOCK") FontWeight.Bold else FontWeight.Normal, color = Color(0xFFB91C1C)) },
+                            onClick = { selectedFilter = "OUT_OF_STOCK"; showFilterMenu = false }
+                        )
+                    }
+                }
+            }
+        }
+
+        // 4. Product Inventory Cards
+        itemsIndexed(filteredStockStatuses, key = { _, it -> it.product.id }) { index, st ->
+            val colorPair = badgeColors[index % badgeColors.size]
+            val accentColor = colorPair.first
+            val badgeBgColor = colorPair.second
+
+            val isOutOfStock = st.currentBags <= 0 && st.product.minStockBags > 0
+            val isLowStock = st.isLowStock || st.currentBags <= st.product.minStockBags
+            val statusLabel = when {
+                isOutOfStock -> "Out of Stock"
+                isLowStock -> "Low Stock"
+                else -> "In Stock"
+            }
+            val statusBgColor = when {
+                isOutOfStock || isLowStock -> Color(0xFFFEE2E2)
+                else -> Color(0xFFDCFCE7)
+            }
+            val statusTextColor = when {
+                isOutOfStock -> Color(0xFFB91C1C)
+                isLowStock -> Color(0xFFDC2626)
+                else -> Color(0xFF16A34A)
             }
 
-            items(uiState.stockMovements.take(30), key = { it.id }) { mov ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onEditProduct(st.product) },
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                shadowElevation = 1.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min)
                 ) {
-                    Row(
+                    // Left vertical accent stripe
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .width(5.dp)
+                            .fillMaxHeight()
+                            .background(accentColor)
+                    )
+
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
                             .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("${mov.date} • ${mov.productCode} (${mov.bagSizeLabel})", style = MaterialTheme.typography.titleSmall)
-                            Text(
-                                "${mov.supplierName} • Ref: ${mov.invoiceNumber.ifBlank { "N/A" }} • ${mov.remarks}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        // Header Row: Badge + Info + Status & Chevron
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Product Code Badge (NO IMAGES)
+                            Box(
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(badgeBgColor),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = st.product.code,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = accentColor
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(10.dp))
+
+                            // Product Name & Bag Details
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "${st.product.code} ${st.product.name}",
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.5.sp,
+                                        color = Color(0xFF0F172A)
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Bag Weight: ${st.product.defaultBagWeightKg.roundToInt()} KG  |  Min Level: ${st.product.minStockBags} Bags",
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontSize = 10.5.sp,
+                                        color = Color(0xFF64748B)
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(6.dp))
+
+                            // Status Pill + Chevron
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = statusBgColor
+                                ) {
+                                    Text(
+                                        text = statusLabel,
+                                        color = statusTextColor,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Icon(
+                                    imageVector = Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = Color(0xFF94A3B8),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                "${if (mov.type == "STOCK_OUT") "-" else "+"}${mov.quantityBags} Bags",
-                                style = MaterialTheme.typography.titleSmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
-                                color = if (mov.type == "STOCK_OUT") StatusDanger else StatusSuccess
-                            )
-                            Text("${mov.totalKg.roundToInt()} KG", style = MaterialTheme.typography.labelSmall)
+
+                        // 4-Column Stock Movement Box
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color(0xFFF8FAFC),
+                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp, horizontal = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Opening
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text("Opening", fontSize = 10.sp, color = Color(0xFF64748B))
+                                    Text(
+                                        "${st.openingBags} Bags",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = JetBrainsMonoFamily,
+                                        color = Color(0xFF0F172A)
+                                    )
+                                }
+
+                                // Stock In
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text("Stock In", fontSize = 10.sp, color = Color(0xFF64748B))
+                                    Text(
+                                        "+${st.stockInBags}",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = JetBrainsMonoFamily,
+                                        color = Color(0xFF16A34A)
+                                    )
+                                }
+
+                                // Stock Out
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text("Stock Out", fontSize = 10.sp, color = Color(0xFF64748B))
+                                    Text(
+                                        "-${st.stockOutBags}",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = JetBrainsMonoFamily,
+                                        color = Color(0xFFDC2626)
+                                    )
+                                }
+
+                                // Current Stock with dynamic highlight
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isLowStock) Color(0xFFFEE2E2) else Color(0xFFDCFCE7),
+                                    modifier = Modifier.weight(1.2f)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(vertical = 4.dp, horizontal = 2.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text(
+                                            "Current Stock",
+                                            fontSize = 9.5.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = if (isLowStock) Color(0xFFDC2626) else Color(0xFF15803D)
+                                        )
+                                        Text(
+                                            "${st.currentBags} Bags",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = JetBrainsMonoFamily,
+                                            color = if (isLowStock) Color(0xFFDC2626) else Color(0xFF15803D)
+                                        )
+                                        Text(
+                                            "${BusinessCalculations.formatDecimal(st.currentMt)} MT",
+                                            fontSize = 9.sp,
+                                            color = if (isLowStock) Color(0xFFEF4444) else Color(0xFF16A34A)
+                                        )
+                                    }
+                                }
+                            }
                         }
+
+                        // Stock Valuation Row
+                        Text(
+                            text = "Stock Value: ${BusinessCalculations.formatCurrency(st.stockValueAtCost, cur)}  |  Cost: ${BusinessCalculations.formatCurrency(st.product.purchasePrice, cur)}  |  Sale Value: ${BusinessCalculations.formatCurrency(st.product.salePrice, cur)}",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 10.sp,
+                                color = Color(0xFF64748B),
+                                textAlign = TextAlign.Center
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+        }
+
+        if (filteredStockStatuses.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (searchQuery.isNotEmpty()) "No products match \"$searchQuery\"" else "No inventory items found",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF94A3B8)
+                    )
+                }
+            }
+        }
+
+        // Recent Stock Movements Section
+        item {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Recent Stock Movements",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F172A)
+                    )
+                )
+                Text(
+                    "${uiState.stockMovements.size} logged",
+                    style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFF64748B))
+                )
+            }
+        }
+
+        items(uiState.stockMovements.take(20), key = { it.id }) { mov ->
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "${mov.date} • ${mov.productCode} (${mov.bagSizeLabel})",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        )
+                        Text(
+                            "${mov.supplierName.ifBlank { "Warehouse" }} • Ref: ${mov.invoiceNumber.ifBlank { "N/A" }}",
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                            color = Color(0xFF64748B)
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            "${if (mov.type == "STOCK_OUT") "-" else "+"}${mov.quantityBags} Bags",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontFamily = JetBrainsMonoFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            ),
+                            color = if (mov.type == "STOCK_OUT") Color(0xFFDC2626) else Color(0xFF16A34A)
+                        )
+                        Text(
+                            "${mov.totalKg.roundToInt()} KG",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                            color = Color(0xFF64748B)
+                        )
                     }
                 }
             }
