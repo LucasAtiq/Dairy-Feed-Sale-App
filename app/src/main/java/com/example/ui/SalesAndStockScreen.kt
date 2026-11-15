@@ -1492,7 +1492,7 @@ private fun PaymentsAndLedgerSection(
         activeDealerSummaries.filter { ds ->
             val matchesQuery = searchQuery.isBlank() ||
                 ds.dealer.businessName.contains(searchQuery, ignoreCase = true) ||
-                ds.dealer.contactPerson.contains(searchQuery, ignoreCase = true) ||
+                ds.dealer.name.contains(searchQuery, ignoreCase = true) ||
                 ds.dealer.area.contains(searchQuery, ignoreCase = true)
             val matchesFilter = when (selectedFilter) {
                 "OUTSTANDING" -> ds.outstandingBalance > 0.01
