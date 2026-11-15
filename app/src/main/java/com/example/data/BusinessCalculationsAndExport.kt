@@ -5,7 +5,12 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
+import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
+import android.graphics.Shader
+import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -748,118 +753,877 @@ object DocumentAndExportManager {
     ) {
         val order = orderWithItems.order
         val items = orderWithItems.items
+        val cur = config.currencySymbol.ifBlank { "Rs." }
 
-        val titlePaint = Paint().apply {
-            color = AndroidColor.rgb(15, 82, 51)
-            textSize = 20f
-            isFakeBoldText = true
+        // --- Common Paints ---
+        val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+        val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+        // 0. Base Page Canvas Background
+        canvas.drawColor(AndroidColor.WHITE)
+
+        // ==========================================
+        // 1. TOP HEADER BANNER (y: 0f to 110f)
+        // ==========================================
+        val headerPath = Path().apply {
+            moveTo(0f, 0f)
+            lineTo(595f, 0f)
+            lineTo(595f, 98f)
+            cubicTo(450f, 115f, 220f, 85f, 0f, 105f)
+            close()
         }
-        val subtitlePaint = Paint().apply {
-            color = AndroidColor.rgb(66, 84, 75)
-            textSize = 11f
+        val headerShader = LinearGradient(0f, 0f, 595f, 105f, AndroidColor.rgb(6, 53, 30), AndroidColor.rgb(15, 82, 51), Shader.TileMode.CLAMP)
+        fillPaint.shader = headerShader
+        canvas.drawPath(headerPath, fillPaint)
+        fillPaint.shader = null
+
+        // Gold Wave Ribbon Accent below header
+        val goldRibbonPath = Path().apply {
+            moveTo(0f, 105f)
+            cubicTo(220f, 85f, 450f, 115f, 595f, 98f)
+            lineTo(595f, 103f)
+            cubicTo(450f, 120f, 220f, 90f, 0f, 110f)
+            close()
         }
-        val boldPaint = Paint().apply {
-            color = AndroidColor.rgb(17, 28, 22)
-            textSize = 12f
-            isFakeBoldText = true
+        fillPaint.color = AndroidColor.rgb(245, 197, 24)
+        canvas.drawPath(goldRibbonPath, fillPaint)
+
+        // Gold Vertical Accent Bar (Left of Company Title)
+        fillPaint.color = AndroidColor.rgb(245, 197, 24)
+        canvas.drawRoundRect(RectF(25f, 24f, 29f, 80f), 2f, 2f, fillPaint)
+
+        // Company Title & Subtitle
+        textPaint.apply {
+            color = AndroidColor.WHITE
+            textSize = 21f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textAlign = Paint.Align.LEFT
         }
-        val bodyPaint = Paint().apply {
-            color = AndroidColor.rgb(17, 28, 22)
-            textSize = 11f
+        val company = config.companyName.ifBlank { "CP Pakistan" }
+        canvas.drawText(company, 38f, 50f, textPaint)
+
+        textPaint.apply {
+            color = AndroidColor.rgb(209, 250, 229)
+            textSize = 11.5f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
         }
-        val linePaint = Paint().apply {
-            color = AndroidColor.rgb(196, 209, 202)
+        val title = config.businessTitle.ifBlank { "Dairy Feed Business" }
+        canvas.drawText(title, 38f, 70f, textPaint)
+
+        // TAX INVOICE Badge (Top Right)
+        val badgeRect = RectF(370f, 52f, 570f, 92f)
+        fillPaint.color = AndroidColor.rgb(6, 53, 30)
+        canvas.drawRoundRect(badgeRect, 10f, 10f, fillPaint)
+
+        strokePaint.apply {
+            color = AndroidColor.rgb(245, 197, 24)
+            strokeWidth = 1.8f
+        }
+        canvas.drawRoundRect(badgeRect, 10f, 10f, strokePaint)
+
+        // Document icon inside TAX INVOICE badge
+        fillPaint.color = AndroidColor.rgb(245, 197, 24)
+        drawVectorDoc(canvas, 386f, 66f, AndroidColor.rgb(245, 197, 24), 16f)
+
+        textPaint.apply {
+            color = AndroidColor.WHITE
+            textSize = 14f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        }
+        canvas.drawText("TAX INVOICE", 412f, 78f, textPaint)
+
+        // ==========================================
+        // 2. METADATA RIBBON (4 Columns) (y: 118f to 164f)
+        // ==========================================
+        val metaRect = RectF(20f, 118f, 575f, 164f)
+        fillPaint.color = AndroidColor.WHITE
+        canvas.drawRoundRect(metaRect, 10f, 10f, fillPaint)
+        strokePaint.apply {
+            color = AndroidColor.rgb(226, 232, 240)
             strokeWidth = 1f
         }
-        val headerBgPaint = Paint().apply {
-            color = AndroidColor.rgb(210, 245, 225)
+        canvas.drawRoundRect(metaRect, 10f, 10f, strokePaint)
+
+        val colW = (575f - 20f) / 4f
+
+        // Column dividers
+        for (i in 1..3) {
+            val divX = 20f + colW * i
+            canvas.drawLine(divX, 126f, divX, 156f, strokePaint)
         }
 
-        var y = 45f
-        canvas.drawText(config.companyName, 40f, y, titlePaint)
-        y += 18f
-        canvas.drawText("${config.businessTitle} • Dairy Feed Business", 40f, y, subtitlePaint)
-        y += 15f
-        canvas.drawText("${config.companyAddress} | Tel: ${config.contactPhone}", 40f, y, subtitlePaint)
-        y += 15f
-        canvas.drawText("Tax / Reg: ${config.taxRegistrationNumber}", 40f, y, subtitlePaint)
-
-        // Invoice Badge on Right
-        canvas.drawText("TAX INVOICE", 430f, 45f, titlePaint)
-        canvas.drawText("Invoice #: ${order.invoiceNumber}", 430f, 65f, boldPaint)
-        canvas.drawText("Order #: ${order.orderNumber}", 430f, 82f, bodyPaint)
-        canvas.drawText("Date: ${order.date}", 430f, 98f, bodyPaint)
-        canvas.drawText("Status: ${order.status}", 430f, 114f, bodyPaint)
-
-        y = 135f
-        canvas.drawLine(40f, y, 555f, y, linePaint)
-        y += 22f
-
-        // Bill To Section
-        canvas.drawText("BILL TO DEALER:", 40f, y, boldPaint)
-        canvas.drawText("DELIVERY LOCATION:", 320f, y, boldPaint)
-        y += 16f
-        canvas.drawText(order.dealerName, 40f, y, boldPaint)
-        canvas.drawText("${order.location} (${order.area})", 320f, y, bodyPaint)
-        y += 15f
-        canvas.drawText(order.dealerAddress.ifBlank { order.location }, 40f, y, bodyPaint)
-        if (order.farmerName.isNotBlank()) {
-            canvas.drawText("Farmer: ${order.farmerName}", 320f, y, bodyPaint)
+        // Col 1: Invoice #
+        drawVectorDoc(canvas, 32f, 134f, AndroidColor.rgb(21, 128, 61), 14f)
+        textPaint.apply {
+            color = AndroidColor.rgb(100, 116, 139)
+            textSize = 8.5f
+            typeface = Typeface.DEFAULT
+            textAlign = Paint.Align.LEFT
         }
-        y += 24f
+        canvas.drawText("Invoice #:", 52f, 137f, textPaint)
+        textPaint.apply {
+            color = AndroidColor.rgb(15, 23, 42)
+            textSize = 10.5f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        canvas.drawText(order.invoiceNumber, 52f, 151f, textPaint)
 
-        // Table Header
-        canvas.drawRect(40f, y - 14f, 555f, y + 8f, headerBgPaint)
-        canvas.drawText("Product", 48f, y, boldPaint)
-        canvas.drawText("Bag Size", 210f, y, boldPaint)
-        canvas.drawText("Qty (Bags)", 280f, y, boldPaint)
-        canvas.drawText("Weight", 350f, y, boldPaint)
-        canvas.drawText("Rate", 420f, y, boldPaint)
-        canvas.drawText("Net (${config.currencySymbol})", 485f, y, boldPaint)
-        y += 22f
+        // Col 2: Order #
+        val c2X = 20f + colW
+        drawVectorLayers(canvas, c2X + 12f, 134f, AndroidColor.rgb(21, 128, 61), 14f)
+        textPaint.apply {
+            color = AndroidColor.rgb(100, 116, 139)
+            textSize = 8.5f
+            typeface = Typeface.DEFAULT
+        }
+        canvas.drawText("Order #:", c2X + 32f, 137f, textPaint)
+        textPaint.apply {
+            color = AndroidColor.rgb(15, 23, 42)
+            textSize = 10.5f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        canvas.drawText(order.orderNumber, c2X + 32f, 151f, textPaint)
 
-        items.forEach { item ->
-            canvas.drawText("${item.productCode} - ${item.productName.take(20)}", 48f, y, bodyPaint)
-            canvas.drawText(item.bagSizeLabel, 210f, y, bodyPaint)
-            canvas.drawText("${item.quantityBags}", 285f, y, bodyPaint)
-            canvas.drawText("${item.totalKg.roundToInt()} KG", 350f, y, bodyPaint)
-            canvas.drawText("${item.pricePerBag.roundToInt()}", 420f, y, bodyPaint)
-            canvas.drawText("${item.netAmount.roundToInt()}", 485f, y, boldPaint)
-            y += 18f
-            canvas.drawLine(40f, y - 10f, 555f, y - 10f, linePaint)
+        // Col 3: Date
+        val c3X = 20f + colW * 2f
+        drawVectorCalendar(canvas, c3X + 12f, 134f, AndroidColor.rgb(21, 128, 61), 14f)
+        textPaint.apply {
+            color = AndroidColor.rgb(100, 116, 139)
+            textSize = 8.5f
+            typeface = Typeface.DEFAULT
+        }
+        canvas.drawText("Date:", c3X + 32f, 137f, textPaint)
+        textPaint.apply {
+            color = AndroidColor.rgb(15, 23, 42)
+            textSize = 10.5f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        canvas.drawText(order.date, c3X + 32f, 151f, textPaint)
+
+        // Col 4: Status
+        val c4X = 20f + colW * 3f
+        drawVectorCheck(canvas, c4X + 10f, 134f, AndroidColor.rgb(21, 128, 61), 14f)
+        textPaint.apply {
+            color = AndroidColor.rgb(100, 116, 139)
+            textSize = 8.5f
+            typeface = Typeface.DEFAULT
+        }
+        canvas.drawText("Status:", c4X + 28f, 137f, textPaint)
+
+        // Status Pill
+        val statusPill = RectF(c4X + 28f, 140f, c4X + 105f, 157f)
+        fillPaint.color = AndroidColor.rgb(220, 252, 231)
+        canvas.drawRoundRect(statusPill, 5f, 5f, fillPaint)
+        textPaint.apply {
+            color = AndroidColor.rgb(21, 128, 61)
+            textSize = 9.5f
+            typeface = Typeface.DEFAULT_BOLD
+            textAlign = Paint.Align.CENTER
+        }
+        canvas.drawText(order.status, statusPill.centerX(), 152f, textPaint)
+        textPaint.textAlign = Paint.Align.LEFT
+
+        // ==========================================
+        // 3. BILL TO & DELIVERY LOCATION (y: 174f to 252f)
+        // ==========================================
+        val billRect = RectF(20f, 174f, 290f, 252f)
+        fillPaint.color = AndroidColor.WHITE
+        canvas.drawRoundRect(billRect, 12f, 12f, fillPaint)
+        canvas.drawRoundRect(billRect, 12f, 12f, strokePaint)
+
+        val delivRect = RectF(305f, 174f, 575f, 252f)
+        canvas.drawRoundRect(delivRect, 12f, 12f, fillPaint)
+        canvas.drawRoundRect(delivRect, 12f, 12f, strokePaint)
+
+        // Bill To Header Badge
+        val billBadge = RectF(28f, 182f, 165f, 202f)
+        fillPaint.color = AndroidColor.rgb(15, 82, 51)
+        canvas.drawRoundRect(billBadge, 6f, 6f, fillPaint)
+        drawVectorPerson(canvas, 35f, 187f, AndroidColor.WHITE, 11f)
+        textPaint.apply {
+            color = AndroidColor.WHITE
+            textSize = 8.5f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        canvas.drawText("BILL TO DEALER", 52f, 196f, textPaint)
+
+        // Dealer Name & Address
+        textPaint.apply {
+            color = AndroidColor.rgb(15, 23, 42)
+            textSize = 13.5f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        canvas.drawText(order.dealerName.take(24), 30f, 222f, textPaint)
+        drawVectorPin(canvas, 30f, 232f, AndroidColor.rgb(21, 128, 61), 11f)
+        textPaint.apply {
+            color = AndroidColor.rgb(51, 65, 85)
+            textSize = 10f
+            typeface = Typeface.DEFAULT
+        }
+        val dealerLoc = if (order.dealerAddress.isNotBlank()) order.dealerAddress else order.location
+        canvas.drawText(dealerLoc.take(30), 45f, 241f, textPaint)
+
+        // Delivery Location Header Badge
+        val delivBadge = RectF(313f, 182f, 470f, 202f)
+        fillPaint.color = AndroidColor.rgb(15, 82, 51)
+        canvas.drawRoundRect(delivBadge, 6f, 6f, fillPaint)
+        drawVectorTruck(canvas, 320f, 187f, AndroidColor.WHITE, 11f)
+        textPaint.apply {
+            color = AndroidColor.WHITE
+            textSize = 8.5f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        canvas.drawText("DELIVERY LOCATION", 337f, 196f, textPaint)
+
+        // Delivery Location Name & Area
+        textPaint.apply {
+            color = AndroidColor.rgb(15, 23, 42)
+            textSize = 13.5f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        canvas.drawText(order.location.take(24), 315f, 222f, textPaint)
+        textPaint.apply {
+            color = AndroidColor.rgb(100, 116, 139)
+            textSize = 10f
+            typeface = Typeface.DEFAULT
+        }
+        val subArea = if (order.area.isNotBlank()) "(${order.area})" else if (order.farmerName.isNotBlank()) "Farmer: ${order.farmerName}" else "(${order.location})"
+        canvas.drawText(subArea.take(30), 315f, 241f, textPaint)
+
+        // ==========================================
+        // 4. PRODUCT ITEMS TABLE (y: 264f onwards)
+        // ==========================================
+        val tableTop = 264f
+        val headerH = 26f
+        val rowH = 30f
+        val tableH = headerH + items.size * rowH
+        val tableRect = RectF(20f, tableTop, 575f, tableTop + tableH)
+
+        // Background & Outer rounded border
+        fillPaint.color = AndroidColor.WHITE
+        canvas.drawRoundRect(tableRect, 10f, 10f, fillPaint)
+
+        // Header Background
+        val tblHeaderRect = RectF(20f, tableTop, 575f, tableTop + headerH)
+        fillPaint.color = AndroidColor.rgb(10, 77, 46)
+        canvas.drawRoundRect(tblHeaderRect, 10f, 10f, fillPaint)
+        // Square off bottom corners of header
+        canvas.drawRect(20f, tableTop + 10f, 575f, tableTop + headerH, fillPaint)
+
+        // Column Coordinates
+        val colHash = 42f
+        val colProd = 48f
+        val colBag = 205f
+        val colQty = 270f
+        val colWt = 340f
+        val colRate = 415f
+        val colNet = 490f
+
+        // Table Header Text
+        textPaint.apply {
+            color = AndroidColor.WHITE
+            textSize = 9f
+            typeface = Typeface.DEFAULT_BOLD
+            textAlign = Paint.Align.CENTER
+        }
+        canvas.drawText("#", 32f, tableTop + 17f, textPaint)
+        textPaint.textAlign = Paint.Align.LEFT
+        canvas.drawText("Product", colProd, tableTop + 17f, textPaint)
+        textPaint.textAlign = Paint.Align.CENTER
+        canvas.drawText("Bag Size", colBag + 25f, tableTop + 17f, textPaint)
+        canvas.drawText("Qty (Bags)", colQty + 30f, tableTop + 17f, textPaint)
+        canvas.drawText("Weight", colWt + 32f, tableTop + 17f, textPaint)
+        canvas.drawText("Rate ($cur)", colRate + 32f, tableTop + 17f, textPaint)
+        canvas.drawText("Net Amount ($cur)", colNet + 40f, tableTop + 17f, textPaint)
+
+        // Vertical dividers in header
+        strokePaint.apply {
+            color = AndroidColor.rgb(30, 95, 60)
+            strokeWidth = 1f
+        }
+        canvas.drawLine(colProd - 5f, tableTop, colProd - 5f, tableTop + headerH, strokePaint)
+        canvas.drawLine(colBag - 2f, tableTop, colBag - 2f, tableTop + headerH, strokePaint)
+        canvas.drawLine(colQty - 2f, tableTop, colQty - 2f, tableTop + headerH, strokePaint)
+        canvas.drawLine(colWt - 2f, tableTop, colWt - 2f, tableTop + headerH, strokePaint)
+        canvas.drawLine(colRate - 2f, tableTop, colRate - 2f, tableTop + headerH, strokePaint)
+        canvas.drawLine(colNet - 2f, tableTop, colNet - 2f, tableTop + headerH, strokePaint)
+
+        // Rows
+        items.forEachIndexed { idx, item ->
+            val rowY = tableTop + headerH + idx * rowH
+            val textY = rowY + 19f
+
+            // Bottom border
+            strokePaint.color = AndroidColor.rgb(226, 232, 240)
+            canvas.drawLine(20f, rowY + rowH, 575f, rowY + rowH, strokePaint)
+
+            // Vertical column dividers in rows
+            canvas.drawLine(colProd - 5f, rowY, colProd - 5f, rowY + rowH, strokePaint)
+            canvas.drawLine(colBag - 2f, rowY, colBag - 2f, rowY + rowH, strokePaint)
+            canvas.drawLine(colQty - 2f, rowY, colQty - 2f, rowY + rowH, strokePaint)
+            canvas.drawLine(colWt - 2f, rowY, colWt - 2f, rowY + rowH, strokePaint)
+            canvas.drawLine(colRate - 2f, rowY, colRate - 2f, rowY + rowH, strokePaint)
+            canvas.drawLine(colNet - 2f, rowY, colNet - 2f, rowY + rowH, strokePaint)
+
+            // Col 1: #
+            textPaint.apply {
+                color = AndroidColor.rgb(15, 23, 42)
+                textSize = 9.5f
+                typeface = Typeface.DEFAULT
+                textAlign = Paint.Align.CENTER
+            }
+            canvas.drawText("${idx + 1}", 32f, textY, textPaint)
+
+            // Col 2: Product Badge + Name
+            val codeBadge = RectF(colProd, rowY + 6f, colProd + 36f, rowY + 24f)
+            fillPaint.color = AndroidColor.rgb(220, 252, 231)
+            canvas.drawRoundRect(codeBadge, 4f, 4f, fillPaint)
+            textPaint.apply {
+                color = AndroidColor.rgb(21, 128, 61)
+                textSize = 9.5f
+                typeface = Typeface.DEFAULT_BOLD
+                textAlign = Paint.Align.CENTER
+            }
+            canvas.drawText(item.productCode, codeBadge.centerX(), textY - 1f, textPaint)
+
+            textPaint.apply {
+                color = AndroidColor.rgb(15, 23, 42)
+                textSize = 9.5f
+                typeface = Typeface.DEFAULT_BOLD
+                textAlign = Paint.Align.LEFT
+            }
+            canvas.drawText("${item.productCode} - ${item.productName.take(16)}", colProd + 42f, textY, textPaint)
+
+            // Col 3: Bag Size
+            textPaint.apply {
+                color = AndroidColor.rgb(15, 23, 42)
+                textSize = 9.5f
+                typeface = Typeface.DEFAULT
+                textAlign = Paint.Align.CENTER
+            }
+            canvas.drawText(item.bagSizeLabel, colBag + 25f, textY, textPaint)
+
+            // Col 4: Qty (Bags)
+            textPaint.typeface = Typeface.DEFAULT_BOLD
+            canvas.drawText("${item.quantityBags}", colQty + 30f, textY, textPaint)
+
+            // Col 5: Weight
+            textPaint.typeface = Typeface.DEFAULT
+            canvas.drawText("${item.totalKg.roundToInt()} KG", colWt + 32f, textY, textPaint)
+
+            // Col 6: Rate
+            canvas.drawText(BusinessCalculations.formatNumber(item.pricePerBag), colRate + 32f, textY, textPaint)
+
+            // Col 7: Net Amount (Highlighted Green Pill Container!)
+            val netPill = RectF(colNet + 6f, rowY + 5f, 570f, rowY + 25f)
+            fillPaint.color = AndroidColor.rgb(220, 252, 231)
+            canvas.drawRoundRect(netPill, 5f, 5f, fillPaint)
+            textPaint.apply {
+                color = AndroidColor.rgb(21, 128, 61)
+                textSize = 10.5f
+                typeface = Typeface.DEFAULT_BOLD
+                textAlign = Paint.Align.CENTER
+            }
+            canvas.drawText(BusinessCalculations.formatNumber(item.netAmount), netPill.centerX(), textY, textPaint)
         }
 
-        y += 16f
-        // Totals Box
-        canvas.drawText("Total Bags: ${order.totalBags} Bags", 40f, y, boldPaint)
-        canvas.drawText("Gross Amount:", 370f, y, bodyPaint)
-        canvas.drawText(BusinessCalculations.formatCurrency(order.grossAmount, config.currencySymbol), 470f, y, bodyPaint)
-        y += 18f
-
-        canvas.drawText("Total Weight: ${order.totalKg.roundToInt()} KG (${BusinessCalculations.formatDecimal(order.totalMt)} MT)", 40f, y, boldPaint)
-        canvas.drawText("Discount:", 370f, y, bodyPaint)
-        canvas.drawText(BusinessCalculations.formatCurrency(order.discountAmount, config.currencySymbol), 470f, y, bodyPaint)
-        y += 18f
-
-        canvas.drawText("Net Payable:", 370f, y, boldPaint)
-        canvas.drawText(BusinessCalculations.formatCurrency(order.netAmount, config.currencySymbol), 470f, y, boldPaint)
-        y += 18f
-
-        canvas.drawText("Amount Received:", 370f, y, bodyPaint)
-        canvas.drawText(BusinessCalculations.formatCurrency(order.paidAmount, config.currencySymbol), 470f, y, bodyPaint)
-        y += 18f
-
-        canvas.drawText("Balance Outstanding:", 370f, y, boldPaint)
-        canvas.drawText(BusinessCalculations.formatCurrency(order.outstandingAmount, config.currencySymbol), 470f, y, boldPaint)
-        y += 30f
-
-        if (order.remarks.isNotBlank()) {
-            canvas.drawText("Remarks: ${order.remarks}", 40f, y, bodyPaint)
-            y += 24f
+        // Draw outer border for table
+        strokePaint.apply {
+            color = AndroidColor.rgb(10, 77, 46)
+            strokeWidth = 1.2f
         }
+        canvas.drawRoundRect(tableRect, 10f, 10f, strokePaint)
 
-        canvas.drawLine(40f, 770f, 555f, 770f, linePaint)
-        canvas.drawText("Generated by WandaBook Pro • Dairy Feed Sales & Management • Authorized Signature: ________________", 40f, 795f, subtitlePaint)
+        // ==========================================
+        // 5. MIDDLE SECTION: Pastoral Art (Left) & Financial Summary Card (Right)
+        // ==========================================
+        val middleY = maxOf(tableTop + tableH + 16f, 360f)
+        val cardH = 158f
+
+        // --- Left Side: Pastoral Dairy Art Illustration ---
+        drawVectorDairyIllustration(canvas, 20f, middleY, 225f, middleY + cardH)
+
+        // --- Right Side: Financial Breakdown Card ---
+        val sumRect = RectF(238f, middleY, 575f, middleY + cardH)
+        fillPaint.color = AndroidColor.WHITE
+        canvas.drawRoundRect(sumRect, 14f, 14f, fillPaint)
+        strokePaint.apply {
+            color = AndroidColor.rgb(226, 232, 240)
+            strokeWidth = 1f
+        }
+        canvas.drawRoundRect(sumRect, 14f, 14f, strokePaint)
+
+        // Row 1: Gross Amount
+        var rY = middleY + 22f
+        drawVectorCoins(canvas, 252f, rY - 11f, AndroidColor.rgb(22, 163, 74), 13f)
+        textPaint.apply {
+            color = AndroidColor.rgb(51, 65, 85)
+            textSize = 11f
+            typeface = Typeface.DEFAULT
+            textAlign = Paint.Align.LEFT
+        }
+        canvas.drawText("Gross Amount:", 272f, rY, textPaint)
+        textPaint.apply {
+            color = AndroidColor.rgb(15, 23, 42)
+            textSize = 12f
+            typeface = Typeface.DEFAULT_BOLD
+            textAlign = Paint.Align.RIGHT
+        }
+        canvas.drawText("$cur ${BusinessCalculations.formatNumber(order.grossAmount)}", 562f, rY, textPaint)
+
+        // Row 2: Discount
+        rY += 26f
+        drawVectorTag(canvas, 252f, rY - 11f, AndroidColor.rgb(100, 116, 139), 13f)
+        textPaint.apply {
+            color = AndroidColor.rgb(51, 65, 85)
+            textSize = 11f
+            typeface = Typeface.DEFAULT
+            textAlign = Paint.Align.LEFT
+        }
+        canvas.drawText("Discount:", 272f, rY, textPaint)
+        textPaint.apply {
+            color = AndroidColor.rgb(15, 23, 42)
+            textSize = 12f
+            typeface = Typeface.DEFAULT_BOLD
+            textAlign = Paint.Align.RIGHT
+        }
+        canvas.drawText("$cur ${BusinessCalculations.formatNumber(order.discountAmount)}", 562f, rY, textPaint)
+
+        // Row 3: Net Payable (Highlight Emerald Green Pill!)
+        rY += 30f
+        val netBanner = RectF(244f, rY - 14f, 569f, rY + 14f)
+        fillPaint.color = AndroidColor.rgb(15, 82, 51)
+        canvas.drawRoundRect(netBanner, 8f, 8f, fillPaint)
+
+        drawVectorCalc(canvas, 254f, rY - 7f, AndroidColor.WHITE, 14f)
+        textPaint.apply {
+            color = AndroidColor.WHITE
+            textSize = 12f
+            typeface = Typeface.DEFAULT_BOLD
+            textAlign = Paint.Align.LEFT
+        }
+        canvas.drawText("Net Payable:", 276f, rY + 4f, textPaint)
+        textPaint.apply {
+            color = AndroidColor.WHITE
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            textAlign = Paint.Align.RIGHT
+        }
+        canvas.drawText("$cur ${BusinessCalculations.formatNumber(order.netAmount)}", 560f, rY + 4f, textPaint)
+
+        // Row 4: Amount Received
+        rY += 32f
+        drawVectorWallet(canvas, 252f, rY - 11f, AndroidColor.rgb(22, 163, 74), 13f)
+        textPaint.apply {
+            color = AndroidColor.rgb(51, 65, 85)
+            textSize = 11f
+            typeface = Typeface.DEFAULT
+            textAlign = Paint.Align.LEFT
+        }
+        canvas.drawText("Amount Received:", 272f, rY, textPaint)
+        textPaint.apply {
+            color = AndroidColor.rgb(21, 128, 61)
+            textSize = 12.5f
+            typeface = Typeface.DEFAULT_BOLD
+            textAlign = Paint.Align.RIGHT
+        }
+        canvas.drawText("$cur ${BusinessCalculations.formatNumber(order.paidAmount)}", 562f, rY, textPaint)
+
+        // Row 5: Balance Outstanding
+        rY += 26f
+        drawVectorScales(canvas, 252f, rY - 11f, AndroidColor.rgb(220, 38, 38), 13f)
+        textPaint.apply {
+            color = AndroidColor.rgb(220, 38, 38)
+            textSize = 11.5f
+            typeface = Typeface.DEFAULT_BOLD
+            textAlign = Paint.Align.LEFT
+        }
+        canvas.drawText("Balance Outstanding:", 272f, rY, textPaint)
+        textPaint.apply {
+            color = AndroidColor.rgb(220, 38, 38)
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            textAlign = Paint.Align.RIGHT
+        }
+        canvas.drawText("$cur ${BusinessCalculations.formatNumber(order.outstandingAmount)}", 562f, rY, textPaint)
+
+        // ==========================================
+        // 6. VOLUME & WEIGHT BANNER (y ~ 610f)
+        // ==========================================
+        val volY = middleY + cardH + 14f
+        val volRect = RectF(20f, volY, 575f, volY + 48f)
+        fillPaint.color = AndroidColor.WHITE
+        canvas.drawRoundRect(volRect, 12f, 12f, fillPaint)
+        strokePaint.apply {
+            color = AndroidColor.rgb(226, 232, 240)
+            strokeWidth = 1f
+        }
+        canvas.drawRoundRect(volRect, 12f, 12f, strokePaint)
+
+        // Left Half: Total Bags
+        drawVectorFeedBag(canvas, 75f, volY + 12f, AndroidColor.rgb(21, 128, 61), 24f)
+        textPaint.apply {
+            color = AndroidColor.rgb(100, 116, 139)
+            textSize = 9.5f
+            typeface = Typeface.DEFAULT
+            textAlign = Paint.Align.LEFT
+        }
+        canvas.drawText("Total Bags", 110f, volY + 22f, textPaint)
+        textPaint.apply {
+            color = AndroidColor.rgb(15, 23, 42)
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        canvas.drawText("${order.totalBags} Bags", 110f, volY + 38f, textPaint)
+
+        // Vertical Gold Divider
+        strokePaint.apply {
+            color = AndroidColor.rgb(245, 197, 24)
+            strokeWidth = 1.2f
+        }
+        canvas.drawLine(297f, volY + 10f, 297f, volY + 38f, strokePaint)
+
+        // Right Half: Total Weight
+        drawVectorWeight(canvas, 335f, volY + 12f, AndroidColor.rgb(21, 128, 61), 24f)
+        textPaint.apply {
+            color = AndroidColor.rgb(100, 116, 139)
+            textSize = 9.5f
+            typeface = Typeface.DEFAULT
+            textAlign = Paint.Align.LEFT
+        }
+        canvas.drawText("Total Weight", 370f, volY + 22f, textPaint)
+        textPaint.apply {
+            color = AndroidColor.rgb(15, 23, 42)
+            textSize = 13.5f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        canvas.drawText("${order.totalKg.roundToInt()} KG (${BusinessCalculations.formatDecimal(order.totalMt)} MT)", 370f, volY + 38f, textPaint)
+
+        // ==========================================
+        // 7. FOOTER SECTION (y: 715f to 842f)
+        // ==========================================
+        val footY = volY + 68f
+
+        // Left: Generated by WandaBook Pro
+        drawVectorCalendar(canvas, 25f, footY - 8f, AndroidColor.rgb(21, 128, 61), 18f)
+        textPaint.apply {
+            color = AndroidColor.rgb(100, 116, 139)
+            textSize = 8.5f
+            typeface = Typeface.DEFAULT
+            textAlign = Paint.Align.LEFT
+        }
+        canvas.drawText("Generated by", 48f, footY - 3f, textPaint)
+        textPaint.apply {
+            color = AndroidColor.rgb(15, 23, 42)
+            textSize = 11.5f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        canvas.drawText("WandaBook Pro", 48f, footY + 11f, textPaint)
+        textPaint.apply {
+            color = AndroidColor.rgb(100, 116, 139)
+            textSize = 8.5f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
+        }
+        canvas.drawText("Dairy Feed Sales & Management", 48f, footY + 22f, textPaint)
+
+        // Vertical divider
+        strokePaint.apply {
+            color = AndroidColor.rgb(226, 232, 240)
+            strokeWidth = 1f
+        }
+        canvas.drawLine(250f, footY - 8f, 250f, footY + 25f, strokePaint)
+
+        // Right: Authorized Signature
+        textPaint.apply {
+            color = AndroidColor.rgb(51, 65, 85)
+            textSize = 10.5f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
+            textAlign = Paint.Align.CENTER
+        }
+        canvas.drawText("Authorized Signature:", 430f, footY + 2f, textPaint)
+        strokePaint.apply {
+            color = AndroidColor.rgb(100, 116, 139)
+            strokeWidth = 1f
+        }
+        canvas.drawLine(340f, footY + 22f, 520f, footY + 22f, strokePaint)
+
+        // Bottom Edge Decorative Curved Ribbon (Echoing header)
+        val btmGold = Path().apply {
+            moveTo(0f, 830f)
+            cubicTo(200f, 818f, 400f, 838f, 595f, 822f)
+            lineTo(595f, 826f)
+            cubicTo(400f, 842f, 200f, 822f, 0f, 834f)
+            close()
+        }
+        fillPaint.color = AndroidColor.rgb(245, 197, 24)
+        canvas.drawPath(btmGold, fillPaint)
+
+        val btmGreen = Path().apply {
+            moveTo(0f, 834f)
+            cubicTo(200f, 822f, 400f, 842f, 595f, 826f)
+            lineTo(595f, 842f)
+            lineTo(0f, 842f)
+            close()
+        }
+        fillPaint.shader = LinearGradient(0f, 822f, 595f, 842f, AndroidColor.rgb(6, 53, 30), AndroidColor.rgb(15, 82, 51), Shader.TileMode.CLAMP)
+        canvas.drawPath(btmGreen, fillPaint)
+        fillPaint.shader = null
+    }
+
+    // --- Vector Icon & Illustration Canvas Primitives for Razor-Sharp Print Rendering ---
+
+    private fun drawVectorDoc(canvas: Canvas, x: Float, y: Float, color: Int, size: Float) {
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; style = Paint.Style.STROKE; strokeWidth = 1.3f }
+        val r = RectF(x, y, x + size * 0.75f, y + size)
+        canvas.drawRoundRect(r, 2f, 2f, p)
+        canvas.drawLine(x + 3f, y + 4f, x + size * 0.75f - 3f, y + 4f, p)
+        canvas.drawLine(x + 3f, y + 7f, x + size * 0.75f - 3f, y + 7f, p)
+        canvas.drawLine(x + 3f, y + 10f, x + size * 0.5f, y + 10f, p)
+    }
+
+    private fun drawVectorLayers(canvas: Canvas, x: Float, y: Float, color: Int, size: Float) {
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; style = Paint.Style.STROKE; strokeWidth = 1.3f }
+        val path1 = Path().apply { moveTo(x, y + 4f); lineTo(x + size * 0.5f, y); lineTo(x + size, y + 4f); lineTo(x + size * 0.5f, y + 8f); close() }
+        canvas.drawPath(path1, p)
+        val path2 = Path().apply { moveTo(x, y + 8f); lineTo(x + size * 0.5f, y + 12f); lineTo(x + size, y + 8f) }
+        canvas.drawPath(path2, p)
+    }
+
+    private fun drawVectorCalendar(canvas: Canvas, x: Float, y: Float, color: Int, size: Float) {
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; style = Paint.Style.STROKE; strokeWidth = 1.3f }
+        val r = RectF(x, y + 2f, x + size, y + size)
+        canvas.drawRoundRect(r, 2f, 2f, p)
+        canvas.drawLine(x, y + 5f, x + size, y + 5f, p)
+        val fillP = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; style = Paint.Style.FILL }
+        canvas.drawCircle(x + 3f, y + 1f, 1f, fillP)
+        canvas.drawCircle(x + size - 3f, y + 1f, 1f, fillP)
+    }
+
+    private fun drawVectorCheck(canvas: Canvas, x: Float, y: Float, color: Int, size: Float) {
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; style = Paint.Style.STROKE; strokeWidth = 1.3f }
+        canvas.drawCircle(x + size * 0.5f, y + size * 0.5f, size * 0.45f, p)
+        val check = Path().apply {
+            moveTo(x + size * 0.3f, y + size * 0.5f)
+            lineTo(x + size * 0.45f, y + size * 0.7f)
+            lineTo(x + size * 0.75f, y + size * 0.3f)
+        }
+        canvas.drawPath(check, p)
+    }
+
+    private fun drawVectorPerson(canvas: Canvas, x: Float, y: Float, color: Int, size: Float) {
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; style = Paint.Style.FILL }
+        canvas.drawCircle(x + size * 0.5f, y + size * 0.3f, size * 0.25f, p)
+        val body = Path().apply {
+            moveTo(x + size * 0.1f, y + size)
+            cubicTo(x + size * 0.2f, y + size * 0.6f, x + size * 0.8f, y + size * 0.6f, x + size * 0.9f, y + size)
+            close()
+        }
+        canvas.drawPath(body, p)
+    }
+
+    private fun drawVectorTruck(canvas: Canvas, x: Float, y: Float, color: Int, size: Float) {
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; style = Paint.Style.FILL }
+        // Truck body
+        canvas.drawRoundRect(RectF(x, y + size * 0.2f, x + size * 0.65f, y + size * 0.8f), 1f, 1f, p)
+        // Truck cabin
+        canvas.drawRoundRect(RectF(x + size * 0.68f, y + size * 0.35f, x + size, y + size * 0.8f), 1f, 1f, p)
+        // Wheels
+        canvas.drawCircle(x + size * 0.25f, y + size * 0.88f, size * 0.12f, p)
+        canvas.drawCircle(x + size * 0.82f, y + size * 0.88f, size * 0.12f, p)
+    }
+
+    private fun drawVectorPin(canvas: Canvas, x: Float, y: Float, color: Int, size: Float) {
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; style = Paint.Style.FILL }
+        canvas.drawCircle(x + size * 0.5f, y + size * 0.35f, size * 0.32f, p)
+        val path = Path().apply {
+            moveTo(x + size * 0.2f, y + size * 0.4f)
+            lineTo(x + size * 0.5f, y + size)
+            lineTo(x + size * 0.8f, y + size * 0.4f)
+            close()
+        }
+        canvas.drawPath(path, p)
+        val hole = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = AndroidColor.WHITE; style = Paint.Style.FILL }
+        canvas.drawCircle(x + size * 0.5f, y + size * 0.35f, size * 0.12f, hole)
+    }
+
+    private fun drawVectorCoins(canvas: Canvas, x: Float, y: Float, color: Int, size: Float) {
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; style = Paint.Style.STROKE; strokeWidth = 1.3f }
+        canvas.drawCircle(x + size * 0.4f, y + size * 0.6f, size * 0.35f, p)
+        canvas.drawCircle(x + size * 0.6f, y + size * 0.4f, size * 0.35f, p)
+    }
+
+    private fun drawVectorTag(canvas: Canvas, x: Float, y: Float, color: Int, size: Float) {
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; style = Paint.Style.STROKE; strokeWidth = 1.3f }
+        val path = Path().apply {
+            moveTo(x, y + size * 0.5f)
+            lineTo(x + size * 0.4f, y)
+            lineTo(x + size, y)
+            lineTo(x + size, y + size * 0.6f)
+            lineTo(x + size * 0.5f, y + size)
+            close()
+        }
+        canvas.drawPath(path, p)
+    }
+
+    private fun drawVectorCalc(canvas: Canvas, x: Float, y: Float, color: Int, size: Float) {
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; style = Paint.Style.STROKE; strokeWidth = 1.3f }
+        val r = RectF(x, y, x + size * 0.8f, y + size)
+        canvas.drawRoundRect(r, 2f, 2f, p)
+        canvas.drawLine(x + 2f, y + 3f, x + size * 0.8f - 2f, y + 3f, p)
+    }
+
+    private fun drawVectorWallet(canvas: Canvas, x: Float, y: Float, color: Int, size: Float) {
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; style = Paint.Style.STROKE; strokeWidth = 1.3f }
+        val r = RectF(x, y + 2f, x + size, y + size)
+        canvas.drawRoundRect(r, 2f, 2f, p)
+        canvas.drawCircle(x + size * 0.75f, y + size * 0.6f, 1.5f, p)
+    }
+
+    private fun drawVectorScales(canvas: Canvas, x: Float, y: Float, color: Int, size: Float) {
+        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; style = Paint.Style.STROKE; strokeWidth = 1.3f }
+        canvas.drawLine(x + size * 0.5f, y, x + size * 0.5f, y + size, p)
+        canvas.drawLine(x, y + 2f, x + size, y + 2f, p)
+        canvas.drawLine(x, y + 2f, x + 3f, y + 6f, p)
+        canvas.drawLine(x + size, y + 2f, x + size - 3f, y + 6f, p)
+    }
+
+    private fun drawVectorFeedBag(canvas: Canvas, x: Float, y: Float, color: Int, size: Float) {
+        val fillP = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = AndroidColor.rgb(220, 252, 231); style = Paint.Style.FILL }
+        canvas.drawCircle(x + size * 0.5f, y + size * 0.5f, size * 0.6f, fillP)
+        val strokeP = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; style = Paint.Style.STROKE; strokeWidth = 1.6f }
+        val bag = Path().apply {
+            moveTo(x + size * 0.25f, y + size * 0.35f)
+            lineTo(x + size * 0.75f, y + size * 0.35f)
+            lineTo(x + size * 0.85f, y + size * 0.85f)
+            lineTo(x + size * 0.15f, y + size * 0.85f)
+            close()
+        }
+        canvas.drawPath(bag, strokeP)
+        // Bag handle
+        canvas.drawArc(RectF(x + size * 0.35f, y + size * 0.18f, x + size * 0.65f, y + size * 0.42f), 180f, 180f, false, strokeP)
+    }
+
+    private fun drawVectorWeight(canvas: Canvas, x: Float, y: Float, color: Int, size: Float) {
+        val fillP = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = AndroidColor.rgb(220, 252, 231); style = Paint.Style.FILL }
+        canvas.drawCircle(x + size * 0.5f, y + size * 0.5f, size * 0.6f, fillP)
+        val strokeP = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; style = Paint.Style.STROKE; strokeWidth = 1.6f }
+        // Kettlebell/weight bell shape
+        val bell = Path().apply {
+            moveTo(x + size * 0.3f, y + size * 0.45f)
+            lineTo(x + size * 0.7f, y + size * 0.45f)
+            lineTo(x + size * 0.85f, y + size * 0.85f)
+            lineTo(x + size * 0.15f, y + size * 0.85f)
+            close()
+        }
+        canvas.drawPath(bell, strokeP)
+        // Handle ring
+        canvas.drawCircle(x + size * 0.5f, y + size * 0.32f, size * 0.15f, strokeP)
+    }
+
+    private fun drawVectorDairyIllustration(canvas: Canvas, left: Float, top: Float, right: Float, bottom: Float) {
+        val cardRect = RectF(left, top, right, bottom)
+        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = AndroidColor.WHITE
+            style = Paint.Style.FILL
+        }
+        canvas.drawRoundRect(cardRect, 14f, 14f, bgPaint)
+        val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = AndroidColor.rgb(226, 232, 240)
+            style = Paint.Style.STROKE
+            strokeWidth = 1f
+        }
+        canvas.drawRoundRect(cardRect, 14f, 14f, borderPaint)
+
+        // Rolling green pasture hills at bottom of art card
+        val pasturePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = AndroidColor.rgb(220, 252, 231)
+            style = Paint.Style.FILL
+        }
+        val hillPath = Path().apply {
+            moveTo(left + 2f, bottom - 12f)
+            cubicTo(left + 50f, bottom - 45f, left + 140f, bottom - 20f, right - 2f, bottom - 35f)
+            lineTo(right - 2f, bottom - 2f)
+            lineTo(left + 2f, bottom - 2f)
+            close()
+        }
+        canvas.drawPath(hillPath, pasturePaint)
+
+        // Milk Can / Churn Vector Graphic
+        val canPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = AndroidColor.rgb(15, 82, 51)
+            style = Paint.Style.FILL
+        }
+        val canStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = AndroidColor.rgb(245, 197, 24)
+            style = Paint.Style.STROKE
+            strokeWidth = 1.4f
+        }
+        val canX = left + 130f
+        val canY = bottom - 70f
+        // Can body
+        canvas.drawRoundRect(RectF(canX, canY, canX + 38f, canY + 50f), 4f, 4f, canPaint)
+        canvas.drawRoundRect(RectF(canX, canY, canX + 38f, canY + 50f), 4f, 4f, canStroke)
+        // Can neck & lid
+        canvas.drawRect(canX + 6f, canY - 8f, canX + 32f, canY, canPaint)
+        canvas.drawRoundRect(RectF(canX + 4f, canY - 12f, canX + 34f, canY - 8f), 2f, 2f, canStroke)
+
+        // Dairy Cow Stylized Emblem
+        val cowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = AndroidColor.rgb(15, 82, 51)
+            style = Paint.Style.FILL
+        }
+        val cx = left + 65f
+        val cy = top + 55f
+        // Cow torso
+        canvas.drawRoundRect(RectF(cx - 38f, cy - 18f, cx + 28f, cy + 18f), 8f, 8f, cowPaint)
+        // Cow neck & head
+        val head = Path().apply {
+            moveTo(cx + 20f, cy - 12f)
+            lineTo(cx + 42f, cy - 28f)
+            lineTo(cx + 52f, cy - 20f)
+            lineTo(cx + 42f, cy)
+            lineTo(cx + 25f, cy + 6f)
+            close()
+        }
+        canvas.drawPath(head, cowPaint)
+        // Horns & Ears
+        canvas.drawLine(cx + 46f, cy - 25f, cx + 50f, cy - 35f, canStroke)
+        // Legs
+        canvas.drawRect(cx - 30f, cy + 18f, cx - 22f, cy + 42f, cowPaint)
+        canvas.drawRect(cx - 14f, cy + 18f, cx - 6f, cy + 42f, cowPaint)
+        canvas.drawRect(cx + 6f, cy + 18f, cx + 14f, cy + 42f, cowPaint)
+        canvas.drawRect(cx + 20f, cy + 18f, cx + 28f, cy + 42f, cowPaint)
+
+        // White Holstein patches on cow
+        val patchPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = AndroidColor.WHITE
+            style = Paint.Style.FILL
+        }
+        canvas.drawCircle(cx - 10f, cy, 7f, patchPaint)
+        canvas.drawCircle(cx - 24f, cy - 5f, 6f, patchPaint)
+
+        // Emblem Ribbon: "PREMIUM DAIRY NUTRITION"
+        val ribbonRect = RectF(left + 14f, top + 10f, right - 14f, top + 26f)
+        val ribPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = AndroidColor.rgb(240, 253, 244)
+            style = Paint.Style.FILL
+        }
+        canvas.drawRoundRect(ribbonRect, 6f, 6f, ribPaint)
+        val ribStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = AndroidColor.rgb(187, 247, 208)
+            style = Paint.Style.STROKE
+            strokeWidth = 1f
+        }
+        canvas.drawRoundRect(ribbonRect, 6f, 6f, ribStroke)
+
+        val tP = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = AndroidColor.rgb(21, 128, 61)
+            textSize = 7.5f
+            typeface = Typeface.DEFAULT_BOLD
+            textAlign = Paint.Align.CENTER
+        }
+        canvas.drawText("★ PREMIUM DAIRY NUTRITION ★", ribbonRect.centerX(), top + 21f, tP)
     }
 
     fun generateInvoicePdfFile(
