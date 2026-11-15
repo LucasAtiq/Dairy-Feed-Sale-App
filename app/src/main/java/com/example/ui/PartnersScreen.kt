@@ -1566,12 +1566,76 @@ private fun DealerFormDialog(
                         modifier = Modifier.weight(1f)
                     )
                 }
-                DropdownSelectorField(
-                    label = "Area / Territory",
-                    options = areas.ifEmpty { listOf("Sahiwal North", "Okara Central", "Kasur East") },
-                    selectedOption = area,
-                    onOptionSelected = { area = it }
-                )
+                // Area / Territory (Fully Editable with suggestions & dropdown)
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    var areaDropdownExpanded by remember { mutableStateOf(false) }
+                    val availableAreas = remember(areas) {
+                        (areas + listOf(
+                            "Sahiwal North",
+                            "Sahiwal South",
+                            "Okara Central",
+                            "Kasur East",
+                            "Pakpattan",
+                            "Faisalabad West",
+                            "Chichawatni"
+                        )).distinct()
+                    }
+
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = area,
+                            onValueChange = { area = it },
+                            label = { Text("Area / Territory * (Editable)") },
+                            placeholder = { Text("e.g. Sahiwal North, Okara...") },
+                            trailingIcon = {
+                                IconButton(onClick = { areaDropdownExpanded = !areaDropdownExpanded }) {
+                                    Icon(Icons.Default.ArrowDropDown, contentDescription = "Select or Type Area")
+                                }
+                            },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        DropdownMenu(
+                            expanded = areaDropdownExpanded,
+                            onDismissRequest = { areaDropdownExpanded = false }
+                        ) {
+                            availableAreas.forEach { a ->
+                                DropdownMenuItem(
+                                    text = { Text(a) },
+                                    onClick = {
+                                        area = a
+                                        areaDropdownExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    // Quick area suggestion chips
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        availableAreas.take(5).forEach { a ->
+                            Surface(
+                                onClick = { area = a },
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (area == a) Color(0xFFDCFCE7) else Color(0xFFF1F5F9),
+                                border = BorderStroke(1.dp, if (area == a) Color(0xFF86EFAC) else Color(0xFFE2E8F0))
+                            ) {
+                                Text(
+                                    text = a,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (area == a) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (area == a) Color(0xFF15803D) else Color(0xFF475569),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
                 DropdownSelectorField(
                     label = "Dealer Type",
                     options = dealerTypes.ifEmpty { listOf("Wholesale Distributor", "Sub-Dealer", "Direct Farm Agency") },
@@ -1802,12 +1866,76 @@ private fun FarmerFormDialog(
                     selectedOption = selectedDealerName,
                     onOptionSelected = { selectedDealerName = it }
                 )
-                DropdownSelectorField(
-                    label = "Area Territory",
-                    options = areas.ifEmpty { listOf("Sahiwal North", "Okara Central") },
-                    selectedOption = area,
-                    onOptionSelected = { area = it }
-                )
+                // Area Territory (Fully Editable with suggestions & dropdown)
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    var farmerAreaDropdownExpanded by remember { mutableStateOf(false) }
+                    val availableAreas = remember(areas) {
+                        (areas + listOf(
+                            "Sahiwal North",
+                            "Sahiwal South",
+                            "Okara Central",
+                            "Kasur East",
+                            "Pakpattan",
+                            "Faisalabad West",
+                            "Chichawatni"
+                        )).distinct()
+                    }
+
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = area,
+                            onValueChange = { area = it },
+                            label = { Text("Area / Territory * (Editable)") },
+                            placeholder = { Text("e.g. Sahiwal North, Okara...") },
+                            trailingIcon = {
+                                IconButton(onClick = { farmerAreaDropdownExpanded = !farmerAreaDropdownExpanded }) {
+                                    Icon(Icons.Default.ArrowDropDown, contentDescription = "Select or Type Area")
+                                }
+                            },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        DropdownMenu(
+                            expanded = farmerAreaDropdownExpanded,
+                            onDismissRequest = { farmerAreaDropdownExpanded = false }
+                        ) {
+                            availableAreas.forEach { a ->
+                                DropdownMenuItem(
+                                    text = { Text(a) },
+                                    onClick = {
+                                        area = a
+                                        farmerAreaDropdownExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    // Quick area suggestion chips
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        availableAreas.take(5).forEach { a ->
+                            Surface(
+                                onClick = { area = a },
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (area == a) Color(0xFFDCFCE7) else Color(0xFFF1F5F9),
+                                border = BorderStroke(1.dp, if (area == a) Color(0xFF86EFAC) else Color(0xFFE2E8F0))
+                            ) {
+                                Text(
+                                    text = a,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (area == a) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (area == a) Color(0xFF15803D) else Color(0xFF475569),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = city,
