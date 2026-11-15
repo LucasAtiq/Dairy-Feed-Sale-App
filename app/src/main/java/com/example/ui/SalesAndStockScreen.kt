@@ -1476,6 +1476,10 @@ private fun PaymentsAndLedgerSection(
 ) {
     val cur = uiState.config.currencySymbol
     var deletingPayment by remember { mutableStateOf<PaymentEntity?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedFilter by remember { mutableStateOf("ALL") }
+    var showFilterMenu by remember { mutableStateOf(false) }
+    var receiptsExpanded by remember { mutableStateOf(false) }
 
     val activeDealerSummaries = remember(uiState.dealerSummaries) {
         uiState.dealerSummaries.filter { !it.dealer.isArchived }
@@ -1484,12 +1488,44 @@ private fun PaymentsAndLedgerSection(
     val totalPaidAll = remember(activeDealerSummaries) { activeDealerSummaries.sumOf { it.totalPayments } }
     val totalOutstandingAll = remember(activeDealerSummaries) { activeDealerSummaries.sumOf { it.outstandingBalance.coerceAtLeast(0.0) } }
 
+    val filteredDealerSummaries = remember(activeDealerSummaries, searchQuery, selectedFilter) {
+        activeDealerSummaries.filter { ds ->
+            val matchesQuery = searchQuery.isBlank() ||
+                ds.dealer.businessName.contains(searchQuery, ignoreCase = true) ||
+                ds.dealer.contactPerson.contains(searchQuery, ignoreCase = true) ||
+                ds.dealer.area.contains(searchQuery, ignoreCase = true)
+            val matchesFilter = when (selectedFilter) {
+                "OUTSTANDING" -> ds.outstandingBalance > 0.01
+                "PAID" -> ds.outstandingBalance <= 0.01
+                else -> true
+            }
+            matchesQuery && matchesFilter
+        }
+    }
+
     Scaffold(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = onOpenNewPayment,
-                icon = { Icon(Icons.Default.Payments, contentDescription = "Add Payment") },
-                text = { Text("+ Add Payment") },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.Payments,
+                        contentDescription = "Add Payment",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                },
+                text = {
+                    Text(
+                        text = "+ Add Payment",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.5.sp,
+                        color = Color.White
+                    )
+                },
+                containerColor = Color(0xFF0F5233),
+                contentColor = Color.White,
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.testTag("record_payment_fab")
             )
         }
@@ -1497,149 +1533,614 @@ private fun PaymentsAndLedgerSection(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
+                .padding(innerPadding)
+                .background(Color(0xFFF8FAFC)),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // 1. Page Header (Icon + Title + Subtitle)
             item {
-                ElevatedCard(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            "Overall Dealer Ledger Summary",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF0F5233)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Paid,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
                         )
+                    }
+                    Column {
+                        Text(
+                            text = "Payments & Ledger",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A)
+                            )
+                        )
+                        Text(
+                            text = "Dealer payments, sales and outstanding",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 11.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        )
+                    }
+                }
+            }
+
+            // 2. Overall Dealer Ledger Summary Card
+            item {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    shadowElevation = 1.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column {
+                        // Green Header Bar with BarChart Icon
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFF0F5233))
+                                .padding(horizontal = 14.dp, vertical = 9.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
-                                Text("Total Sales", style = MaterialTheme.typography.labelSmall)
-                                Text(
-                                    BusinessCalculations.formatCurrency(totalSalesAll, cur),
-                                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = "Overall Dealer Ledger Summary",
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp,
+                                    color = Color.White
                                 )
+                            )
+                            Icon(
+                                imageVector = Icons.Default.BarChart,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        // 3 Clean Metric Cards in a Row
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            // Total Sales
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFFE8F5E9),
+                                border = BorderStroke(1.dp, Color(0xFFC8E6C9))
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ShoppingCart,
+                                        contentDescription = null,
+                                        tint = Color(0xFF16A34A),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = "Total Sales",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFF475569),
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = BusinessCalculations.formatCurrency(totalSalesAll, cur),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF0F172A),
+                                        maxLines = 1
+                                    )
+                                }
                             }
-                            Column {
-                                Text("Total Paid", style = MaterialTheme.typography.labelSmall)
-                                Text(
-                                    BusinessCalculations.formatCurrency(totalPaidAll, cur),
-                                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
-                                    color = StatusSuccess
-                                )
+
+                            // Total Paid
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFFE0F2FE),
+                                border = BorderStroke(1.dp, Color(0xFFBAE6FD))
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Payments,
+                                        contentDescription = null,
+                                        tint = Color(0xFF0284C7),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = "Total Paid",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFF475569),
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = BusinessCalculations.formatCurrency(totalPaidAll, cur),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF0284C7),
+                                        maxLines = 1
+                                    )
+                                }
                             }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text("Outstanding Balance", style = MaterialTheme.typography.labelSmall)
-                                Text(
-                                    BusinessCalculations.formatCurrency(totalOutstandingAll, cur),
-                                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
-                                    color = if (totalOutstandingAll > 0) StatusDanger else StatusSuccess
-                                )
+
+                            // Outstanding Balance
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFFFEE2E2),
+                                border = BorderStroke(1.dp, Color(0xFFFECACA))
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Scale,
+                                        contentDescription = null,
+                                        tint = Color(0xFFDC2626),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = "Outstanding Balance",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFDC2626),
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = BusinessCalculations.formatCurrency(totalOutstandingAll, cur),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        color = Color(0xFFDC2626),
+                                        maxLines = 1
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
 
+            // 3. Dealer Ledger Balances Section Header
             item {
-                Text("Dealer Ledger Balances (Tap any dealer for complete ledger)", style = MaterialTheme.typography.titleMedium)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.People,
+                        contentDescription = null,
+                        tint = Color(0xFF0F5233),
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Column {
+                        Text(
+                            text = "Dealer Ledger Balances",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A)
+                            )
+                        )
+                        Text(
+                            text = "Tap any dealer for complete ledger",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontSize = 11.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        )
+                    }
+                }
             }
-            items(activeDealerSummaries, key = { "dlr-bal-${it.dealer.id}" }) { ds ->
+
+            // 4. Search & Filter Bar
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = {
+                            Text(
+                                "Search dealer (e.g. Bilal, Munawar...)",
+                                fontSize = 12.sp,
+                                color = Color(0xFF94A3B8)
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search",
+                                tint = Color(0xFF0F5233),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = "Clear",
+                                        tint = Color(0xFF94A3B8),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            focusedBorderColor = Color(0xFF0F5233),
+                            unfocusedBorderColor = Color(0xFFE2E8F0)
+                        ),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                    )
+
+                    // Filter Button with Dropdown Menu
+                    Box {
+                        Surface(
+                            onClick = { showFilterMenu = true },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (selectedFilter != "ALL") Color(0xFFE8F5E9) else Color.White,
+                            border = BorderStroke(
+                                1.dp,
+                                if (selectedFilter != "ALL") Color(0xFF16A34A) else Color(0xFFE2E8F0)
+                            ),
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.FilterList,
+                                    contentDescription = "Filter",
+                                    tint = if (selectedFilter != "ALL") Color(0xFF16A34A) else Color(0xFF0F5233),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showFilterMenu,
+                            onDismissRequest = { showFilterMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("All Dealers", fontWeight = if (selectedFilter == "ALL") FontWeight.Bold else FontWeight.Normal) },
+                                onClick = { selectedFilter = "ALL"; showFilterMenu = false }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Outstanding Only", fontWeight = if (selectedFilter == "OUTSTANDING") FontWeight.Bold else FontWeight.Normal, color = Color(0xFFDC2626)) },
+                                onClick = { selectedFilter = "OUTSTANDING"; showFilterMenu = false }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Fully Paid Only", fontWeight = if (selectedFilter == "PAID") FontWeight.Bold else FontWeight.Normal, color = Color(0xFF16A34A)) },
+                                onClick = { selectedFilter = "PAID"; showFilterMenu = false }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 5. Dealer Cards
+            items(filteredDealerSummaries, key = { "dlr-bal-${it.dealer.id}" }) { ds ->
                 val dealerPaymentStatus = BusinessCalculations.getDealerPaymentStatus(
                     totalSales = ds.totalSales,
                     totalPayments = ds.totalPayments,
                     outstandingBalance = ds.outstandingBalance
                 )
-                ElevatedCard(
+                val statusBgColor = when (dealerPaymentStatus) {
+                    "Paid" -> Color(0xFFDCFCE7)
+                    "Partial" -> Color(0xFFFEF3C7)
+                    else -> Color(0xFFFEE2E2)
+                }
+                val statusTextColor = when (dealerPaymentStatus) {
+                    "Paid" -> Color(0xFF16A34A)
+                    "Partial" -> Color(0xFFB45309)
+                    else -> Color(0xFFDC2626)
+                }
+
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
                             viewModel.navigateToSubModule(SubModule.DEALERS)
                             viewModel.openDealerDetail(ds.dealer.id)
                         },
-                    shape = RoundedCornerShape(14.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    shadowElevation = 1.dp
                 ) {
-                    Column(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                        // Dealer Initial Avatar
+                        val initialLetter = ds.dealer.businessName.trim().take(1).uppercase().ifBlank { "D" }
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF0F5233)),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(ds.dealer.businessName, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
-                            StatusBadge(dealerPaymentStatus)
+                            Text(
+                                text = initialLetter,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
                         }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        // Middle Info
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = ds.dealer.businessName,
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF0F172A)
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Total Sales: ${BusinessCalculations.formatCurrency(ds.totalSales, cur)}",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, color = Color(0xFF475569))
+                            )
+                            Text(
+                                text = "Total Paid: ${BusinessCalculations.formatCurrency(ds.totalPayments, cur)}",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, color = Color(0xFF475569))
+                            )
+                            Text(
+                                text = "Opening Balance: ${BusinessCalculations.formatCurrency(ds.dealer.openingBalance, cur)}",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.5.sp, color = Color(0xFF64748B))
+                            )
+                        }
+
+                        // Vertical Divider
+                        Box(
+                            modifier = Modifier
+                                .height(56.dp)
+                                .width(1.dp)
+                                .background(Color(0xFFE2E8F0))
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Right Status & Outstanding
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = statusBgColor
+                            ) {
                                 Text(
-                                    "Total Sales: ${BusinessCalculations.formatCurrency(ds.totalSales, cur)} • Total Paid: ${BusinessCalculations.formatCurrency(ds.totalPayments, cur)}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    "Opening Balance: ${BusinessCalculations.formatCurrency(ds.dealer.openingBalance, cur)}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = dealerPaymentStatus,
+                                    color = statusTextColor,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.5.dp)
                                 )
                             }
-                            Column(horizontalAlignment = Alignment.End) {
+
+                            Text(
+                                text = BusinessCalculations.formatCurrency(ds.outstandingBalance, cur),
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontFamily = JetBrainsMonoFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp
+                                ),
+                                color = if (ds.outstandingBalance > 0) Color(0xFFDC2626) else Color(0xFF16A34A)
+                            )
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
                                 Text(
-                                    BusinessCalculations.formatCurrency(ds.outstandingBalance, cur),
-                                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
-                                    color = if (ds.outstandingBalance > 0) StatusDanger else StatusSuccess
+                                    text = "View Ledger",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontSize = 10.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF0F5233)
+                                    )
                                 )
-                                Text("View Ledger ->", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                Text(
+                                    text = "→",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0F5233)
+                                )
                             }
                         }
                     }
                 }
             }
 
-            item {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text("Payment Receipts History (${uiState.payments.size})", style = MaterialTheme.typography.titleMedium)
+            if (filteredDealerSummaries.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (searchQuery.isNotEmpty()) "No dealers match \"$searchQuery\"" else "No active dealers found",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xFF94A3B8)
+                        )
+                    }
+                }
             }
 
-            items(uiState.payments, key = { it.id }) { pay ->
-                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+            // 6. Payment Receipts History Card (Expandable / Clickable)
+            item {
+                Surface(
+                    onClick = { receiptsExpanded = !receiptsExpanded },
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("${pay.paymentNumber} • ${pay.dealerName}", style = MaterialTheme.typography.titleSmall)
-                            Text(
-                                "${pay.date} • ${pay.paymentMethod} ${if (pay.referenceNumber.isNotBlank()) "• Ref: ${pay.referenceNumber}" else ""}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ReceiptLong,
+                                contentDescription = null,
+                                tint = Color(0xFF0F5233),
+                                modifier = Modifier.size(20.dp)
                             )
-                            if (pay.remarks.isNotBlank()) {
-                                Text(pay.remarks, style = MaterialTheme.typography.bodySmall)
-                            }
+                            Text(
+                                text = "Payment Receipts History (${uiState.payments.size})",
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp,
+                                    color = Color(0xFF0F172A)
+                                )
+                            )
                         }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+
+                        Icon(
+                            imageVector = if (receiptsExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.ChevronRight,
+                            contentDescription = if (receiptsExpanded) "Collapse" else "Expand",
+                            tint = Color(0xFF64748B),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+
+            // Expanded Payment Receipts Items
+            if (receiptsExpanded) {
+                if (uiState.payments.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Text(
-                                BusinessCalculations.formatCurrency(pay.amount, cur),
-                                style = MaterialTheme.typography.titleMedium.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold),
-                                color = StatusSuccess
+                                text = "No payment receipts recorded yet",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF94A3B8)
                             )
-                            IconButton(onClick = { deletingPayment = pay }) {
-                                Icon(Icons.Default.DeleteOutline, contentDescription = "Delete Payment", tint = StatusDanger)
+                        }
+                    }
+                } else {
+                    items(uiState.payments, key = { it.id }) { pay ->
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color.White,
+                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "${pay.paymentNumber} • ${pay.dealerName}",
+                                        style = MaterialTheme.typography.titleSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = Color(0xFF0F172A)
+                                        )
+                                    )
+                                    Text(
+                                        text = "${pay.date} • ${pay.paymentMethod}${if (pay.referenceNumber.isNotBlank()) " • Ref: ${pay.referenceNumber}" else ""}",
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontSize = 11.sp,
+                                            color = Color(0xFF64748B)
+                                        )
+                                    )
+                                    if (pay.remarks.isNotBlank()) {
+                                        Text(
+                                            text = pay.remarks,
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                fontSize = 10.5.sp,
+                                                color = Color(0xFF94A3B8)
+                                            )
+                                        )
+                                    }
+                                }
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "+${BusinessCalculations.formatCurrency(pay.amount, cur)}",
+                                        style = MaterialTheme.typography.titleSmall.copy(
+                                            fontFamily = JetBrainsMonoFamily,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp
+                                        ),
+                                        color = Color(0xFF16A34A)
+                                    )
+                                    IconButton(onClick = { deletingPayment = pay }) {
+                                        Icon(
+                                            imageVector = Icons.Default.DeleteOutline,
+                                            contentDescription = "Delete Payment",
+                                            tint = Color(0xFFDC2626),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
