@@ -36,7 +36,9 @@ jobs:
           if [ ! -f .env ]; then
             cp .env.example .env
           fi
-          keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          if [ ! -f debug.keystore ]; then
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
 
       - name: Build Debug APK
         run: gradle assembleDebug --stacktrace
@@ -45,6 +47,13 @@ jobs:
         run: |
           echo "Listing generated APKs:"
           ls -la app/build/outputs/apk/debug/
+
+      - name: Upload Debug Keystore Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-keystore
+          path: debug.keystore
+          retention-days: 14
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4

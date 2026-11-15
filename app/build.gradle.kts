@@ -16,8 +16,9 @@ android {
     applicationId = "com.aistudio.dairyfeedpro.vnqkxw"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    val buildNum = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+    versionCode = 100 + buildNum
+    versionName = "1.0.$buildNum"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
