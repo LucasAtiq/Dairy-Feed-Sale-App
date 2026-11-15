@@ -463,6 +463,7 @@ data class AuditLogEntity(
 @Entity(tableName = "business_config")
 data class BusinessConfigEntity(
     @PrimaryKey val id: Int = 1,
+    // Company / Business Profile
     val companyName: String = "GreenPasture Dairy Feeds (Pvt) Ltd.",
     val businessTitle: String = "Premium Dairy Nutrition & Field Operations",
     val contactPhone: String = "+92 300 8451290",
@@ -471,6 +472,14 @@ data class BusinessConfigEntity(
     val currencySymbol: String = "Rs.",
     val taxRegistrationNumber: String = "NTN-4829104-7",
     val invoicePrefix: String = "INV-2026-",
+
+    // User / Personal Profile (Separate from Company)
+    val userName: String = "Attique ur Rehman",
+    val userDesignation: String = "Region Sale Manager",
+    val userPhone: String = "0300-1234567",
+    val userEmail: String = "attiqueurrehman41@gmail.com",
+    val userTerritory: String = "Sahiwal / Faisalabad Division",
+
     val activeRole: String = "Administrator", // Administrator, Regional Sales Manager
     val pinLockEnabled: Boolean = false,
     val securityPin: String = "1234",

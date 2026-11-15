@@ -68,8 +68,8 @@ fun DashboardScreen(
     var showTargetEditDialog by remember { mutableStateOf(false) }
     var showProfileEditDialog by remember { mutableStateOf(false) }
 
-    val currentUserName = uiState.config.companyName.ifBlank { "Attique ur Rehman" }
-    val currentUserDesignation = uiState.config.businessTitle.ifBlank { "Region Sale Manager" }
+    val currentUserName = uiState.config.userName.ifBlank { "Attique ur Rehman" }
+    val currentUserDesignation = uiState.config.userDesignation.ifBlank { "Region Sale Manager" }
 
     // Dynamically generated current device date (never hard-coded)
     val currentDeviceDateLabel = remember {
@@ -771,8 +771,8 @@ fun DashboardScreen(
                         if (trimmedName.isNotBlank()) {
                             viewModel.saveBusinessConfig(
                                 uiState.config.copy(
-                                    companyName = trimmedName,
-                                    businessTitle = trimmedRole.ifBlank { "Region Sale Manager" }
+                                    userName = trimmedName,
+                                    userDesignation = trimmedRole.ifBlank { "Region Sale Manager" }
                                 )
                             )
                         }

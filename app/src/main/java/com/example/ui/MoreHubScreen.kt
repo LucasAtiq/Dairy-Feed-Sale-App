@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.*
@@ -51,6 +52,7 @@ fun MoreHubScreen(
 ) {
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showEditProfileDialog by remember { mutableStateOf(false) }
+    var showEditCompanyDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
 
     when (uiState.activeSubModule) {
@@ -98,6 +100,7 @@ fun MoreHubScreen(
                 uiState = uiState,
                 viewModel = viewModel,
                 onEditProfile = { showEditProfileDialog = true },
+                onEditCompanyProfile = { showEditCompanyDialog = true },
                 onHelp = { showHelpDialog = true },
                 onLogout = { showLogoutDialog = true }
             )
@@ -158,15 +161,22 @@ fun MoreHubScreen(
         )
     }
 
+    // 1. EDIT MY PROFILE DIALOG (PERSONAL)
     if (showEditProfileDialog) {
-        var salesPersonName by remember { mutableStateOf(uiState.config.companyName.ifBlank { "Attique ur Rehman" }) }
-        var phoneStr by remember { mutableStateOf(uiState.config.contactPhone.ifBlank { "0301-7654321" }) }
-        var emailStr by remember { mutableStateOf(uiState.config.contactEmail.ifBlank { "attique@cp-pakistan.com" }) }
-        var addressStr by remember { mutableStateOf(uiState.config.companyAddress.ifBlank { "CP Pakistan - Dairy Feed Business, Region Sahiwal/Faisalabad" }) }
+        var myName by remember { mutableStateOf(uiState.config.userName.ifBlank { "Attique ur Rehman" }) }
+        var myDesignation by remember { mutableStateOf(uiState.config.userDesignation.ifBlank { "Region Sale Manager" }) }
+        var myPhone by remember { mutableStateOf(uiState.config.userPhone.ifBlank { "0300-1234567" }) }
+        var myEmail by remember { mutableStateOf(uiState.config.userEmail.ifBlank { "attiqueurrehman41@gmail.com" }) }
+        var myTerritory by remember { mutableStateOf(uiState.config.userTerritory.ifBlank { "Sahiwal / Faisalabad Division" }) }
 
         AlertDialog(
             onDismissRequest = { showEditProfileDialog = false },
-            title = { Text("Edit Regional Manager Profile", fontWeight = FontWeight.Bold) },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.Person, contentDescription = null, tint = Color(0xFF0F5233))
+                    Text("Edit My Profile (Personal)", fontWeight = FontWeight.Bold)
+                }
+            },
             text = {
                 Column(
                     modifier = Modifier
@@ -174,39 +184,44 @@ fun MoreHubScreen(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    Text(
+                        "Your personal profile shown on Dashboard greeting and sales records.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF64748B)
+                    )
                     OutlinedTextField(
-                        value = salesPersonName,
-                        onValueChange = { salesPersonName = it },
-                        label = { Text("Full Name") },
+                        value = myName,
+                        onValueChange = { myName = it },
+                        label = { Text("Your Full Name *") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
-                        value = "Region Sale Manager",
-                        onValueChange = {},
-                        enabled = false,
-                        label = { Text("Designation") },
+                        value = myDesignation,
+                        onValueChange = { myDesignation = it },
+                        label = { Text("Designation / Title *") },
+                        placeholder = { Text("e.g. Region Sale Manager") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
-                        value = phoneStr,
-                        onValueChange = { phoneStr = it },
-                        label = { Text("Mobile Phone") },
+                        value = myPhone,
+                        onValueChange = { myPhone = it },
+                        label = { Text("Personal Mobile Phone") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
-                        value = emailStr,
-                        onValueChange = { emailStr = it },
-                        label = { Text("Official Email") },
+                        value = myEmail,
+                        onValueChange = { myEmail = it },
+                        label = { Text("Personal Email") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
-                        value = addressStr,
-                        onValueChange = { addressStr = it },
-                        label = { Text("Division / Territory") },
+                        value = myTerritory,
+                        onValueChange = { myTerritory = it },
+                        label = { Text("Assigned Division / Territory") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -215,23 +230,139 @@ fun MoreHubScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.saveBusinessConfig(
-                            uiState.config.copy(
-                                companyName = salesPersonName.trim(),
-                                contactPhone = phoneStr.trim(),
-                                contactEmail = emailStr.trim(),
-                                companyAddress = addressStr.trim()
+                        val trimmedName = myName.trim()
+                        if (trimmedName.isNotBlank()) {
+                            viewModel.saveBusinessConfig(
+                                uiState.config.copy(
+                                    userName = trimmedName,
+                                    userDesignation = myDesignation.trim().ifBlank { "Region Sale Manager" },
+                                    userPhone = myPhone.trim(),
+                                    userEmail = myEmail.trim(),
+                                    userTerritory = myTerritory.trim()
+                                )
                             )
-                        )
+                        }
                         showEditProfileDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233))
                 ) {
-                    Text("Save Profile")
+                    Text("Save My Profile")
                 }
             },
             dismissButton = {
                 OutlinedButton(onClick = { showEditProfileDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    // 2. EDIT COMPANY PROFILE DIALOG (BUSINESS & MILL)
+    if (showEditCompanyDialog) {
+        var compName by remember { mutableStateOf(uiState.config.companyName.ifBlank { "GreenPasture Dairy Feeds (Pvt) Ltd." }) }
+        var compTitle by remember { mutableStateOf(uiState.config.businessTitle.ifBlank { "Premium Dairy Nutrition & Field Operations" }) }
+        var compPhone by remember { mutableStateOf(uiState.config.contactPhone.ifBlank { "+92 300 8451290" }) }
+        var compEmail by remember { mutableStateOf(uiState.config.contactEmail.ifBlank { "sales@greenpasturefeeds.com" }) }
+        var compAddress by remember { mutableStateOf(uiState.config.companyAddress.ifBlank { "7-KM Sahiwal-Okara GT Road, Industrial Estate, Sahiwal" }) }
+        var taxNum by remember { mutableStateOf(uiState.config.taxRegistrationNumber.ifBlank { "NTN-4829104-7" }) }
+        var invPrefix by remember { mutableStateOf(uiState.config.invoicePrefix.ifBlank { "INV-2026-" }) }
+
+        AlertDialog(
+            onDismissRequest = { showEditCompanyDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.Business, contentDescription = null, tint = Color(0xFF0F5233))
+                    Text("Edit Company Profile", fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        "Company details printed on official Invoices, PDF Reports, and Dispatch Sheets.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF64748B)
+                    )
+                    OutlinedTextField(
+                        value = compName,
+                        onValueChange = { compName = it },
+                        label = { Text("Company / Brand Name *") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = compTitle,
+                        onValueChange = { compTitle = it },
+                        label = { Text("Business Tagline / Subtitle") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = compAddress,
+                        onValueChange = { compAddress = it },
+                        label = { Text("Factory / Head Office Address *") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = compPhone,
+                        onValueChange = { compPhone = it },
+                        label = { Text("Company Helpline / Phone") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = compEmail,
+                        onValueChange = { compEmail = it },
+                        label = { Text("Official Company Email") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = taxNum,
+                            onValueChange = { taxNum = it },
+                            label = { Text("NTN / STRN") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = invPrefix,
+                            onValueChange = { invPrefix = it },
+                            label = { Text("Invoice Prefix") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val trimmedComp = compName.trim()
+                        if (trimmedComp.isNotBlank()) {
+                            viewModel.saveBusinessConfig(
+                                uiState.config.copy(
+                                    companyName = trimmedComp,
+                                    businessTitle = compTitle.trim(),
+                                    companyAddress = compAddress.trim(),
+                                    contactPhone = compPhone.trim(),
+                                    contactEmail = compEmail.trim(),
+                                    taxRegistrationNumber = taxNum.trim(),
+                                    invoicePrefix = invPrefix.trim()
+                                )
+                            )
+                        }
+                        showEditCompanyDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233))
+                ) {
+                    Text("Save Company Profile")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showEditCompanyDialog = false }) { Text("Cancel") }
             }
         )
     }
@@ -242,11 +373,11 @@ private fun MoreHubOverviewSection(
     uiState: AppUiState,
     viewModel: DairyViewModel,
     onEditProfile: () -> Unit,
+    onEditCompanyProfile: () -> Unit,
     onHelp: () -> Unit,
     onLogout: () -> Unit
 ) {
     val cfg = uiState.config
-    val managerName = cfg.companyName.ifBlank { "Attique ur Rehman" }
 
     LazyColumn(
         modifier = Modifier
@@ -255,7 +386,7 @@ private fun MoreHubOverviewSection(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 40.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 1. User Profile Header Card (Matching Screen 8)
+        // 1. MY PROFILE CARD (PERSONAL MANAGER PROFILE)
         item {
             Card(
                 shape = RoundedCornerShape(16.dp),
@@ -271,16 +402,23 @@ private fun MoreHubOverviewSection(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
+                    val initials = cfg.userName.split(" ")
+                        .filter { it.isNotBlank() }
+                        .take(2)
+                        .map { it.first().uppercase() }
+                        .joinToString("")
+                        .ifEmpty { "AR" }
+
                     // Circular Avatar
                     Box(
                         modifier = Modifier
-                            .size(54.dp)
+                            .size(52.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF1E3A2B)),
+                            .background(Color(0xFF0F5233)),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "AR",
+                            text = initials,
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
@@ -291,25 +429,46 @@ private fun MoreHubOverviewSection(
                     // User Info
                     Column(
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = cfg.userName.ifBlank { "Attique ur Rehman" },
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 15.sp
+                                ),
+                                color = Color(0xFF0F172A),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = Color(0xFFDCFCE7)
+                            ) {
+                                Text(
+                                    text = "My Profile",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF15803D),
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
                         Text(
-                            text = managerName,
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 16.sp
-                            ),
-                            color = Color(0xFF0F172A)
+                            text = cfg.userDesignation.ifBlank { "Region Sale Manager" },
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = Color(0xFF0F5233)
                         )
                         Text(
-                            text = "Region Sale Manager",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF64748B)
-                        )
-                        Text(
-                            text = "CP Pakistan – Dairy Feed Business",
+                            text = "${cfg.userPhone.ifBlank { "0300-1234567" }} • ${cfg.userTerritory.ifBlank { "Sahiwal Division" }}",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF94A3B8)
+                            color = Color(0xFF64748B),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
@@ -320,8 +479,8 @@ private fun MoreHubOverviewSection(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit Profile",
-                            tint = Color(0xFF15803D),
+                            contentDescription = "Edit My Profile",
+                            tint = Color(0xFF0F5233),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -329,20 +488,120 @@ private fun MoreHubOverviewSection(
             }
         }
 
-        // 2. Navigation Rows (Matching Screen 8)
+        // 2. COMPANY PROFILE CARD (BUSINESS & FEED MILL IDENTITY)
+        item {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFEFF6FF)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Business,
+                            contentDescription = null,
+                            tint = Color(0xFF1D4ED8),
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = cfg.companyName.ifBlank { "GreenPasture Dairy Feeds" },
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                ),
+                                color = Color(0xFF0F172A),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = Color(0xFFEFF6FF)
+                            ) {
+                                Text(
+                                    text = "Company",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1D4ED8),
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                        Text(
+                            text = cfg.businessTitle.ifBlank { "Dairy Feed Sales & Management" },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF64748B),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = cfg.companyAddress.ifBlank { "Sahiwal Industrial Estate" },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF94A3B8),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onEditCompanyProfile,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit Company Profile",
+                            tint = Color(0xFF1D4ED8),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // 3. Navigation Rows
         item {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Row 1: My Profile
+                // Row 1: My Profile (Personal)
                 MoreNavigationRow(
                     icon = Icons.Default.PersonOutline,
-                    title = "My Profile",
+                    title = "My Profile (Personal)",
                     onClick = onEditProfile
                 )
 
-                // Row 2: Targets & KPIs
+                // Row 2: Company Profile (Business & Mill)
+                MoreNavigationRow(
+                    icon = Icons.Default.Business,
+                    title = "Company Profile (Business & Mill)",
+                    onClick = onEditCompanyProfile
+                )
+
+                // Row 3: Targets & KPIs
                 MoreNavigationRow(
                     icon = Icons.Default.TrackChanges,
                     title = "Targets & KPIs",
