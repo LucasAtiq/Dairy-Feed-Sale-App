@@ -783,30 +783,7 @@ private fun HubSubHeader(
     title: String,
     onBack: () -> Unit
 ) {
-    Surface(
-        color = Color(0xFF0F5233),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Back to More",
-                    tint = Color.White
-                )
-            }
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = Color.White
-            )
-        }
-    }
+    // Single unified header is rendered at the root TopAppBar with Back navigation and title
 }
 
 @Composable

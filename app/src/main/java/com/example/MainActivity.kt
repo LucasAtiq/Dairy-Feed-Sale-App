@@ -116,119 +116,143 @@ fun DairyFeedAppRoot(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.clickable {
-                            viewModel.navigateToTab(PrimaryTab.DASHBOARD)
-                        }
-                    ) {
-                        // TradeBook Pro App Logo Emblem
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .border(1.dp, Color(0xFF10B981).copy(alpha = 0.6f), RoundedCornerShape(10.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Image(
-                                painter = painterResource(R.drawable.app_logo),
-                                contentDescription = "TradeBook Pro Logo",
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-
-                        Column {
+            if (uiState.selectedDealerForDetail == null) {
+                val isSubModuleInMore = uiState.activeTab == PrimaryTab.MORE && uiState.activeSubModule != SubModule.MORE
+                TopAppBar(
+                    title = {
+                        if (isSubModuleInMore) {
                             Text(
-                                text = buildAnnotatedString {
-                                    withStyle(
-                                        SpanStyle(
-                                            color = Color.White,
-                                            fontWeight = FontWeight.ExtraBold
-                                        )
-                                    ) {
-                                        append("TradeBook ")
-                                    }
-                                    withStyle(
-                                        SpanStyle(
-                                            color = Color(0xFF4ADE80),
-                                            fontWeight = FontWeight.ExtraBold
-                                        )
-                                    ) {
-                                        append("Pro")
-                                    }
-                                },
-                                style = MaterialTheme.typography.titleLarge,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                text = uiState.activeSubModule.title,
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                color = Color.White
                             )
-                            Text(
-                                text = if (uiState.activeTab == PrimaryTab.DASHBOARD) {
-                                    "Sales & Dealer Management"
-                                } else {
-                                    "Sales & Dealer Management • ${uiState.activeSubModule.title}"
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = BrandSubtitleMint,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = { viewModel.navigateToSubModule(SubModule.SEARCH) },
-                        modifier = Modifier.testTag("top_bar_search_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Global Search",
-                            tint = Color.White
-                        )
-                    }
-                    BadgedBox(
-                        badge = {
-                            if (uiState.smartReminders.isNotEmpty()) {
-                                Badge(
-                                    containerColor = Color(0xFFE53935),
-                                    contentColor = Color.White
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.clickable {
+                                    viewModel.navigateToTab(PrimaryTab.DASHBOARD)
+                                }
+                            ) {
+                                // TradeBook Pro App Logo Emblem
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .border(1.dp, Color(0xFF10B981).copy(alpha = 0.6f), RoundedCornerShape(10.dp)),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Text("${uiState.smartReminders.size}")
+                                    Image(
+                                        painter = painterResource(R.drawable.app_logo),
+                                        contentDescription = "TradeBook Pro Logo",
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+
+                                Column {
+                                    Text(
+                                        text = buildAnnotatedString {
+                                            withStyle(
+                                                SpanStyle(
+                                                    color = Color.White,
+                                                    fontWeight = FontWeight.ExtraBold
+                                                )
+                                            ) {
+                                                append("TradeBook ")
+                                            }
+                                            withStyle(
+                                                SpanStyle(
+                                                    color = Color(0xFF4ADE80),
+                                                    fontWeight = FontWeight.ExtraBold
+                                                )
+                                            ) {
+                                                append("Pro")
+                                            }
+                                        },
+                                        style = MaterialTheme.typography.titleLarge,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = if (uiState.activeTab == PrimaryTab.DASHBOARD) {
+                                            "Sales & Dealer Management"
+                                        } else {
+                                            "Sales & Dealer Management • ${uiState.activeSubModule.title}"
+                                        },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = BrandSubtitleMint,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
                             }
                         }
-                    ) {
-                        IconButton(
-                            onClick = { viewModel.navigateToSubModule(SubModule.REMINDERS) },
-                            modifier = Modifier.testTag("top_bar_reminders_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Notifications,
-                                contentDescription = "Reminders & Alerts",
-                                tint = Color.White
-                            )
+                    },
+                    navigationIcon = {
+                        if (isSubModuleInMore) {
+                            IconButton(onClick = { viewModel.navigateToSubModule(SubModule.MORE) }) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowBack,
+                                    contentDescription = "Back",
+                                    tint = Color.White
+                                )
+                            }
                         }
-                    }
-                    IconButton(
-                        onClick = { viewModel.navigateToSubModule(SubModule.MORE) },
-                        modifier = Modifier.testTag("top_bar_settings_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings & More",
-                            tint = Color.White
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = BrandDarkGreen,
-                    titleContentColor = Color.White,
-                    actionIconContentColor = Color.White
+                    },
+                    actions = {
+                        if (!isSubModuleInMore) {
+                            IconButton(
+                                onClick = { viewModel.navigateToSubModule(SubModule.SEARCH) },
+                                modifier = Modifier.testTag("top_bar_search_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = "Global Search",
+                                    tint = Color.White
+                                )
+                            }
+                            BadgedBox(
+                                badge = {
+                                    if (uiState.smartReminders.isNotEmpty()) {
+                                        Badge(
+                                            containerColor = Color(0xFFE53935),
+                                            contentColor = Color.White
+                                        ) {
+                                            Text("${uiState.smartReminders.size}")
+                                        }
+                                    }
+                                }
+                            ) {
+                                IconButton(
+                                    onClick = { viewModel.navigateToSubModule(SubModule.REMINDERS) },
+                                    modifier = Modifier.testTag("top_bar_reminders_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Notifications,
+                                        contentDescription = "Reminders & Alerts",
+                                        tint = Color.White
+                                    )
+                                }
+                            }
+                            IconButton(
+                                onClick = { viewModel.navigateToSubModule(SubModule.MORE) },
+                                modifier = Modifier.testTag("top_bar_settings_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = "Settings & More",
+                                    tint = Color.White
+                                )
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = BrandDarkGreen,
+                        titleContentColor = Color.White,
+                        actionIconContentColor = Color.White
+                    )
                 )
-            )
+            }
         },
         bottomBar = {
             WandaBookBottomNavigationBar(
