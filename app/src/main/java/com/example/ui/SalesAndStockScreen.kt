@@ -82,6 +82,9 @@ fun SalesAndStockScreen(
                 viewModel.openInvoicePreview(null)
                 editingOrderWithItems = invoiceOrder
                 showOrderDialog = true
+            },
+            onAddPayment = {
+                showPaymentDialog = true
             }
         )
     } else {
@@ -2225,7 +2228,8 @@ private fun InvoicePreviewDetailScreen(
     orderWithItems: OrderWithItems,
     config: BusinessConfigEntity,
     onBack: () -> Unit,
-    onEditOrder: () -> Unit
+    onEditOrder: () -> Unit,
+    onAddPayment: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val o = orderWithItems.order
@@ -2234,167 +2238,710 @@ private fun InvoicePreviewDetailScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
+            .background(Color(0xFFF8FAFC))
             .testTag("invoice_preview_screen"),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // 1. Top Actions Row (Back, Edit Order, Share / PDF)
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Back")
+                // Back Button
+                OutlinedButton(
+                    onClick = onBack,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0F172A)),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                    modifier = Modifier.height(42.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Back",
+                        modifier = Modifier.size(16.dp),
+                        tint = Color(0xFF0F172A)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Back", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onEditOrder) {
-                        Text("Edit Order")
-                    }
-                    Button(
-                        onClick = {
-                            val pdf = DocumentAndExportManager.generateInvoicePdfFile(context, config, orderWithItems)
-                            DocumentAndExportManager.shareFile(context, pdf, "application/pdf", "Share Invoice ${o.invoiceNumber}")
-                        }
+
+                // Edit Order Button
+                OutlinedButton(
+                    onClick = onEditOrder,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0F172A)),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                    modifier = Modifier.height(42.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit",
+                        modifier = Modifier.size(15.dp),
+                        tint = Color(0xFF0F172A)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Edit Order", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
+                }
+
+                // Share / PDF Button
+                Button(
+                    onClick = {
+                        val pdf = DocumentAndExportManager.generateInvoicePdfFile(context, config, orderWithItems)
+                        DocumentAndExportManager.shareFile(context, pdf, "application/pdf", "Share Invoice ${o.invoiceNumber}")
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233)),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(42.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Share",
+                        tint = Color.White,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Share / PDF", color = Color.White, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        // 2. Seller Info & Invoice Header Card
+        item {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                shadowElevation = 1.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min)
+                ) {
+                    // Left Green Accent Stripe
+                    Box(
+                        modifier = Modifier
+                            .width(4.dp)
+                            .fillMaxHeight()
+                            .background(Color(0xFF0F5233))
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top
                     ) {
-                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Save / Share PDF")
+                        // Seller Column
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 8.dp)
+                        ) {
+                            Text(
+                                text = config.companyName.ifBlank { "Attique Ur Rehman" },
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = Color(0xFF0F5233)
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "WandaBook Pro • Dairy Feed Sales & Management",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 10.5.sp,
+                                    color = Color(0xFF334155),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    tint = Color(0xFF0F5233),
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = config.companyAddress.ifBlank { "7-KM Sahiwal-Okara GT Road, Industrial Estate, Sahiwal" },
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF64748B)
+                                    ),
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        // Invoice Right Column
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Description,
+                                    contentDescription = null,
+                                    tint = Color(0xFF0F5233),
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = "INVOICE",
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 13.5.sp,
+                                        color = Color(0xFF0F172A)
+                                    )
+                                )
+                            }
+
+                            // Invoice Number Pill Badge
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = Color(0xFFDCFCE7)
+                            ) {
+                                Text(
+                                    text = o.invoiceNumber,
+                                    color = Color(0xFF15803D),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.5.sp,
+                                    fontFamily = JetBrainsMonoFamily,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.5.dp)
+                                )
+                            }
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.CalendarToday,
+                                    contentDescription = null,
+                                    tint = Color(0xFF0F5233),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = "Date: ${o.date}",
+                                    fontSize = 10.5.sp,
+                                    color = Color(0xFF475569),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
 
+        // 3. Bill To Dealer Card
         item {
-            ElevatedCard(
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier.fillMaxWidth()
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                color = Color(0xFFF0FDF4),
+                border = BorderStroke(1.dp, Color(0xFFDCFCE7))
             ) {
-                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(config.companyName, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
-                            Text("WandaBook Pro • Dairy Feed Sales & Management", style = MaterialTheme.typography.bodySmall)
-                            Text(config.companyAddress, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF0F5233)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("INVOICE", style = MaterialTheme.typography.titleLarge)
-                            Text(o.invoiceNumber, style = MaterialTheme.typography.titleSmall.copy(fontFamily = JetBrainsMonoFamily))
-                            Text("Date: ${o.date}", style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
 
-                    HorizontalDivider()
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("BILL TO DEALER", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(o.dealerName, style = MaterialTheme.typography.titleMedium)
-                            Text(o.dealerAddress.ifBlank { "${o.location} (${o.area})" }, style = MaterialTheme.typography.bodySmall)
-                            if (o.farmerName.isNotBlank()) {
-                                Text("Farmer: ${o.farmerName}", style = MaterialTheme.typography.bodySmall)
+                        Column {
+                            Text(
+                                text = "BILL TO DEALER",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = 9.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF64748B),
+                                    letterSpacing = 0.5.sp
+                                )
+                            )
+                            Text(
+                                text = o.dealerName,
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.5.sp,
+                                    color = Color(0xFF0F172A)
+                                )
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    tint = Color(0xFF16A34A),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Text(
+                                    text = o.dealerAddress.ifBlank { o.location.ifBlank { o.area } },
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF475569)
+                                    )
+                                )
                             }
                         }
-                        StatusBadge(o.status)
                     }
 
-                    HorizontalDivider()
+                    // Order / Delivery Status Badge
+                    val isPending = o.status.contains("Pending", ignoreCase = true)
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (isPending) Color(0xFFFEF3C7) else Color(0xFFDCFCE7)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isPending) Icons.Default.Schedule else Icons.Default.Check,
+                                contentDescription = null,
+                                tint = if (isPending) Color(0xFFB45309) else Color(0xFF15803D),
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = o.status,
+                                color = if (isPending) Color(0xFFB45309) else Color(0xFF15803D),
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
 
-                    orderWithItems.items.forEach { item ->
+        // 4. Products Table Card
+        item {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                shadowElevation = 1.dp
+            ) {
+                Column {
+                    // Dark Green Table Header
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFF0F5233))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Product / Description",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.5.sp
+                            ),
+                            modifier = Modifier.weight(2f)
+                        )
+                        Text(
+                            text = "Rate",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.5.sp,
+                                textAlign = TextAlign.Center
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = "Amount",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.5.sp,
+                                textAlign = TextAlign.End
+                            ),
+                            modifier = Modifier.weight(1.2f)
+                        )
+                    }
+
+                    // Product Item Rows
+                    orderWithItems.items.forEachIndexed { idx, item ->
+                        if (idx > 0) {
+                            HorizontalDivider(color = Color(0xFFF1F5F9))
+                        }
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("${item.productCode} — ${item.productName}", style = MaterialTheme.typography.titleSmall)
-                                Text(
-                                    "${item.quantityBags} Bags × ${item.bagSizeLabel} (${item.totalKg.roundToInt()} KG = ${BusinessCalculations.formatDecimal(item.totalMt)} MT)",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                            // Column 1: Badge + Name & Bag Spec
+                            Row(
+                                modifier = Modifier.weight(2f),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color(0xFFDCFCE7)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = item.productCode,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.5.sp,
+                                        color = Color(0xFF15803D)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "${item.productCode} ${item.productName}",
+                                        style = MaterialTheme.typography.titleSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.5.sp,
+                                            color = Color(0xFF0F172A)
+                                        ),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = "${item.quantityBags} Bags × ${item.bagSizeLabel}\n(${item.totalKg.roundToInt()} KG = ${BusinessCalculations.formatDecimal(item.totalMt)} MT)",
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontSize = 10.sp,
+                                            color = Color(0xFF64748B),
+                                            lineHeight = 13.sp
+                                        )
+                                    )
+                                }
                             }
-                            Column(horizontalAlignment = Alignment.End) {
+
+                            // Column 2: Rate with Vertical Divider
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .height(36.dp)
+                                        .width(1.dp)
+                                        .background(Color(0xFFE2E8F0))
+                                )
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = BusinessCalculations.formatCurrency(item.pricePerBag, cur),
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp,
+                                            fontFamily = JetBrainsMonoFamily,
+                                            color = Color(0xFF0F172A)
+                                        )
+                                    )
+                                    Text(
+                                        text = "/ bag",
+                                        fontSize = 9.5.sp,
+                                        color = Color(0xFF64748B)
+                                    )
+                                }
+                            }
+
+                            // Column 3: Amount
+                            Column(
+                                modifier = Modifier.weight(1.2f),
+                                horizontalAlignment = Alignment.End
+                            ) {
                                 Text(
-                                    "${BusinessCalculations.formatCurrency(item.pricePerBag, cur)} / bag",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily)
+                                    text = BusinessCalculations.formatCurrency(item.netAmount, cur),
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        fontFamily = JetBrainsMonoFamily,
+                                        color = Color(0xFF0F172A),
+                                        textAlign = TextAlign.End
+                                    )
                                 )
                                 if (item.discountTotal > 0) {
-                                    Text("Disc: -${BusinessCalculations.formatCurrency(item.discountTotal, cur)}", style = MaterialTheme.typography.labelSmall, color = StatusWarning)
+                                    Text(
+                                        text = "Disc: -${BusinessCalculations.formatCurrency(item.discountTotal, cur)}",
+                                        fontSize = 9.sp,
+                                        color = Color(0xFFB45309)
+                                    )
                                 }
-                                Text(
-                                    BusinessCalculations.formatCurrency(item.netAmount, cur),
-                                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold)
-                                )
                             }
                         }
                     }
+                }
+            }
+        }
 
-                    HorizontalDivider()
+        // 5. Total Volume Bar
+        item {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFFF0FDF4),
+                border = BorderStroke(1.dp, Color(0xFFDCFCE7))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Inventory2,
+                        contentDescription = null,
+                        tint = Color(0xFF16A34A),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = "Total Volume: ${o.totalBags} Bags (${o.totalKg.roundToInt()} KG / ${BusinessCalculations.formatDecimal(o.totalMt)} MT)",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.5.sp,
+                            color = Color(0xFF15803D)
+                        )
+                    )
+                }
+            }
+        }
 
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Total Volume:", style = MaterialTheme.typography.bodyMedium)
-                        Text("${o.totalBags} Bags (${o.totalKg.roundToInt()} KG / ${BusinessCalculations.formatDecimal(o.totalMt)} MT)", style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold))
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Gross Amount:", style = MaterialTheme.typography.bodyMedium)
-                        Text(BusinessCalculations.formatCurrency(o.grossAmount, cur), style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMonoFamily))
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Total Discount:", style = MaterialTheme.typography.bodyMedium)
-                        Text("- ${BusinessCalculations.formatCurrency(o.discountAmount, cur)}", style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMonoFamily))
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Net Amount:", style = MaterialTheme.typography.titleMedium)
-                        Text(BusinessCalculations.formatCurrency(o.netAmount, cur), style = MaterialTheme.typography.titleMedium.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.primary)
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Paid Amount:", style = MaterialTheme.typography.bodyMedium)
-                        Text(BusinessCalculations.formatCurrency(o.paidAmount, cur), style = MaterialTheme.typography.bodyMedium.copy(fontFamily = JetBrainsMonoFamily), color = StatusSuccess)
-                    }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Balance Outstanding:", style = MaterialTheme.typography.titleMedium)
-                        Text(BusinessCalculations.formatCurrency(o.outstandingAmount, cur), style = MaterialTheme.typography.titleMedium.copy(fontFamily = JetBrainsMonoFamily, fontWeight = FontWeight.Bold), color = if (o.outstandingAmount > 0) StatusDanger else StatusSuccess)
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(
-                            onClick = {
-                                val pdf = DocumentAndExportManager.generateInvoicePdfFile(context, config, orderWithItems)
-                                DocumentAndExportManager.printPdfFile(context, pdf, "Invoice_${o.invoiceNumber}")
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(Icons.Default.Print, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Print Invoice")
+        // 6. Payment Summary Card
+        item {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                shadowElevation = 1.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Gross Amount
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.Paid, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(16.dp))
+                            Text("Gross Amount:", fontSize = 12.sp, color = Color(0xFF334155))
                         }
-                        Button(
-                            onClick = {
-                                val textSummary = buildString {
-                                    appendLine("*${config.companyName} — INVOICE ${o.invoiceNumber}*")
-                                    appendLine("Date: ${o.date} | Dealer: ${o.dealerName}")
-                                    orderWithItems.items.forEach {
-                                        appendLine("• ${it.productCode} (${it.bagSizeLabel}): ${it.quantityBags} bags @ ${it.pricePerBag.roundToInt()} = ${BusinessCalculations.formatCurrency(it.netAmount, cur)}")
-                                    }
-                                    appendLine("Total Bags: ${o.totalBags} (${BusinessCalculations.formatDecimal(o.totalMt)} MT)")
-                                    appendLine("Net Payable: ${BusinessCalculations.formatCurrency(o.netAmount, cur)}")
-                                    appendLine("Paid: ${BusinessCalculations.formatCurrency(o.paidAmount, cur)} | Balance: ${BusinessCalculations.formatCurrency(o.outstandingAmount, cur)}")
-                                }
-                                DocumentAndExportManager.shareTextMessage(context, "Invoice ${o.invoiceNumber}", textSummary, preferWhatsApp = true)
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = StatusSuccess),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Share WhatsApp")
-                        }
+                        Text(
+                            text = BusinessCalculations.formatCurrency(o.grossAmount, cur),
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = JetBrainsMonoFamily,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF0F172A)
+                            )
+                        )
                     }
+
+                    // Total Discount
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.LocalOffer, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(16.dp))
+                            Text("Total Discount:", fontSize = 12.sp, color = Color(0xFF334155))
+                        }
+                        Text(
+                            text = "- ${BusinessCalculations.formatCurrency(o.discountAmount, cur)}",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = JetBrainsMonoFamily,
+                                color = Color(0xFF64748B)
+                            )
+                        )
+                    }
+
+                    // Net Amount
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFFF0FDF4))
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.Calculate, contentDescription = null, tint = Color(0xFF16A34A), modifier = Modifier.size(17.dp))
+                            Text("Net Amount:", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Color(0xFF15803D))
+                        }
+                        Text(
+                            text = BusinessCalculations.formatCurrency(o.netAmount, cur),
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontFamily = JetBrainsMonoFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.5.sp,
+                                color = Color(0xFF15803D)
+                            )
+                        )
+                    }
+
+                    // Paid Amount
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(16.dp))
+                            Text("Paid Amount:", fontSize = 12.sp, color = Color(0xFF334155))
+                        }
+                        Text(
+                            text = BusinessCalculations.formatCurrency(o.paidAmount, cur),
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = JetBrainsMonoFamily,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF16A34A)
+                            )
+                        )
+                    }
+
+                    // Balance Outstanding Box
+                    val hasOutstanding = o.outstandingAmount > 0.01
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (hasOutstanding) Color(0xFFFEE2E2) else Color(0xFFDCFCE7))
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(
+                                imageVector = Icons.Default.Scale,
+                                contentDescription = null,
+                                tint = if (hasOutstanding) Color(0xFFDC2626) else Color(0xFF15803D),
+                                modifier = Modifier.size(17.dp)
+                            )
+                            Text(
+                                text = "Balance Outstanding:",
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (hasOutstanding) Color(0xFFDC2626) else Color(0xFF15803D)
+                            )
+                        }
+                        Text(
+                            text = BusinessCalculations.formatCurrency(o.outstandingAmount, cur),
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontFamily = JetBrainsMonoFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.5.sp,
+                                color = if (hasOutstanding) Color(0xFFDC2626) else Color(0xFF15803D)
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        // 7. Bottom Action Buttons (Print Invoice & + Add Payment & Share WhatsApp)
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Print Invoice Button
+                    OutlinedButton(
+                        onClick = {
+                            val pdf = DocumentAndExportManager.generateInvoicePdfFile(context, config, orderWithItems)
+                            DocumentAndExportManager.printPdfFile(context, pdf, "Invoice_${o.invoiceNumber}")
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Color(0xFF0F5233)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0F5233)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(46.dp)
+                    ) {
+                        Icon(Icons.Default.Print, contentDescription = null, modifier = Modifier.size(17.dp), tint = Color(0xFF0F5233))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Print Invoice", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+
+                    // + Add Payment Button
+                    Button(
+                        onClick = onAddPayment,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(46.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(17.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Add Payment", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
+
+                // WhatsApp Sharing Button
+                Button(
+                    onClick = {
+                        val textSummary = buildString {
+                            appendLine("*${config.companyName} — INVOICE ${o.invoiceNumber}*")
+                            appendLine("Date: ${o.date} | Dealer: ${o.dealerName}")
+                            orderWithItems.items.forEach {
+                                appendLine("• ${it.productCode} (${it.bagSizeLabel}): ${it.quantityBags} bags @ ${it.pricePerBag.roundToInt()} = ${BusinessCalculations.formatCurrency(it.netAmount, cur)}")
+                            }
+                            appendLine("Total Bags: ${o.totalBags} (${BusinessCalculations.formatDecimal(o.totalMt)} MT)")
+                            appendLine("Net Payable: ${BusinessCalculations.formatCurrency(o.netAmount, cur)}")
+                            appendLine("Paid: ${BusinessCalculations.formatCurrency(o.paidAmount, cur)} | Balance: ${BusinessCalculations.formatCurrency(o.outstandingAmount, cur)}")
+                        }
+                        DocumentAndExportManager.shareTextMessage(context, "Invoice ${o.invoiceNumber}", textSummary, preferWhatsApp = true)
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp)
+                ) {
+                    Icon(Icons.Default.Chat, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Share WhatsApp Summary", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
                 }
             }
         }
