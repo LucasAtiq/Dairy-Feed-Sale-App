@@ -5118,12 +5118,74 @@ private fun ProductFormDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                DropdownSelectorField(
-                    label = "Feed Category",
-                    options = categories.ifEmpty { listOf("High Yield Pelleted Feed", "Standard Milking Concentrate", "Calf & Heifer Starter") },
-                    selectedOption = category,
-                    onOptionSelected = { category = it }
-                )
+                // Feed Category (Fully Editable with suggestions & dropdown)
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    var categoryDropdownExpanded by remember { mutableStateOf(false) }
+                    val availableCategories = remember(categories) {
+                        (categories + listOf(
+                            "Buffalo Special Mash",
+                            "High Yield Pelleted Feed",
+                            "Standard Milking Concentrate",
+                            "Calf & Heifer Starter",
+                            "Dry Cow Transition"
+                        )).distinct()
+                    }
+
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = category,
+                            onValueChange = { category = it },
+                            label = { Text("Feed Category * (Editable)") },
+                            placeholder = { Text("e.g. Buffalo Special Mash, Pellets...") },
+                            trailingIcon = {
+                                IconButton(onClick = { categoryDropdownExpanded = !categoryDropdownExpanded }) {
+                                    Icon(Icons.Default.ArrowDropDown, contentDescription = "Select or Type Category")
+                                }
+                            },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        DropdownMenu(
+                            expanded = categoryDropdownExpanded,
+                            onDismissRequest = { categoryDropdownExpanded = false }
+                        ) {
+                            availableCategories.forEach { cat ->
+                                DropdownMenuItem(
+                                    text = { Text(cat) },
+                                    onClick = {
+                                        category = cat
+                                        categoryDropdownExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    // Quick category chips
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        availableCategories.take(5).forEach { cat ->
+                            Surface(
+                                onClick = { category = cat },
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (category == cat) Color(0xFFDCFCE7) else Color(0xFFF1F5F9),
+                                border = BorderStroke(1.dp, if (category == cat) Color(0xFF86EFAC) else Color(0xFFE2E8F0))
+                            ) {
+                                Text(
+                                    text = cat,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (category == cat) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (category == cat) Color(0xFF15803D) else Color(0xFF475569),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
