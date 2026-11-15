@@ -31,7 +31,7 @@ import java.util.Locale
         AuditLogEntity::class,
         BusinessConfigEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class DairyDatabase : RoomDatabase() {
@@ -64,6 +64,17 @@ abstract class DairyDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_5_6 = object : androidx.room.migration.Migration(5, 6) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE business_config ADD COLUMN googleDriveBackupEnabled INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE business_config ADD COLUMN googleDriveFolderUri TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE business_config ADD COLUMN googleDriveFolderLabel TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE business_config ADD COLUMN googleDriveLastSync TEXT NOT NULL DEFAULT 'Never'")
+                db.execSQL("ALTER TABLE business_config ADD COLUMN googleDriveSyncStatus TEXT NOT NULL DEFAULT 'Not Connected'")
+                db.execSQL("ALTER TABLE business_config ADD COLUMN googleDriveFrequency TEXT NOT NULL DEFAULT 'Daily'")
+            }
+        }
+
         fun getInstance(context: Context): DairyDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -71,7 +82,7 @@ abstract class DairyDatabase : RoomDatabase() {
                     DairyDatabase::class.java,
                     "dairy_feed_business.db"
                 )
-                    .addMigrations(MIGRATION_2_3, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_2_3, MIGRATION_4_5, MIGRATION_5_6)
                     .fallbackToDestructiveMigration(true)
                     .build()
                 INSTANCE = instance

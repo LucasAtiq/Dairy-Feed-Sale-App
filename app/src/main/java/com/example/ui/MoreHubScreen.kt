@@ -2542,6 +2542,7 @@ private fun BackupAndDemoDataSection(
     val context = LocalContext.current
     val cfg = uiState.config
     var showRestoreConfirm by remember { mutableStateOf(false) }
+    var showGoogleDriveRestoreConfirm by remember { mutableStateOf(false) }
     var showClearSampleConfirm by remember { mutableStateOf(false) }
     var showReloadSampleConfirm by remember { mutableStateOf(false) }
 
@@ -2550,6 +2551,14 @@ private fun BackupAndDemoDataSection(
     var emailFreq by remember(cfg) { mutableStateOf(cfg.emailBackupFrequency) }
     var emailTime by remember(cfg) { mutableStateOf(cfg.emailBackupTime) }
     var webhookUrl by remember(cfg) { mutableStateOf(cfg.emailWebhookUrl) }
+
+    val googleDriveFolderLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.connectGoogleDriveFolder(context, uri)
+        }
+    }
 
     val importFileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
@@ -2569,6 +2578,231 @@ private fun BackupAndDemoDataSection(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        // 0. Google Drive Cloud Auto-Sync Card
+        item {
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(
+                    1.5.dp,
+                    if (cfg.googleDriveBackupEnabled && cfg.googleDriveFolderUri.isNotBlank()) Color(0xFF0F9D58).copy(alpha = 0.6f)
+                    else Color(0xFF4285F4).copy(alpha = 0.35f)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier.fillMaxWidth().testTag("gdrive_sync_card")
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // Header row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(Color(0xFFE8F0FE), shape = CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.CloudSync,
+                                    contentDescription = "Google Drive",
+                                    tint = Color(0xFF1A73E8),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    "Google Drive Cloud Auto-Sync",
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = Color(0xFF1E293B)
+                                )
+                                Text(
+                                    "In-App Automatic Cloud Backup",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFF64748B)
+                                )
+                            }
+                        }
+                        Switch(
+                            checked = cfg.googleDriveBackupEnabled,
+                            onCheckedChange = { isEnabled ->
+                                if (isEnabled && cfg.googleDriveFolderUri.isBlank()) {
+                                    googleDriveFolderLauncher.launch(null)
+                                } else {
+                                    viewModel.saveBusinessConfig(
+                                        cfg.copy(
+                                            googleDriveBackupEnabled = isEnabled,
+                                            googleDriveSyncStatus = if (isEnabled) "Active" else "Disabled"
+                                        )
+                                    )
+                                }
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF0F9D58)
+                            )
+                        )
+                    }
+
+                    // Folder Connection Status Banner
+                    val isConnected = cfg.googleDriveFolderUri.isNotBlank()
+                    Surface(
+                        color = if (isConnected) Color(0xFFE6F4EA) else Color(0xFFFFF7ED),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isConnected) Color(0xFF34A853).copy(alpha = 0.4f) else Color(0xFFFBBC04).copy(alpha = 0.5f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                if (isConnected) Icons.Default.CloudDone else Icons.Default.Folder,
+                                contentDescription = null,
+                                tint = if (isConnected) Color(0xFF0F9D58) else Color(0xFFEA8600),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    if (isConnected) "Connected Drive Folder:" else "Drive Folder Not Connected",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = if (isConnected) Color(0xFF0F9D58) else Color(0xFFC05621)
+                                )
+                                Text(
+                                    if (isConnected) cfg.googleDriveFolderLabel.ifBlank { "Google Drive" }
+                                    else "Select a folder inside your Google Drive to enable cloud backups",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                    color = Color(0xFF1E293B)
+                                )
+                            }
+                            if (isConnected) {
+                                TextButton(
+                                    onClick = { googleDriveFolderLauncher.launch(null) },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text("Change", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                                }
+                            }
+                        }
+                    }
+
+                    // If not connected, show prominent Connect Folder button
+                    if (!isConnected) {
+                        Button(
+                            onClick = { googleDriveFolderLauncher.launch(null) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A73E8)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Select Google Drive Folder", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
+                        }
+                    } else {
+                        // Sync Frequency Selection Chips
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                "Auto-Sync Schedule",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = Color(0xFF475569)
+                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                listOf("Daily", "On Every Sale Order", "Manual").forEach { freq ->
+                                    FilterChip(
+                                        selected = cfg.googleDriveFrequency.equals(freq, ignoreCase = true),
+                                        onClick = {
+                                            viewModel.saveBusinessConfig(
+                                                cfg.copy(
+                                                    googleDriveFrequency = freq,
+                                                    googleDriveBackupEnabled = true
+                                                )
+                                            )
+                                        },
+                                        label = {
+                                            Text(
+                                                when (freq) {
+                                                    "Daily" -> "Daily"
+                                                    "On Every Sale Order" -> "On Order"
+                                                    else -> "Manual"
+                                                },
+                                                style = MaterialTheme.typography.labelSmall
+                                            )
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        // Status Info Box
+                        Surface(
+                            color = Color(0xFFF8FAFC),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("Last Cloud Sync:", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+                                    Text(cfg.googleDriveLastSync, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), color = Color(0xFF1E293B))
+                                }
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("Status:", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+                                    Text(
+                                        cfg.googleDriveSyncStatus,
+                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                        color = if (cfg.googleDriveSyncStatus.startsWith("Synced")) Color(0xFF0F9D58) else Color(0xFF1A73E8)
+                                    )
+                                }
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text("Cloud Target:", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+                                    Text("WandaBookPro_AutoBackup.json", style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily), color = Color(0xFF0F5233))
+                                }
+                            }
+                        }
+
+                        // Cloud Actions: Sync Now & Restore
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            Button(
+                                onClick = { viewModel.syncToGoogleDriveNow(context, isSilent = false) },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F9D58)),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Sync Now", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                            }
+                            OutlinedButton(
+                                onClick = { showGoogleDriveRestoreConfirm = true },
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Restore from Drive", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                            }
+                        }
+
+                        // Disconnect option
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            TextButton(
+                                onClick = { viewModel.disconnectGoogleDrive(context) }
+                            ) {
+                                Text("Disconnect Google Drive", color = Color(0xFFDC2626), style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+            }
+        }
         // 1. Manual Backup Card
         item {
             ElevatedCard(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
@@ -2858,6 +3092,16 @@ private fun BackupAndDemoDataSection(
             confirmText = "Restore",
             onConfirm = { viewModel.restoreBackup(context) },
             onDismiss = { showRestoreConfirm = false }
+        )
+    }
+
+    if (showGoogleDriveRestoreConfirm) {
+        ConfirmDestructiveDialog(
+            title = "Restore from Google Drive?",
+            message = "This will restore records directly from WandaBookPro_AutoBackup.json in your connected Google Drive folder. A pre-restore safety snapshot will be created automatically before restoring.",
+            confirmText = "Restore from Drive",
+            onConfirm = { viewModel.restoreFromGoogleDriveNow(context) },
+            onDismiss = { showGoogleDriveRestoreConfirm = false }
         )
     }
 

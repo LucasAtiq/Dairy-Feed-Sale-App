@@ -2,6 +2,8 @@ package com.example.ui
 
 import android.app.Application
 import android.content.Context
+import android.content.Intent
+import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.*
@@ -697,6 +699,7 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.saveOrderTransaction(order, items, paymentMethod)
             showMessage("Saved Order ${order.orderNumber} (${order.totalBags} bags, ${order.totalMt} MT)")
+            triggerDriveAutoSyncIfConfigured()
         }
     }
 
@@ -725,6 +728,7 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.savePayment(payment)
             showMessage("Recorded payment ${payment.paymentNumber} (${payment.amount})")
+            triggerDriveAutoSyncIfConfigured()
         }
     }
 
@@ -911,6 +915,95 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
                 showMessage(message)
             } catch (_: Exception) {
                 showMessage("Something went wrong. Your data has not been deleted. Please try again.")
+            }
+        }
+    }
+
+    fun connectGoogleDriveFolder(context: Context, uri: Uri) {
+        viewModelScope.launch {
+            try {
+                val takeFlags: Int = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                context.contentResolver.takePersistableUriPermission(uri, takeFlags)
+
+                val docFile = DocumentFile.fromTreeUri(context, uri)
+                val folderName = docFile?.name ?: "Google Drive Folder"
+
+                val currentCfg = _uiState.value.config
+                val updatedCfg = currentCfg.copy(
+                    googleDriveBackupEnabled = true,
+                    googleDriveFolderUri = uri.toString(),
+                    googleDriveFolderLabel = folderName,
+                    googleDriveSyncStatus = "Connected"
+                )
+                repository.saveBusinessConfig(updatedCfg)
+                showMessage("Connected to Google Drive folder: $folderName")
+
+                // Immediately sync initial backup to Drive folder
+                val (_, syncMsg) = repository.syncToGoogleDrive(context, uri.toString())
+                showMessage(syncMsg)
+            } catch (e: Exception) {
+                showMessage("Failed to connect Google Drive: ${e.localizedMessage ?: "Unknown error"}")
+            }
+        }
+    }
+
+    fun disconnectGoogleDrive(context: Context) {
+        viewModelScope.launch {
+            try {
+                val currentCfg = _uiState.value.config
+                if (currentCfg.googleDriveFolderUri.isNotBlank()) {
+                    try {
+                        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                        context.contentResolver.releasePersistableUriPermission(Uri.parse(currentCfg.googleDriveFolderUri), flags)
+                    } catch (_: Exception) {}
+                }
+                val updatedCfg = currentCfg.copy(
+                    googleDriveBackupEnabled = false,
+                    googleDriveFolderUri = "",
+                    googleDriveFolderLabel = "",
+                    googleDriveSyncStatus = "Not Connected"
+                )
+                repository.saveBusinessConfig(updatedCfg)
+                showMessage("Google Drive backup disconnected.")
+            } catch (e: Exception) {
+                showMessage("Error disconnecting Google Drive: ${e.localizedMessage ?: "Unknown error"}")
+            }
+        }
+    }
+
+    fun syncToGoogleDriveNow(context: Context, isSilent: Boolean = false) {
+        viewModelScope.launch {
+            val currentCfg = _uiState.value.config
+            if (currentCfg.googleDriveFolderUri.isBlank()) {
+                if (!isSilent) showMessage("Please connect a Google Drive folder first.")
+                return@launch
+            }
+            val (success, msg) = repository.syncToGoogleDrive(context, currentCfg.googleDriveFolderUri)
+            if (!isSilent || !success) {
+                showMessage(msg)
+            }
+        }
+    }
+
+    fun restoreFromGoogleDriveNow(context: Context) {
+        viewModelScope.launch {
+            val currentCfg = _uiState.value.config
+            if (currentCfg.googleDriveFolderUri.isBlank()) {
+                showMessage("Please connect a Google Drive folder first.")
+                return@launch
+            }
+            val (success, msg) = repository.restoreFromGoogleDrive(context, currentCfg.googleDriveFolderUri)
+            showMessage(msg)
+        }
+    }
+
+    private fun triggerDriveAutoSyncIfConfigured() {
+        val cfg = _uiState.value.config
+        if (cfg.googleDriveBackupEnabled && cfg.googleDriveFolderUri.isNotBlank() && cfg.googleDriveFrequency == "On Every Sale Order") {
+            viewModelScope.launch {
+                try {
+                    repository.syncToGoogleDrive(getApplication(), cfg.googleDriveFolderUri)
+                } catch (_: Exception) {}
             }
         }
     }

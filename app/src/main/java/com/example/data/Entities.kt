@@ -501,5 +501,11 @@ data class BusinessConfigEntity(
     val backupEmailAddress: String = "",
     val emailBackupFrequency: String = "Daily", // Daily, Weekly
     val emailBackupTime: String = "07:30 PM",
-    val emailWebhookUrl: String = ""
+    val emailWebhookUrl: String = "",
+    val googleDriveBackupEnabled: Boolean = false,
+    val googleDriveFolderUri: String = "",
+    val googleDriveFolderLabel: String = "",
+    val googleDriveLastSync: String = "Never",
+    val googleDriveSyncStatus: String = "Not Connected",
+    val googleDriveFrequency: String = "Daily" // Daily, On Every Sale Order, Manual Only
 )

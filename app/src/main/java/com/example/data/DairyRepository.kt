@@ -352,4 +352,12 @@ class DairyRepository(private val dao: DairyDao) {
     suspend fun restoreFromLatestBackupWithValidation(context: Context, customJson: String? = null): Pair<Boolean, String> {
         return DocumentAndExportManager.restoreFromBackupJsonWithValidation(context, dao, customJson)
     }
+
+    suspend fun syncToGoogleDrive(context: Context, folderUri: String): Pair<Boolean, String> {
+        return DocumentAndExportManager.syncBackupToGoogleDriveFolder(context, dao, folderUri)
+    }
+
+    suspend fun restoreFromGoogleDrive(context: Context, folderUri: String): Pair<Boolean, String> {
+        return DocumentAndExportManager.restoreFromGoogleDriveFolder(context, dao, folderUri)
+    }
 }

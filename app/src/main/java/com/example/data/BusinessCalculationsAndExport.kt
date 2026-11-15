@@ -18,6 +18,7 @@ import android.print.PrintDocumentAdapter
 import android.print.PrintDocumentInfo
 import android.print.PrintManager
 import androidx.core.content.FileProvider
+import androidx.documentfile.provider.DocumentFile
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -1690,26 +1691,147 @@ object DocumentAndExportManager {
     suspend fun checkAndRunAutoBackupIfDue(context: Context, dao: DairyDao) {
         try {
             val cfg = dao.getBusinessConfigOnce() ?: return
-            if (cfg.autoBackupFrequency == "OFF") return
-
-            val todayPrefix = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-            val needsBackup = when (cfg.autoBackupFrequency) {
-                "Daily" -> !cfg.lastBackupAt.startsWith(todayPrefix)
-                "Weekly" -> {
-                    if (cfg.lastBackupAt == "Never") true
-                    else {
-                        val lastDateStr = cfg.lastBackupAt.take(10)
-                        val sevenDaysAgo = SampleDataSeeder.daysOffset(-7)
-                        lastDateStr <= sevenDaysAgo
+            if (cfg.autoBackupFrequency != "OFF") {
+                val todayPrefix = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+                val needsBackup = when (cfg.autoBackupFrequency) {
+                    "Daily" -> !cfg.lastBackupAt.startsWith(todayPrefix)
+                    "Weekly" -> {
+                        if (cfg.lastBackupAt == "Never") true
+                        else {
+                            val lastDateStr = cfg.lastBackupAt.take(10)
+                            val sevenDaysAgo = SampleDataSeeder.daysOffset(-7)
+                            lastDateStr <= sevenDaysAgo
+                        }
                     }
+                    else -> false
                 }
-                else -> false
+                if (needsBackup) {
+                    saveBackupToLocalFile(context, dao, isAutoBackup = true)
+                }
             }
-            if (needsBackup) {
-                saveBackupToLocalFile(context, dao, isAutoBackup = true)
+
+            // Google Drive Auto-Sync check
+            if (cfg.googleDriveBackupEnabled && cfg.googleDriveFolderUri.isNotBlank()) {
+                val todayPrefix = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+                val needsDriveSync = when (cfg.googleDriveFrequency) {
+                    "Daily" -> !cfg.googleDriveLastSync.startsWith(todayPrefix)
+                    else -> false
+                }
+                if (needsDriveSync) {
+                    syncBackupToGoogleDriveFolder(context, dao, cfg.googleDriveFolderUri)
+                }
             }
         } catch (_: Exception) {
             // Automatic backup must fail safely and never disrupt app operation
+        }
+    }
+
+    suspend fun syncBackupToGoogleDriveFolder(
+        context: Context,
+        dao: DairyDao,
+        folderUriString: String
+    ): Pair<Boolean, String> {
+        return try {
+            if (folderUriString.isBlank()) {
+                return false to "No Google Drive folder connected yet."
+            }
+            val folderUri = Uri.parse(folderUriString)
+            val treeDoc = DocumentFile.fromTreeUri(context, folderUri)
+            if (treeDoc == null || !treeDoc.canWrite()) {
+                val cfg = dao.getBusinessConfigOnce()
+                if (cfg != null) {
+                    dao.saveBusinessConfig(cfg.copy(googleDriveSyncStatus = "Permission Expired / Folder Missing"))
+                }
+                return false to "Cannot write to Google Drive folder. Please re-select the folder."
+            }
+
+            val json = createFullBackupJson(dao)
+            val dateOnly = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+            val humanStamp = SimpleDateFormat("yyyy-MM-dd, hh:mm a", Locale.US).format(Date())
+
+            // 1. Primary sync file: WandaBookPro_AutoBackup.json (always points to current state)
+            val primaryName = "WandaBookPro_AutoBackup.json"
+            val existingPrimary = treeDoc.findFile(primaryName)
+            val primaryFile = existingPrimary ?: treeDoc.createFile("application/json", primaryName)
+            if (primaryFile != null) {
+                context.contentResolver.openOutputStream(primaryFile.uri, "wt")?.use { os ->
+                    os.write(json.toByteArray(Charsets.UTF_8))
+                    os.flush()
+                }
+            }
+
+            // 2. Timestamped daily copy: WandaBookPro_Backup_yyyy-MM-dd.json
+            val datedName = "WandaBookPro_Backup_${dateOnly}.json"
+            val existingDated = treeDoc.findFile(datedName)
+            val datedFile = existingDated ?: treeDoc.createFile("application/json", datedName)
+            if (datedFile != null) {
+                context.contentResolver.openOutputStream(datedFile.uri, "wt")?.use { os ->
+                    os.write(json.toByteArray(Charsets.UTF_8))
+                    os.flush()
+                }
+            }
+
+            val cfg = dao.getBusinessConfigOnce() ?: BusinessConfigEntity()
+            dao.saveBusinessConfig(
+                cfg.copy(
+                    googleDriveLastSync = humanStamp,
+                    googleDriveSyncStatus = "Synced ($humanStamp)"
+                )
+            )
+
+            dao.insertAuditLog(
+                AuditLogEntity(
+                    actorRole = cfg.activeRole,
+                    actionType = "BACKUP",
+                    module = "Backup & Restore",
+                    recordCode = "GDRIVE-SYNC",
+                    summary = "Backup synced to Google Drive folder ($humanStamp)"
+                )
+            )
+
+            true to "Successfully backed up to Google Drive ($humanStamp)"
+        } catch (e: Exception) {
+            val errorMsg = e.localizedMessage ?: "Unknown error"
+            try {
+                val cfg = dao.getBusinessConfigOnce()
+                if (cfg != null) {
+                    dao.saveBusinessConfig(cfg.copy(googleDriveSyncStatus = "Sync Error: $errorMsg"))
+                }
+            } catch (_: Exception) {}
+            false to "Google Drive backup failed: $errorMsg"
+        }
+    }
+
+    suspend fun restoreFromGoogleDriveFolder(
+        context: Context,
+        dao: DairyDao,
+        folderUriString: String
+    ): Pair<Boolean, String> {
+        return try {
+            if (folderUriString.isBlank()) {
+                return false to "No Google Drive folder connected."
+            }
+            val folderUri = Uri.parse(folderUriString)
+            val treeDoc = DocumentFile.fromTreeUri(context, folderUri)
+            if (treeDoc == null || !treeDoc.canRead()) {
+                return false to "Cannot read from Google Drive folder. Please re-select the folder."
+            }
+
+            val backupFile = treeDoc.findFile("WandaBookPro_AutoBackup.json")
+                ?: treeDoc.listFiles().filter { it.name?.endsWith(".json") == true }.maxByOrNull { it.lastModified() }
+
+            if (backupFile == null) {
+                return false to "No backup file found in Google Drive folder. Run 'Sync to Drive Now' first."
+            }
+
+            val content = context.contentResolver.openInputStream(backupFile.uri)?.bufferedReader()?.use { it.readText() }
+            if (content.isNullOrBlank()) {
+                return false to "Backup file on Google Drive is empty."
+            }
+
+            restoreFromBackupJsonWithValidation(context, dao, content)
+        } catch (e: Exception) {
+            false to "Google Drive restore failed: ${e.localizedMessage ?: "Unknown error"}"
         }
     }
 
