@@ -31,7 +31,7 @@ import java.util.Locale
         AuditLogEntity::class,
         BusinessConfigEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class DairyDatabase : RoomDatabase() {
@@ -82,6 +82,13 @@ abstract class DairyDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_7_8 = object : androidx.room.migration.Migration(7, 8) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE business_config ADD COLUMN googleAccountEmail TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE business_config ADD COLUMN discordWebhookUrl TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         fun getInstance(context: Context): DairyDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -89,7 +96,7 @@ abstract class DairyDatabase : RoomDatabase() {
                     DairyDatabase::class.java,
                     "dairy_feed_business.db"
                 )
-                    .addMigrations(MIGRATION_2_3, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                    .addMigrations(MIGRATION_2_3, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                     .fallbackToDestructiveMigration(true)
                     .build()
                 INSTANCE = instance

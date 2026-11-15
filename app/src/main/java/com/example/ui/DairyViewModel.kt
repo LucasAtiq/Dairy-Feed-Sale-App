@@ -1046,9 +1046,98 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val file = repository.createBackupFile(context)
+                val currentCfg = _uiState.value.config
+                val timeStamp = java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
+                repository.saveConfig(currentCfg.copy(googleDriveLastSync = timeStamp, googleDriveSyncStatus = "Active"))
                 DocumentAndExportManager.shareFileToGoogleDriveApp(context, file, "application/json")
+                sendDiscordAuditAlert(
+                    eventType = "Cloud Backup",
+                    detail = "Backup file (${file.name}) exported directly to Google Drive app."
+                )
             } catch (e: Exception) {
                 showMessage("Failed to launch Google Drive: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun attachGoogleAccount(email: String) {
+        viewModelScope.launch {
+            val currentCfg = _uiState.value.config
+            val cleanEmail = email.trim()
+            val updated = currentCfg.copy(
+                googleAccountEmail = cleanEmail,
+                userEmail = if (cleanEmail.isNotBlank()) cleanEmail else currentCfg.userEmail,
+                googleDriveSyncStatus = if (cleanEmail.isNotBlank()) "Linked" else "Not Connected",
+                googleDriveBackupEnabled = cleanEmail.isNotBlank()
+            )
+            repository.saveConfig(updated)
+            showMessage(if (cleanEmail.isNotBlank()) "Google Account attached: $cleanEmail" else "Google Account detached.")
+            if (cleanEmail.isNotBlank()) {
+                sendDiscordAuditAlert(
+                    eventType = "Account Attached",
+                    detail = "User attached Google Account: $cleanEmail"
+                )
+            }
+        }
+    }
+
+    fun updateDiscordWebhookUrl(url: String) {
+        viewModelScope.launch {
+            val currentCfg = _uiState.value.config
+            val updated = currentCfg.copy(discordWebhookUrl = url.trim())
+            repository.saveConfig(updated)
+            showMessage("Discord Webhook saved successfully.")
+        }
+    }
+
+    fun sendTestDiscordAlert() {
+        viewModelScope.launch {
+            val currentCfg = _uiState.value.config
+            val webhook = currentCfg.discordWebhookUrl.ifBlank { currentCfg.emailWebhookUrl }
+            if (webhook.isBlank()) {
+                showMessage("Please enter a Discord Webhook URL first.")
+                return@launch
+            }
+            showMessage("Sending test notification to Discord...")
+            val orders = _uiState.value.saleOrders
+            val totalSales = orders.sumOf { it.netAmount }
+            val email = currentCfg.googleAccountEmail.ifBlank { currentCfg.userEmail }
+            val result = com.example.data.DiscordAuditNotifier.sendActivityNotification(
+                webhookUrl = webhook,
+                eventType = "Test Ping",
+                userEmail = email,
+                businessName = currentCfg.businessName,
+                details = "Discord webhook connected successfully with WandaBook Pro!",
+                totalOrders = orders.size,
+                totalSales = totalSales,
+                currencySymbol = currentCfg.currencySymbol
+            )
+            if (result.isSuccess) {
+                showMessage("✅ Discord Test Alert Sent Successfully!")
+            } else {
+                showMessage("❌ Discord Alert Failed: ${result.exceptionOrNull()?.localizedMessage}")
+            }
+        }
+    }
+
+    fun sendDiscordAuditAlert(eventType: String, detail: String) {
+        viewModelScope.launch {
+            val currentCfg = _uiState.value.config
+            val webhook = currentCfg.discordWebhookUrl.ifBlank { currentCfg.emailWebhookUrl }
+            if (webhook.isNotBlank()) {
+                val orders = _uiState.value.saleOrders
+                val totalSales = orders.sumOf { it.netAmount }
+                val email = currentCfg.googleAccountEmail.ifBlank { currentCfg.userEmail }
+                com.example.data.DiscordAuditNotifier.sendActivityNotification(
+                    webhookUrl = webhook,
+                    eventType = eventType,
+                    userEmail = email,
+                    businessName = currentCfg.businessName,
+                    details = detail,
+                    totalOrders = orders.size,
+                    totalSales = totalSales,
+                    currencySymbol = currentCfg.currencySymbol
+                )
             }
         }
     }

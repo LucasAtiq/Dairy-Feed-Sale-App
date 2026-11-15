@@ -2552,6 +2552,11 @@ private fun BackupAndDemoDataSection(
     var emailTime by remember(cfg) { mutableStateOf(cfg.emailBackupTime) }
     var webhookUrl by remember(cfg) { mutableStateOf(cfg.emailWebhookUrl) }
 
+    var showAttachEmailDialog by remember { mutableStateOf(false) }
+    var inputEmailText by remember(cfg) { mutableStateOf(cfg.googleAccountEmail.ifBlank { cfg.userEmail }) }
+    var discordWebhookInput by remember(cfg) { mutableStateOf(cfg.discordWebhookUrl.ifBlank { cfg.emailWebhookUrl }) }
+    var showDiscordSettings by remember { mutableStateOf(false) }
+
     val googleDriveFolderLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
@@ -2578,21 +2583,24 @@ private fun BackupAndDemoDataSection(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 0. Google Drive Cloud Auto-Sync Card
+        // 0. WhatsApp-Style Google Account & Auto-Backup Card
         item {
+            val isAccountLinked = cfg.googleAccountEmail.isNotBlank() || cfg.userEmail.isNotBlank()
+            val displayedEmail = cfg.googleAccountEmail.ifBlank { cfg.userEmail.ifBlank { "Attach Google Account" } }
+
             Card(
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 border = BorderStroke(
                     1.5.dp,
-                    if (cfg.googleDriveBackupEnabled && cfg.googleDriveFolderUri.isNotBlank()) Color(0xFF0F9D58).copy(alpha = 0.6f)
+                    if (cfg.googleDriveBackupEnabled && isAccountLinked) Color(0xFF0F9D58).copy(alpha = 0.6f)
                     else Color(0xFF4285F4).copy(alpha = 0.35f)
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 modifier = Modifier.fillMaxWidth().testTag("gdrive_sync_card")
             ) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // Header row
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    // Header row: Title + WhatsApp-Style Auto-Backup Switch
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -2601,25 +2609,25 @@ private fun BackupAndDemoDataSection(
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Box(
                                 modifier = Modifier
-                                    .size(40.dp)
+                                    .size(42.dp)
                                     .background(Color(0xFFE8F0FE), shape = CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     Icons.Default.CloudSync,
-                                    contentDescription = "Google Drive",
+                                    contentDescription = "Cloud Backup",
                                     tint = Color(0xFF1A73E8),
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
                             Column {
                                 Text(
-                                    "Google Drive Cloud Auto-Sync",
+                                    "Google Cloud Auto-Backup",
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                     color = Color(0xFF1E293B)
                                 )
                                 Text(
-                                    "In-App Automatic Cloud Backup",
+                                    "WhatsApp-style automatic cloud sync",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color(0xFF64748B)
                                 )
@@ -2628,16 +2636,12 @@ private fun BackupAndDemoDataSection(
                         Switch(
                             checked = cfg.googleDriveBackupEnabled,
                             onCheckedChange = { isEnabled ->
-                                if (isEnabled && cfg.googleDriveFolderUri.isBlank()) {
-                                    googleDriveFolderLauncher.launch(null)
-                                } else {
-                                    viewModel.saveBusinessConfig(
-                                        cfg.copy(
-                                            googleDriveBackupEnabled = isEnabled,
-                                            googleDriveSyncStatus = if (isEnabled) "Active" else "Disabled"
-                                        )
+                                viewModel.saveBusinessConfig(
+                                    cfg.copy(
+                                        googleDriveBackupEnabled = isEnabled,
+                                        googleDriveSyncStatus = if (isEnabled) "Active" else "Disabled"
                                     )
-                                }
+                                )
                             },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
@@ -2646,119 +2650,64 @@ private fun BackupAndDemoDataSection(
                         )
                     }
 
-                    // Folder Connection Status Banner
-                    val isConnected = cfg.googleDriveFolderUri.isNotBlank()
-                    val isRealGoogleDrive = cfg.googleDriveFolderUri.contains("com.google.android.apps.docs") || cfg.googleDriveFolderUri.contains("com.google")
-
-                    if (isConnected && !isRealGoogleDrive) {
-                        Surface(
-                            color = Color(0xFFFEF2F2),
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFDC2626), modifier = Modifier.size(20.dp))
-                                    Text("Phone Storage Selected (Not Google Drive)", fontWeight = FontWeight.Bold, color = Color(0xFFDC2626), fontSize = 13.sp)
-                                }
-                                Text(
-                                    "Selected folder '${cfg.googleDriveFolderLabel}' is in local phone storage. Backups are saving locally on your phone, not in Google Drive cloud.",
-                                    fontSize = 11.5.sp,
-                                    color = Color(0xFF334155)
-                                )
-                                Text(
-                                    "How to fix:\n1. Tap 'Change' button below\n2. Tap the 3-line menu (≡) in the top-left of the file picker\n3. Select 'Google Drive' > 'My Drive' > 'Use this folder'",
-                                    fontSize = 11.sp,
-                                    fontFamily = JetBrainsMonoFamily,
-                                    color = Color(0xFF0F5233)
-                                )
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                                    TextButton(onClick = { googleDriveFolderLauncher.launch(null) }) {
-                                        Text("Change Folder (Select Google Drive)", fontWeight = FontWeight.Bold, color = Color(0xFF1A73E8))
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        Surface(
-                            color = if (isConnected) Color(0xFFE6F4EA) else Color(0xFFFFF7ED),
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(
-                                1.dp,
-                                if (isConnected) Color(0xFF34A853).copy(alpha = 0.4f) else Color(0xFFFBBC04).copy(alpha = 0.5f)
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Icon(
-                                    if (isConnected) Icons.Default.CloudDone else Icons.Default.Folder,
-                                    contentDescription = null,
-                                    tint = if (isConnected) Color(0xFF0F9D58) else Color(0xFFEA8600),
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        if (isConnected) "Connected Drive Folder:" else "Drive Folder Not Connected",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = if (isConnected) Color(0xFF0F9D58) else Color(0xFFC05621)
-                                    )
-                                    Text(
-                                        if (isConnected) cfg.googleDriveFolderLabel.ifBlank { "Google Drive Cloud" }
-                                        else "Select a folder inside your Google Drive to enable cloud backups",
-                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                                        color = Color(0xFF1E293B)
-                                    )
-                                }
-                                if (isConnected) {
-                                    TextButton(
-                                        onClick = { googleDriveFolderLauncher.launch(null) },
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                                    ) {
-                                        Text("Change", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Direct Save to Google Drive App Button (Always available & 100% reliable)
-                    Button(
-                        onClick = { viewModel.uploadBackupDirectToDriveApp(context) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A73E8)),
+                    // 1. Attached Google Account Row (اٹیچ ای میل)
+                    Surface(
+                        color = if (isAccountLinked) Color(0xFFE6F4EA) else Color(0xFFFFF7ED),
                         shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isAccountLinked) Color(0xFF34A853).copy(alpha = 0.4f) else Color(0xFFFBBC04).copy(alpha = 0.5f)
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Save Directly to Google Drive App", color = Color.White, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(if (isAccountLinked) Color(0xFF0F9D58).copy(alpha = 0.15f) else Color(0xFFEA8600).copy(alpha = 0.15f), shape = CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    if (isAccountLinked) Icons.Default.AccountCircle else Icons.Default.AddLink,
+                                    contentDescription = null,
+                                    tint = if (isAccountLinked) Color(0xFF0F9D58) else Color(0xFFEA8600),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    if (isAccountLinked) "Attached Google Account" else "Attach Google Account",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = if (isAccountLinked) Color(0xFF0F9D58) else Color(0xFFC05621)
+                                )
+                                Text(
+                                    displayedEmail,
+                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    color = Color(0xFF1E293B)
+                                )
+                            }
+                            TextButton(
+                                onClick = { showAttachEmailDialog = true },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    if (isAccountLinked) "Change" else "Attach",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = Color(0xFF1A73E8)
+                                )
+                            }
+                        }
                     }
 
-                    // If not connected, show folder selection button with tip
-                    if (!isConnected) {
-                        OutlinedButton(
-                            onClick = { googleDriveFolderLauncher.launch(null) },
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFF1A73E8))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Configure Drive Folder (Auto-Sync)", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold), color = Color(0xFF1A73E8))
-                        }
-                        Text(
-                            "Tip: When folder picker opens, tap the top-left 3-line menu (≡) and select 'Google Drive' instead of phone storage.",
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                            color = Color(0xFF64748B)
-                        )
-                    } else {
-                        // Sync Frequency Selection Chips
+                    // 2. Auto-Backup Frequency Chips (Only when enabled)
+                    if (cfg.googleDriveBackupEnabled) {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
-                                "Auto-Sync Schedule",
+                                "Auto-Backup Schedule",
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                                 color = Color(0xFF475569)
                             )
@@ -2791,62 +2740,111 @@ private fun BackupAndDemoDataSection(
                                 }
                             }
                         }
+                    }
 
-                        // Status Info Box
-                        Surface(
-                            color = Color(0xFFF8FAFC),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.fillMaxWidth()
+                    // 3. Backup Status Information Box
+                    Surface(
+                        color = Color(0xFFF8FAFC),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Last Cloud Backup:", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+                                Text(cfg.googleDriveLastSync.ifBlank { "Never" }, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), color = Color(0xFF1E293B))
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Backup Status:", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+                                Text(
+                                    if (cfg.googleDriveBackupEnabled) "Active (Auto-Sync)" else "Idle",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                    color = if (cfg.googleDriveBackupEnabled) Color(0xFF0F9D58) else Color(0xFF64748B)
+                                )
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Storage Target:", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
+                                Text("Google Drive Cloud", style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium, color = Color(0xFF1A73E8)))
+                            }
+                        }
+                    }
+
+                    // 4. Action Buttons: "Back Up Now" & "Restore from Drive"
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = { viewModel.uploadBackupDirectToDriveApp(context) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F9D58)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1.2f)
                         ) {
-                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("Last Cloud Sync:", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
-                                    Text(cfg.googleDriveLastSync, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold), color = Color(0xFF1E293B))
-                                }
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("Status:", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
-                                    Text(
-                                        cfg.googleDriveSyncStatus,
-                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-                                        color = if (cfg.googleDriveSyncStatus.startsWith("Synced")) Color(0xFF0F9D58) else Color(0xFF1A73E8)
-                                    )
-                                }
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("Cloud Target:", style = MaterialTheme.typography.bodySmall, color = Color(0xFF64748B))
-                                    Text("WandaBookPro_AutoBackup.json", style = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMonoFamily), color = Color(0xFF0F5233))
-                                }
-                            }
+                            Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Back Up Now", color = Color.White, style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
                         }
-
-                        // Cloud Actions: Sync Now & Restore
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            Button(
-                                onClick = { viewModel.syncToGoogleDriveNow(context, isSilent = false) },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F9D58)),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Sync Now", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
-                            }
-                            OutlinedButton(
-                                onClick = { showGoogleDriveRestoreConfirm = true },
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Restore from Drive", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
-                            }
+                        OutlinedButton(
+                            onClick = { importFileLauncher.launch("application/json") },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFF1A73E8))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Restore", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xFF1A73E8))
                         }
+                    }
 
-                        // Disconnect option
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            TextButton(
-                                onClick = { viewModel.disconnectGoogleDrive(context) }
-                            ) {
-                                Text("Disconnect Google Drive", color = Color(0xFFDC2626), style = MaterialTheme.typography.labelSmall)
+                    // 5. Admin Activity Monitoring (Discord Webhook) - Expandable
+                    Divider(color = Color(0xFFE2E8F0), thickness = 1.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showDiscordSettings = !showDiscordSettings },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = Color(0xFF5865F2), modifier = Modifier.size(18.dp))
+                            Text("Admin Activity Alerts (Discord)", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xFF334155))
+                        }
+                        Icon(
+                            if (showDiscordSettings) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = Color(0xFF64748B)
+                        )
+                    }
+
+                    if (showDiscordSettings) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                "Paste your Discord Webhook URL below to receive live user activity alerts and sales metrics directly in your Discord channel.",
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+                                color = Color(0xFF64748B)
+                            )
+                            OutlinedTextField(
+                                value = discordWebhookInput,
+                                onValueChange = { discordWebhookInput = it },
+                                label = { Text("Discord Webhook URL") },
+                                placeholder = { Text("https://discord.com/api/webhooks/...") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                Button(
+                                    onClick = { viewModel.updateDiscordWebhookUrl(discordWebhookInput) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5865F2)),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Save URL", color = Color.White, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
+                                }
+                                OutlinedButton(
+                                    onClick = {
+                                        viewModel.updateDiscordWebhookUrl(discordWebhookInput)
+                                        viewModel.sendTestDiscordAlert()
+                                    },
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Send Test Ping", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = Color(0xFF5865F2))
+                                }
                             }
                         }
                     }
@@ -3142,6 +3140,52 @@ private fun BackupAndDemoDataSection(
             confirmText = "Restore",
             onConfirm = { viewModel.restoreBackup(context) },
             onDismiss = { showRestoreConfirm = false }
+        )
+    }
+
+    if (showAttachEmailDialog) {
+        AlertDialog(
+            onDismissRequest = { showAttachEmailDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.AccountCircle, contentDescription = null, tint = Color(0xFF1A73E8), modifier = Modifier.size(24.dp))
+                    Text("Attach Google Account", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        "Attach your Google email address to link automatic cloud backups and secure your app data.",
+                        fontSize = 13.sp,
+                        color = Color(0xFF475569)
+                    )
+                    OutlinedTextField(
+                        value = inputEmailText,
+                        onValueChange = { inputEmailText = it },
+                        label = { Text("Google Email Address") },
+                        placeholder = { Text("example@gmail.com") },
+                        singleLine = true,
+                        leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = Color(0xFF1A73E8)) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.attachGoogleAccount(inputEmailText)
+                        showAttachEmailDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F9D58))
+                ) {
+                    Text("Attach & Save", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAttachEmailDialog = false }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 

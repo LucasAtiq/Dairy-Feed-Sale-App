@@ -508,5 +508,7 @@ data class BusinessConfigEntity(
     val googleDriveFolderLabel: String = "",
     val googleDriveLastSync: String = "Never",
     val googleDriveSyncStatus: String = "Not Connected",
-    val googleDriveFrequency: String = "Daily" // Daily, On Every Sale Order, Manual Only
+    val googleDriveFrequency: String = "Daily", // Daily, On Every Sale Order, Manual Only
+    val googleAccountEmail: String = "",
+    val discordWebhookUrl: String = ""
 )
