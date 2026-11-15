@@ -1008,6 +1008,51 @@ class DairyViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun downloadInvoiceAsPdf(context: Context, orderWithItems: OrderWithItems) {
+        viewModelScope.launch {
+            try {
+                val config = _uiState.value.config
+                val pdf = DocumentAndExportManager.generateInvoicePdfFile(context, config, orderWithItems)
+                val safeName = "Invoice_${orderWithItems.order.invoiceNumber}.pdf"
+                val saved = DocumentAndExportManager.saveFileToPublicDownloads(context, pdf, "application/pdf", safeName)
+                if (saved) {
+                    showMessage("Saved PDF to Downloads: $safeName")
+                }
+                DocumentAndExportManager.shareFile(context, pdf, "application/pdf", "Invoice ${orderWithItems.order.invoiceNumber} (PDF)")
+            } catch (e: Exception) {
+                showMessage("Could not generate PDF: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun downloadInvoiceAsImage(context: Context, orderWithItems: OrderWithItems) {
+        viewModelScope.launch {
+            try {
+                val config = _uiState.value.config
+                val img = DocumentAndExportManager.generateInvoiceImageFile(context, config, orderWithItems)
+                val safeName = "Invoice_${orderWithItems.order.invoiceNumber}.png"
+                val saved = DocumentAndExportManager.saveFileToPublicDownloads(context, img, "image/png", safeName)
+                if (saved) {
+                    showMessage("Saved Image to Downloads: $safeName")
+                }
+                DocumentAndExportManager.shareFile(context, img, "image/png", "Invoice ${orderWithItems.order.invoiceNumber} (Image)")
+            } catch (e: Exception) {
+                showMessage("Could not generate Image: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun uploadBackupDirectToDriveApp(context: Context) {
+        viewModelScope.launch {
+            try {
+                val file = repository.createBackupFile(context)
+                DocumentAndExportManager.shareFileToGoogleDriveApp(context, file, "application/json")
+            } catch (e: Exception) {
+                showMessage("Failed to launch Google Drive: ${e.localizedMessage}")
+            }
+        }
+    }
+
     /**
      * Section 36: Optional Offline Smart Business Query Engine Foundation
      * Answers natural-language field queries offline using live database state,

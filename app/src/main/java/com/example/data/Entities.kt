@@ -491,7 +491,7 @@ data class BusinessConfigEntity(
     val notifyPendingDelivery: Boolean = true,
     val notifyLowStock: Boolean = true,
     val notifyTargetProgress: Boolean = true,
-    val themeMode: String = "SYSTEM", // SYSTEM, LIGHT, DARK
+    val themeMode: String = "LIGHT", // LIGHT, DARK, SYSTEM
     val isSampleDataLoaded: Boolean = false,
     val lastBackupAt: String = "Never",
     val autoBackupFrequency: String = "Daily", // OFF, Daily, Weekly

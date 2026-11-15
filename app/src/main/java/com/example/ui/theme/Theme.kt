@@ -55,13 +55,13 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun DairyFeedTheme(
-    themeMode: String = "SYSTEM",
+    themeMode: String = "LIGHT",
     content: @Composable () -> Unit
 ) {
     val darkTheme = when (themeMode) {
         "DARK" -> true
-        "LIGHT" -> false
-        else -> isSystemInDarkTheme()
+        "SYSTEM" -> isSystemInDarkTheme()
+        else -> false // Light Theme by default
     }
 
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme

@@ -2648,62 +2648,112 @@ private fun BackupAndDemoDataSection(
 
                     // Folder Connection Status Banner
                     val isConnected = cfg.googleDriveFolderUri.isNotBlank()
-                    Surface(
-                        color = if (isConnected) Color(0xFFE6F4EA) else Color(0xFFFFF7ED),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(
-                            1.dp,
-                            if (isConnected) Color(0xFF34A853).copy(alpha = 0.4f) else Color(0xFFFBBC04).copy(alpha = 0.5f)
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    val isRealGoogleDrive = cfg.googleDriveFolderUri.contains("com.google.android.apps.docs") || cfg.googleDriveFolderUri.contains("com.google")
+
+                    if (isConnected && !isRealGoogleDrive) {
+                        Surface(
+                            color = Color(0xFFFEF2F2),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f)),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(
-                                if (isConnected) Icons.Default.CloudDone else Icons.Default.Folder,
-                                contentDescription = null,
-                                tint = if (isConnected) Color(0xFF0F9D58) else Color(0xFFEA8600),
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFDC2626), modifier = Modifier.size(20.dp))
+                                    Text("Phone Storage Selected (Not Google Drive)", fontWeight = FontWeight.Bold, color = Color(0xFFDC2626), fontSize = 13.sp)
+                                }
                                 Text(
-                                    if (isConnected) "Connected Drive Folder:" else "Drive Folder Not Connected",
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = if (isConnected) Color(0xFF0F9D58) else Color(0xFFC05621)
+                                    "Selected folder '${cfg.googleDriveFolderLabel}' is in local phone storage. Backups are saving locally on your phone, not in Google Drive cloud.",
+                                    fontSize = 11.5.sp,
+                                    color = Color(0xFF334155)
                                 )
                                 Text(
-                                    if (isConnected) cfg.googleDriveFolderLabel.ifBlank { "Google Drive" }
-                                    else "Select a folder inside your Google Drive to enable cloud backups",
-                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                                    color = Color(0xFF1E293B)
+                                    "How to fix:\n1. Tap 'Change' button below\n2. Tap the 3-line menu (≡) in the top-left of the file picker\n3. Select 'Google Drive' > 'My Drive' > 'Use this folder'",
+                                    fontSize = 11.sp,
+                                    fontFamily = JetBrainsMonoFamily,
+                                    color = Color(0xFF0F5233)
                                 )
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                    TextButton(onClick = { googleDriveFolderLauncher.launch(null) }) {
+                                        Text("Change Folder (Select Google Drive)", fontWeight = FontWeight.Bold, color = Color(0xFF1A73E8))
+                                    }
+                                }
                             }
-                            if (isConnected) {
-                                TextButton(
-                                    onClick = { googleDriveFolderLauncher.launch(null) },
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Text("Change", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                        }
+                    } else {
+                        Surface(
+                            color = if (isConnected) Color(0xFFE6F4EA) else Color(0xFFFFF7ED),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(
+                                1.dp,
+                                if (isConnected) Color(0xFF34A853).copy(alpha = 0.4f) else Color(0xFFFBBC04).copy(alpha = 0.5f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Icon(
+                                    if (isConnected) Icons.Default.CloudDone else Icons.Default.Folder,
+                                    contentDescription = null,
+                                    tint = if (isConnected) Color(0xFF0F9D58) else Color(0xFFEA8600),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        if (isConnected) "Connected Drive Folder:" else "Drive Folder Not Connected",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = if (isConnected) Color(0xFF0F9D58) else Color(0xFFC05621)
+                                    )
+                                    Text(
+                                        if (isConnected) cfg.googleDriveFolderLabel.ifBlank { "Google Drive Cloud" }
+                                        else "Select a folder inside your Google Drive to enable cloud backups",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                        color = Color(0xFF1E293B)
+                                    )
+                                }
+                                if (isConnected) {
+                                    TextButton(
+                                        onClick = { googleDriveFolderLauncher.launch(null) },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text("Change", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
+                                    }
                                 }
                             }
                         }
                     }
 
-                    // If not connected, show prominent Connect Folder button
+                    // Direct Save to Google Drive App Button (Always available & 100% reliable)
+                    Button(
+                        onClick = { viewModel.uploadBackupDirectToDriveApp(context) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A73E8)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Save Directly to Google Drive App", color = Color.White, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
+                    }
+
+                    // If not connected, show folder selection button with tip
                     if (!isConnected) {
-                        Button(
+                        OutlinedButton(
                             onClick = { googleDriveFolderLauncher.launch(null) },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A73E8)),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFF1A73E8))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Select Google Drive Folder", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
+                            Text("Configure Drive Folder (Auto-Sync)", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold), color = Color(0xFF1A73E8))
                         }
+                        Text(
+                            "Tip: When folder picker opens, tap the top-left 3-line menu (≡) and select 'Google Drive' instead of phone storage.",
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                            color = Color(0xFF64748B)
+                        )
                     } else {
                         // Sync Frequency Selection Chips
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {

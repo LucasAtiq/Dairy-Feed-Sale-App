@@ -2775,22 +2775,57 @@ private fun InvoicesListSection(
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         OutlinedButton(
                             onClick = {
                                 val pdf = DocumentAndExportManager.generateInvoicePdfFile(context, uiState.config, owi)
                                 DocumentAndExportManager.printPdfFile(context, pdf, "Invoice_${o.invoiceNumber}")
-                            }
+                            },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.height(36.dp)
                         ) {
-                            Icon(Icons.Default.Print, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Print, contentDescription = null, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Print")
+                            Text("Print", fontSize = 11.5.sp)
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(onClick = { viewModel.openInvoicePreview(o.id) }) {
-                            Text("Preview & PDF")
+                        OutlinedButton(
+                            onClick = {
+                                val img = DocumentAndExportManager.generateInvoiceImageFile(context, uiState.config, owi)
+                                val name = "Invoice_${o.invoiceNumber}.png"
+                                DocumentAndExportManager.saveFileToPublicDownloads(context, img, "image/png", name)
+                                DocumentAndExportManager.shareFile(context, img, "image/png", "Invoice ${o.invoiceNumber} (Image)")
+                            },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.height(36.dp)
+                        ) {
+                            Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Image", fontSize = 11.5.sp)
+                        }
+                        Button(
+                            onClick = {
+                                val pdf = DocumentAndExportManager.generateInvoicePdfFile(context, uiState.config, owi)
+                                val name = "Invoice_${o.invoiceNumber}.pdf"
+                                DocumentAndExportManager.saveFileToPublicDownloads(context, pdf, "application/pdf", name)
+                                DocumentAndExportManager.shareFile(context, pdf, "application/pdf", "Invoice ${o.invoiceNumber} (PDF)")
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233)),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.height(36.dp)
+                        ) {
+                            Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.White)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("PDF", color = Color.White, fontSize = 11.5.sp)
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        OutlinedButton(
+                            onClick = { viewModel.openInvoicePreview(o.id) },
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(36.dp)
+                        ) {
+                            Text("Preview", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -2864,27 +2899,51 @@ private fun InvoicePreviewDetailScreen(
                     Text("Edit Order", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
                 }
 
-                // Share / PDF Button
+                // Download as PDF Button
                 Button(
                     onClick = {
                         val pdf = DocumentAndExportManager.generateInvoicePdfFile(context, config, orderWithItems)
-                        DocumentAndExportManager.shareFile(context, pdf, "application/pdf", "Share Invoice ${o.invoiceNumber}")
+                        val name = "Invoice_${o.invoiceNumber}.pdf"
+                        DocumentAndExportManager.saveFileToPublicDownloads(context, pdf, "application/pdf", name)
+                        DocumentAndExportManager.shareFile(context, pdf, "application/pdf", "Invoice ${o.invoiceNumber} (PDF)")
                     },
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233)),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(42.dp)
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                    modifier = Modifier.height(42.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Share,
-                        contentDescription = "Share",
+                        imageVector = Icons.Default.PictureAsPdf,
+                        contentDescription = "PDF",
                         tint = Color.White,
                         modifier = Modifier.size(15.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Share / PDF", color = Color.White, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                    Text("PDF", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+
+                // Download as Image Button
+                OutlinedButton(
+                    onClick = {
+                        val img = DocumentAndExportManager.generateInvoiceImageFile(context, config, orderWithItems)
+                        val name = "Invoice_${o.invoiceNumber}.png"
+                        DocumentAndExportManager.saveFileToPublicDownloads(context, img, "image/png", name)
+                        DocumentAndExportManager.shareFile(context, img, "image/png", "Invoice ${o.invoiceNumber} (Image)")
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0xFF0F5233)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0F5233)),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                    modifier = Modifier.height(42.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Image,
+                        contentDescription = "Image",
+                        tint = Color(0xFF0F5233),
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Image", color = Color(0xFF0F5233), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -3454,70 +3513,118 @@ private fun InvoicePreviewDetailScreen(
             }
         }
 
-        // 7. Bottom Action Buttons (Print Invoice & + Add Payment & Share WhatsApp)
+        // 7. Bottom Action Buttons: Download PDF, Download Image, Print, Add Payment, Share WhatsApp
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                shadowElevation = 1.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Print Invoice Button
-                    OutlinedButton(
+                    Text(
+                        "Download & Export Options",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = Color(0xFF0F5233)
+                    )
+
+                    // Download As PDF & Download As Image Buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                val pdf = DocumentAndExportManager.generateInvoicePdfFile(context, config, orderWithItems)
+                                val name = "Invoice_${o.invoiceNumber}.pdf"
+                                DocumentAndExportManager.saveFileToPublicDownloads(context, pdf, "application/pdf", name)
+                                DocumentAndExportManager.shareFile(context, pdf, "application/pdf", "Invoice ${o.invoiceNumber} (PDF)")
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(44.dp)
+                        ) {
+                            Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Download PDF", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                        }
+
+                        Button(
+                            onClick = {
+                                val img = DocumentAndExportManager.generateInvoiceImageFile(context, config, orderWithItems)
+                                val name = "Invoice_${o.invoiceNumber}.png"
+                                DocumentAndExportManager.saveFileToPublicDownloads(context, img, "image/png", name)
+                                DocumentAndExportManager.shareFile(context, img, "image/png", "Invoice ${o.invoiceNumber} (Image)")
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(44.dp)
+                        ) {
+                            Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.White)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Download Image", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                        }
+                    }
+
+                    // Print Invoice & Add Payment Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                val pdf = DocumentAndExportManager.generateInvoicePdfFile(context, config, orderWithItems)
+                                DocumentAndExportManager.printPdfFile(context, pdf, "Invoice_${o.invoiceNumber}")
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFF0F5233)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0F5233)),
+                            modifier = Modifier.weight(1f).height(44.dp)
+                        ) {
+                            Icon(Icons.Default.Print, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF0F5233))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Print Invoice", fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                        }
+
+                        Button(
+                            onClick = onAddPayment,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233)),
+                            modifier = Modifier.weight(1f).height(44.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Add Payment", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                        }
+                    }
+
+                    // WhatsApp Sharing Button
+                    Button(
                         onClick = {
-                            val pdf = DocumentAndExportManager.generateInvoicePdfFile(context, config, orderWithItems)
-                            DocumentAndExportManager.printPdfFile(context, pdf, "Invoice_${o.invoiceNumber}")
+                            val textSummary = buildString {
+                                appendLine("*${config.companyName} — INVOICE ${o.invoiceNumber}*")
+                                appendLine("Date: ${o.date} | Dealer: ${o.dealerName}")
+                                orderWithItems.items.forEach {
+                                    appendLine("• ${it.productCode} (${it.bagSizeLabel}): ${it.quantityBags} bags @ ${it.pricePerBag.roundToInt()} = ${BusinessCalculations.formatCurrency(it.netAmount, cur)}")
+                                }
+                                appendLine("Total Bags: ${o.totalBags} (${BusinessCalculations.formatDecimal(o.totalMt)} MT)")
+                                appendLine("Net Payable: ${BusinessCalculations.formatCurrency(o.netAmount, cur)}")
+                                appendLine("Paid: ${BusinessCalculations.formatCurrency(o.paidAmount, cur)} | Balance: ${BusinessCalculations.formatCurrency(o.outstandingAmount, cur)}")
+                            }
+                            DocumentAndExportManager.shareTextMessage(context, "Invoice ${o.invoiceNumber}", textSummary, preferWhatsApp = true)
                         },
                         shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, Color(0xFF0F5233)),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0F5233)),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(46.dp)
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                        modifier = Modifier.fillMaxWidth().height(42.dp)
                     ) {
-                        Icon(Icons.Default.Print, contentDescription = null, modifier = Modifier.size(17.dp), tint = Color(0xFF0F5233))
+                        Icon(Icons.Default.Chat, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Print Invoice", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text("Share WhatsApp Summary", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
                     }
-
-                    // + Add Payment Button
-                    Button(
-                        onClick = onAddPayment,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F5233)),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(46.dp)
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(17.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Add Payment", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    }
-                }
-
-                // WhatsApp Sharing Button
-                Button(
-                    onClick = {
-                        val textSummary = buildString {
-                            appendLine("*${config.companyName} — INVOICE ${o.invoiceNumber}*")
-                            appendLine("Date: ${o.date} | Dealer: ${o.dealerName}")
-                            orderWithItems.items.forEach {
-                                appendLine("• ${it.productCode} (${it.bagSizeLabel}): ${it.quantityBags} bags @ ${it.pricePerBag.roundToInt()} = ${BusinessCalculations.formatCurrency(it.netAmount, cur)}")
-                            }
-                            appendLine("Total Bags: ${o.totalBags} (${BusinessCalculations.formatDecimal(o.totalMt)} MT)")
-                            appendLine("Net Payable: ${BusinessCalculations.formatCurrency(o.netAmount, cur)}")
-                            appendLine("Paid: ${BusinessCalculations.formatCurrency(o.paidAmount, cur)} | Balance: ${BusinessCalculations.formatCurrency(o.outstandingAmount, cur)}")
-                        }
-                        DocumentAndExportManager.shareTextMessage(context, "Invoice ${o.invoiceNumber}", textSummary, preferWhatsApp = true)
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(42.dp)
-                ) {
-                    Icon(Icons.Default.Chat, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Share WhatsApp Summary", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
                 }
             }
         }

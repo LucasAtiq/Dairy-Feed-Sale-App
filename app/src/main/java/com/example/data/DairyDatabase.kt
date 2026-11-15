@@ -72,6 +72,7 @@ abstract class DairyDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE business_config ADD COLUMN googleDriveLastSync TEXT NOT NULL DEFAULT 'Never'")
                 db.execSQL("ALTER TABLE business_config ADD COLUMN googleDriveSyncStatus TEXT NOT NULL DEFAULT 'Not Connected'")
                 db.execSQL("ALTER TABLE business_config ADD COLUMN googleDriveFrequency TEXT NOT NULL DEFAULT 'Daily'")
+                db.execSQL("UPDATE business_config SET themeMode = 'LIGHT' WHERE themeMode = 'SYSTEM' OR themeMode IS NULL")
             }
         }
 

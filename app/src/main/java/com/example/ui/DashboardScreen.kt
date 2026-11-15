@@ -61,8 +61,8 @@ fun DashboardScreen(
     val systemDark = isSystemInDarkTheme()
     val isDark = when (uiState.config.themeMode) {
         "DARK" -> true
-        "LIGHT" -> false
-        else -> systemDark
+        "SYSTEM" -> systemDark
+        else -> false // Light theme default
     }
 
     var showTargetEditDialog by remember { mutableStateOf(false) }
