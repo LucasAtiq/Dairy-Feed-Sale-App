@@ -4190,7 +4190,7 @@ private fun MultiProductOrderDialog(
     var selectedDealerName by remember { mutableStateOf(existing?.dealerName ?: (dealers.firstOrNull()?.businessName ?: "")) }
     var selectedFarmerName by remember { mutableStateOf(existing?.farmerName ?: "None") }
     var location by remember { mutableStateOf(existing?.location ?: (dealers.firstOrNull()?.city ?: "Sahiwal")) }
-    var status by remember { mutableStateOf(existing?.status ?: "Pending") }
+    var status by remember { mutableStateOf(existing?.status ?: "Confirmed") }
     var expectedDeliveryDate by remember { mutableStateOf(existing?.expectedDeliveryDate ?: SampleDataSeeder.todayDate()) }
     var paidAmountStr by remember { mutableStateOf(existing?.paidAmount?.roundToInt()?.toString() ?: "0") }
     var paymentMethod by remember { mutableStateOf(paymentMethods.firstOrNull() ?: "Cash") }
@@ -4399,29 +4399,47 @@ private fun MultiProductOrderDialog(
                         )
                     }
 
-                    // 2. Order Date *
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row {
-                            Text("Order Date", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xFF1E293B))
-                            Text(" *", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xFFDC2626))
+                    // 2. Order Date & Order Status *
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row {
+                                Text("Order Date", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xFF1E293B))
+                                Text(" *", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xFFDC2626))
+                            }
+                            OutlinedTextField(
+                                value = date,
+                                onValueChange = { date = it },
+                                placeholder = { Text("YYYY-MM-DD") },
+                                leadingIcon = {
+                                    Icon(Icons.Default.CalendarToday, contentDescription = null, tint = Color(0xFF0F5233), modifier = Modifier.size(18.dp))
+                                },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White,
+                                    focusedBorderColor = Color(0xFF0F5233),
+                                    unfocusedBorderColor = Color(0xFFE2E8F0)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
-                        OutlinedTextField(
-                            value = date,
-                            onValueChange = { date = it },
-                            placeholder = { Text("YYYY-MM-DD") },
-                            leadingIcon = {
-                                Icon(Icons.Default.CalendarToday, contentDescription = null, tint = Color(0xFF0F5233), modifier = Modifier.size(18.dp))
-                            },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.White,
-                                unfocusedContainerColor = Color.White,
-                                focusedBorderColor = Color(0xFF0F5233),
-                                unfocusedBorderColor = Color(0xFFE2E8F0)
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
+
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row {
+                                Text("Order Status", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xFF1E293B))
+                                Text(" *", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xFFDC2626))
+                            }
+                            DropdownSelectorField(
+                                label = "Order Status",
+                                options = listOf("Confirmed", "Pending", "In Transit", "Delivered"),
+                                selectedOption = status,
+                                onOptionSelected = { status = it }
+                            )
+                        }
                     }
 
                     // 3. Add Products Section & Table
@@ -4654,7 +4672,7 @@ private fun MultiProductOrderDialog(
                         }
                     }
 
-                    // 4. Summary Box
+                    // 4. Billing & Settlement Box
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -4665,36 +4683,133 @@ private fun MultiProductOrderDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
+                            Text(
+                                text = "Billing & Payment Settlement",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = Color(0xFF0F172A)
+                            )
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("Total Bags", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF64748B))
-                                Text("$totalBags Bags", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.ExtraBold), color = Color(0xFF0F172A))
+                                Text("Total Volume", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF64748B))
+                                Text("$totalBags Bags (${BusinessCalculations.formatDecimal(totalMt)} MT)", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xFF0F172A))
                             }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Total Weight", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF64748B))
-                                Text("${BusinessCalculations.formatDecimal(totalMt)} MT", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.ExtraBold), color = Color(0xFF0F172A))
-                            }
-                            HorizontalDivider(color = Color(0xFFE2E8F0))
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Total Amount", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold), color = Color(0xFF0F172A))
+                                Text("Total Net Bill", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold), color = Color(0xFF0F172A))
                                 Text(
                                     text = BusinessCalculations.formatCurrency(netAmount, currencySymbol),
-                                    style = MaterialTheme.typography.titleLarge.copy(
+                                    style = MaterialTheme.typography.titleMedium.copy(
                                         fontFamily = JetBrainsMonoFamily,
                                         fontWeight = FontWeight.ExtraBold
                                     ),
                                     color = Color(0xFF0F5233)
+                                )
+                            }
+
+                            HorizontalDivider(color = Color(0xFFE2E8F0))
+
+                            // Paid Amount Field (Editable - automatically subtracted from bill and recorded into payments)
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        "Paid Amount (Received / Advance)",
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = Color(0xFF1E293B)
+                                    )
+                                    Text(
+                                        "Auto-added to Payments",
+                                        style = TextStyle(fontSize = 11.sp, color = Color(0xFF16A34A), fontWeight = FontWeight.SemiBold)
+                                    )
+                                }
+                                OutlinedTextField(
+                                    value = paidAmountStr,
+                                    onValueChange = { paidAmountStr = it },
+                                    prefix = { Text("$currencySymbol ", fontWeight = FontWeight.Bold, color = Color(0xFF0F5233)) },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = Color(0xFFF0FDF4),
+                                        unfocusedContainerColor = Color.White,
+                                        focusedBorderColor = Color(0xFF16A34A),
+                                        unfocusedBorderColor = Color(0xFFE2E8F0)
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+
+                            // Payment Method Selector
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    "Payment Method",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = Color(0xFF1E293B)
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    listOf("Cash", "Bank Transfer", "Cheque", "Online").forEach { method ->
+                                        val isSelected = paymentMethod.equals(method, ignoreCase = true)
+                                        Surface(
+                                            onClick = { paymentMethod = method },
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = if (isSelected) Color(0xFF0F5233) else Color(0xFFF1F5F9),
+                                            border = BorderStroke(1.dp, if (isSelected) Color(0xFF0F5233) else Color(0xFFCBD5E1)),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier.padding(vertical = 8.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = method,
+                                                    style = TextStyle(
+                                                        fontSize = 11.sp,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                        color = if (isSelected) Color.White else Color(0xFF334155)
+                                                    ),
+                                                    maxLines = 1
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            HorizontalDivider(color = Color(0xFFE2E8F0))
+
+                            // Remaining Outstanding Balance
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "Remaining Balance",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = Color(0xFF0F172A)
+                                )
+                                Text(
+                                    text = BusinessCalculations.formatCurrency(outstandingAmount, currencySymbol),
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontFamily = JetBrainsMonoFamily,
+                                        fontWeight = FontWeight.ExtraBold
+                                    ),
+                                    color = if (outstandingAmount > 0) Color(0xFFDC2626) else Color(0xFF16A34A)
                                 )
                             }
                         }
