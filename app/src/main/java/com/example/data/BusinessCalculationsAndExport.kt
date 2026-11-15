@@ -158,6 +158,14 @@ object BusinessCalculations {
         return "$currencySymbol ${formatter.format(amount.roundToInt())}"
     }
 
+    fun formatNumber(amount: Double): String {
+        val formatter = NumberFormat.getNumberInstance(Locale.US).apply {
+            maximumFractionDigits = 0
+            minimumFractionDigits = 0
+        }
+        return formatter.format(amount.roundToInt())
+    }
+
     fun formatDecimal(value: Double, decimals: Int = 2): String {
         return String.format(Locale.US, "%.${decimals}f", value)
     }
@@ -1725,7 +1733,6 @@ object DocumentAndExportManager {
             shareFile(context, file, mimeType, "Save to Google Drive / Cloud")
             false
         }
-    }
     }
 
     fun printPdfFile(context: Context, file: File, jobName: String) {
