@@ -1084,14 +1084,14 @@ private fun ComprehensiveReportsSection(uiState: AppUiState) {
     val periodOrders = remember(uiState.ordersWithItems, selectedPeriodPill, startDate, endDate) {
         uiState.ordersWithItems.filter { owi ->
             val o = owi.order
-            if (o.status == "Cancelled") return@filter false
+            if (o.status == "Cancelled" || o.status == "Draft") return@filter false
             when (selectedPeriodPill) {
                 "This Month" -> o.date.startsWith(monthPrefix)
                 "Last Month" -> {
                     val prevMonth = SampleDataSeeder.daysOffset(-30).take(7)
                     o.date.startsWith(prevMonth)
                 }
-                "YTD" -> o.date.startsWith("2026")
+                "YTD" -> o.date.startsWith(monthPrefix.take(4))
                 "Custom" -> {
                     (startDate.isBlank() || o.date >= startDate.trim()) &&
                     (endDate.isBlank() || o.date <= endDate.trim())
@@ -1103,17 +1103,16 @@ private fun ComprehensiveReportsSection(uiState: AppUiState) {
 
     val totalOrdersBags = periodOrders.sumOf { it.order.totalBags }
     val totalOrdersMt = periodOrders.sumOf { it.order.totalMt }
-    val deliveredOrders = periodOrders.filter { it.order.status.equals("Delivered", true) }
-    val totalSalesBags = if (deliveredOrders.isNotEmpty()) deliveredOrders.sumOf { it.order.totalBags } else if (totalOrdersBags > 0) (totalOrdersBags * 0.74).toInt() else 245
-    val totalSalesMt = if (deliveredOrders.isNotEmpty()) deliveredOrders.sumOf { it.order.totalMt } else if (totalOrdersMt > 0) (totalOrdersMt * 0.74) else 9.40
-    val totalPayments = uiState.payments.sumOf { it.amount }.let { if (it > 0) it else 859300.0 }
-    val totalOutstanding = uiState.dealerSummaries.sumOf { it.outstandingBalance.coerceAtLeast(0.0) }.let { if (it > 0) it else 292000.0 }
+    val totalSalesBags = totalOrdersBags
+    val totalSalesMt = totalOrdersMt
+    val totalPayments = uiState.payments.sumOf { it.amount }
+    val totalOutstanding = uiState.dealerSummaries.sumOf { it.outstandingBalance.coerceAtLeast(0.0) }
 
     val targetEntity = uiState.targets.firstOrNull()
     val targetBags = targetEntity?.targetBags ?: (if (uiState.dashboard.monthlyTargetBags > 0) uiState.dashboard.monthlyTargetBags else 1000)
     val achievedBags = totalSalesBags
     val remainingBags = (targetBags - achievedBags).coerceAtLeast(0)
-    val targetPct = if (targetBags > 0) ((achievedBags.toFloat() / targetBags.toFloat()) * 100f).coerceIn(0f, 100f) else 24f
+    val targetPct = if (targetBags > 0) ((achievedBags.toFloat() / targetBags.toFloat()) * 100f).coerceIn(0f, 100f) else 0f
 
     val salesTrend = remember(periodOrders) {
         val days = listOf(
@@ -1187,8 +1186,8 @@ private fun ComprehensiveReportsSection(uiState: AppUiState) {
                     // Card 1: Total Orders
                     ReportKpiCard(
                         title = "Total Orders",
-                        value = "${if (totalOrdersBags > 0) totalOrdersBags else 330} Bags",
-                        subtitle = "(${BusinessCalculations.formatDecimal(if (totalOrdersMt > 0) totalOrdersMt else 12.68)} MT)",
+                        value = "$totalOrdersBags Bags",
+                        subtitle = "(${BusinessCalculations.formatDecimal(totalOrdersMt)} MT)",
                         icon = Icons.Default.ShoppingCart,
                         iconBgColor = Color(0xFFF0FDF4),
                         iconColor = Color(0xFF15803D),
