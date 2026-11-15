@@ -1903,7 +1903,6 @@ private fun SettingsAndAdminSection(
 
     // Security state
     var newPinStr by remember(cfg) { mutableStateOf(cfg.securityPin) }
-    val context = LocalContext.current
     val instagramUrl = "https://www.instagram.com/mian._attique?psln=MXg4cmxtbWVmYWtyZQ=="
 
     LazyColumn(
@@ -3248,10 +3247,11 @@ private fun AboutWandaBookSection(
 
         // 3. About Application Card
         item {
-            ElevatedCard(
+            Card(
                 shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
                 border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
